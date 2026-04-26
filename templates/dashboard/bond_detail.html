@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}{{ bond.bond_id }} — GreenLens{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* dark theme overrides for stat-card content */
+  .shap-positive { background: rgba(248,81,73,0.15); border-left: 3px solid #f85149; }
+  .shap-negative { background: rgba(63,185,80,0.15);  border-left: 3px solid #3fb950; }
+
+  /* Override Bootstrap text-muted on dark backgrounds */
+  .text-muted, .text-muted.small, small.text-muted {
+    color: #8b949e !important;
+  }
+
+  /* Ensure bold text inside text-muted is lighter too */
+  .text-muted strong { color: #c9d1d9; }
+
+  /* text-danger / text-success / text-warning on dark */
+  .text-danger  { color: #f85149 !important; }
+  .text-warning { color: #d29922 !important; }
+  .text-success { color: #3fb950 !important; }
+
+  /* h6 headings used as section labels */
+  h6.text-muted { color: #8b949e !important; }
+
+  /* stat-card inline value */
+  .stat-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Back button */
+  .btn-outline-secondary {
+    color: #8b949e;
+    border-color: #30363d;
+  }
+  .btn-outline-secondary:hover {
+    background: #30363d;
+    color: #e6edf3;
+  }
+
+  /* Page vertical padding */
+  body > #page-content { padding: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'dashboard:index' %}" class="btn btn-sm btn-outline-secondary mb-3">← Back to map</a>
+
+<h4 class="mb-1">{{ bond.issuer_name }}</h4>
+<p class="text-muted">
+  {{ bond.bond_id }} · {{ bond.country }} · {{ bond.get_project_category_display }}
+  · <strong>{{ bond.amount_millions }} M {{ bond.currency }}</strong>
+  · Issued {{ bond.issuance_date }} · {{ bond.bond_maturity_years }}y maturity
+</p>
+
+<div class="row g-3 mb-4">
+  <!-- PCR Score -->
+  <div class="col-md-4">
+    <div class="stat-card h-100">
+      <div class="text-muted small mb-1">PCR Score</div>
+      {% if pcr %}
+        <div class="value {% if pcr.score >= 65 %}text-danger{% elif pcr.score >= 45 %}text-warning{% else %}text-success{% endif %}">
+          {{ pcr.score|floatformat:1 }}
+        </div>
+        <div class="text-muted small mb-2">{{ pcr.risk_band }} · {{ pcr.model_version }}</div>
+        <hr class="border-secondary" />
+        <small class="text-muted">
+          Flood: <span class="{% if pcr.flood_contribution > 0 %}text-danger{% else %}text-success{% endif %}">{{ pcr.flood_contribution|floatformat:3 }}</span> &nbsp;
+          Heat: <span class="{% if pcr.heat_contribution > 0 %}text-danger{% else %}text-success{% endif %}">{{ pcr.heat_contribution|floatformat:3 }}</span> &nbsp;
+          Drought: <span class="{% if pcr.drought_contribution > 0 %}text-danger{% else %}text-success{% endif %}">{{ pcr.drought_contribution|floatformat:3 }}</span>
+        </small>
+      {% else %}
+        <div class="text-muted">Not scored yet</div>
+        <a href="#" class="btn btn-sm btn-outline-success mt-2" onclick="scoreNow(); return false;">Score Now</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Pricing Gap -->
+  <div class="col-md-4">
+    <div class="stat-card h-100">
+      <div class="text-muted small mb-1">Pricing Gap</div>
+      {% if gap %}
+        <div class="value {% if gap.is_mispriced %}text-warning{% else %}text-success{% endif %}">
+          {{ gap.gap_bps|floatformat:1 }} bps
+        </div>
+        <div class="text-muted small mb-2">
+          Actual: {{ gap.actual_spread_bps|floatformat:1 }} bps &nbsp;|&nbsp;
+          Predicted: {{ gap.predicted_spread_bps|floatformat:1 }} bps
+        </div>
+        {% if gap.is_mispriced %}
+          <span class="badge bg-warning text-dark">⚡ Mispriced</span>
+        {% else %}
+          <span class="badge bg-success">✓ Fairly Priced</span>
+        {% endif %}
+        <div class="text-muted small mt-1">
+          Source: {{ gap.data_source }} · {% if gap.is_live %}Live{% else %}Synthetic{% endif %}
+        </div>
+      {% else %}
+        <div class="text-muted">No pricing data</div>
+        <a href="#" class="btn btn-sm btn-outline-warning mt-2" onclick="computeGap(); return false;">Compute Gap</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Greenwash Flag -->
+  <div class="col-md-4">
+    <div class="stat-card h-100">
+      <div class="text-muted small mb-1">Greenwash Check</div>
+      {% if flag %}
+        <div class="value {% if flag.is_inconsistent %}text-danger{% else %}text-success{% endif %}">
+          {% if flag.is_inconsistent %}⚠ Flagged{% else %}✓ Consistent{% endif %}
+        </div>
+        <div class="text-muted small mb-2">
+          Claimed: <strong>{{ flag.claimed_project_type }}</strong><br />
+          Observed: <strong>{{ flag.satellite_land_use }}</strong><br />
+          NDVI Δ: <span class="{% if flag.ndvi_change < 0 %}text-danger{% else %}text-success{% endif %}">{{ flag.ndvi_change|floatformat:4 }}</span>
+          &nbsp;·&nbsp; Confidence: {{ flag.confidence|floatformat:0 }}%
+        </div>
+        {% if flag.pre_project_image_date %}
+          <small class="text-muted">Pre: {{ flag.pre_project_image_date }} → Post: {{ flag.post_project_image_date }}</small>
+        {% endif %}
+      {% else %}
+        <div class="text-muted">Not checked yet</div>
+        <a href="#" class="btn btn-sm btn-outline-danger mt-2" onclick="runGreenwashCheck(); return false;">Check Now</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if pcr and pcr.shap_values %}
+<!-- SHAP Feature Importance Chart -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:1.25rem;">
+      <h6 class="text-muted" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem;">
+        SHAP Feature Contributions (PCR Score)
+      </h6>
+      <canvas id="shap-chart" height="120"></canvas>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Hazard data table -->
+{% if hazards %}
+<h6 style="color: #8b949e; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem;">Climate Hazard History</h6>
+<div class="table-responsive">
+  <table class="table table-dark table-sm table-hover">
+    <thead><tr><th>Date</th><th>Flood Index</th><th>Heat Index</th><th>Drought SPEI</th><th>Source</th></tr></thead>
+    <tbody>
+      {% for h in hazards %}
+      <tr>
+        <td>{{ h.data_date }}</td>
+        <td>{{ h.flood_risk_index|floatformat:3 }}</td>
+        <td>{{ h.heat_stress_index|floatformat:3 }}</td>
+        <td>{{ h.drought_spei|floatformat:3 }}</td>
+        <td>{{ h.get_source_display }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const BOND_PK = {{ bond.pk }};
+const BOND_ID = "{{ bond.bond_id }}";
+
+{% if pcr and pcr.shap_values %}
+// ── SHAP Chart ──────────────────────────────────────────────────────────────
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = '#30363d';
+
+const shapRaw = {{ pcr.shap_values|safe }};
+const shapEntries = Object.entries(shapRaw)
+  .map(([k, v]) => [k, parseFloat(v)])
+  .filter(([_, v]) => Math.abs(v) > 0.0001)
+  .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+  .slice(0, 12);
+
+new Chart(document.getElementById('shap-chart'), {
+  type: 'bar',
+  data: {
+    labels: shapEntries.map(([k]) => k.replace(/_/g, ' ')),
+    datasets: [{
+      data: shapEntries.map(([_, v]) => v),
+      backgroundColor: shapEntries.map(([_, v]) =>
+        v > 0 ? 'rgba(248,81,73,0.75)' : 'rgba(63,185,80,0.75)'
+      ),
+      borderWidth: 0,
+    }],
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: '#21262d' }, title: { display: true, text: 'SHAP value (impact on score)' } },
+      y: { grid: { display: false } },
+    },
+  },
+});
+{% endif %}
+
+// ── On-demand actions ────────────────────────────────────────────────────────
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+async function postAction(url, label) {
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify({ bond_pk: BOND_PK }),
+    });
+    if (!r.ok) { alert(`${label} failed: ${r.status}`); return; }
+    const d = await r.json();
+    console.log(label, d);
+    window.location.reload();
+  } catch(e) { alert(`${label} error: ${e}`); }
+}
+
+function scoreNow()           { postAction('/api/risk/scores/predict/',           'Score');      }
+function computeGap()         { postAction('/api/pricing/gaps/compute/',           'Price gap');  }
+function runGreenwashCheck()  { postAction('/api/greenwash/flags/check/',          'Greenwash check'); }
+</script>
+{% endblock %}

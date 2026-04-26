@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Legal Terms & Disclaimer — GreenLens{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 900px; padding-top: 2rem;">
+
+    <div class="content-section">
+        <h1 style="color:#e6edf3;">📜 Legal Terms & Liability Disclaimer</h1>
+        <p style="color:#8b949e;">Last updated: April 2026</p>
+    </div>
+
+    <div class="content-section">
+        <h2>1. Research Prototype Status</h2>
+        <div style="background:rgba(226,75,74,0.1); border:1px solid rgba(226,75,74,0.4); border-radius:8px; padding:1rem 1.5rem;">
+            <p style="margin:0; color:#E24B4A; font-size:0.9rem;">
+                <strong>⚠️ IMPORTANT:</strong> GreenLens is a <strong>research prototype</strong> developed as an academic portfolio project.
+                It is <strong>NOT</strong> a certified financial product, a registered credit rating agency,
+                or an authorised investment advisor under any jurisdiction (including EU MiFID II, US SEC, or SEBI India).
+            </p>
+        </div>
+    </div>
+
+    <div class="content-section">
+        <h2>2. No Investment Advice</h2>
+        <p style="color:#8b949e;">
+            Nothing on this platform constitutes investment advice, a recommendation to buy or sell any security,
+            or an endorsement of any financial instrument. The PCRS (Physical Climate Risk Score), pricing gap analysis,
+            and greenwash flags are <strong style="color:#c9d1d9;">research signals for due diligence purposes only</strong>.
+            Users must conduct their own independent analysis before making any investment decisions.
+        </p>
+    </div>
+
+    <div class="content-section">
+        <h2>3. Data Accuracy & Limitations</h2>
+        <ul style="color:#8b949e; font-size:0.9rem;">
+            <li><strong style="color:#c9d1d9;">Bond data:</strong> Sourced from Climate Bonds Initiative (CBI) public registry. Some bond GPS coordinates use country centroid approximations rather than exact project locations.</li>
+            <li><strong style="color:#c9d1d9;">Climate hazard data:</strong> Sourced from World Bank APIs and NASA. Indices are normalised approximations, not hydrological engineering models.</li>
+            <li><strong style="color:#c9d1d9;">PCRS model:</strong> Trained on synthetic hazard-derived labels. Not backtested against historical bond default events due to proprietary data limitations (Munich Re / Swiss Re).</li>
+            <li><strong style="color:#c9d1d9;">Satellite imagery:</strong> ESA Sentinel-2 (2015+ only). Pre-2015 bonds cannot be satellite-verified. Cloud cover and seasonal variation may affect NDVI accuracy.</li>
+            <li><strong style="color:#c9d1d9;">Yield data:</strong> Yahoo Finance — unofficial source. Not guaranteed for accuracy or completeness.</li>
+        </ul>
+    </div>
+
+    <div class="content-section">
+        <h2>4. Limitation of Liability</h2>
+        <p style="color:#8b949e;">
+            The creators and operators of GreenLens shall not be held liable for any direct, indirect, incidental,
+            consequential, or punitive damages arising from the use of this platform, its data, scores, or analyses.
+            This includes but is not limited to: investment losses, regulatory penalties,
+            or business decisions made based on GreenLens outputs.
+        </p>
+    </div>
+
+    <div class="content-section">
+        <h2>5. SFDR & TCFD Report Disclaimer</h2>
+        <p style="color:#8b949e;">
+            The SFDR/TCFD regulatory report export (<a href="{% url 'dashboard:export_sfdr' %}" style="color:#1D9E75;">download here</a>)
+            is formatted to align with EU Sustainable Finance Disclosure Regulation (SFDR) Article 9
+            and Task Force on Climate-related Financial Disclosures (TCFD) frameworks.
+            However, this report is <strong style="color:#c9d1d9;">not certified, audited, or endorsed</strong>
+            by any regulatory authority. Asset managers using this data for regulatory filings must independently
+            verify all data points before submission.
+        </p>
+    </div>
+
+    <div class="content-section">
+        <h2>6. Intellectual Property</h2>
+        <p style="color:#8b949e;">
+            GreenLens is an open-methodology platform. The PCRS scoring formula, feature engineering pipeline,
+            and greenwash detection methodology are fully transparent and documented on the
+            <a href="{% url 'dashboard:about' %}" style="color:#1D9E75;">About page</a>.
+            Third-party data sources (World Bank, ESA, CBI, Yahoo Finance) retain their original licenses.
+        </p>
+    </div>
+
+    <div class="content-section">
+        <h2>7. Contact</h2>
+        <p style="color:#8b949e;">
+            For questions about data accuracy, methodology, or licensing inquiries, contact the platform author:
+            <strong style="color:#c9d1d9;">Sharun Tomy</strong> — MSc Data Analytics, Mahatma Gandhi University.
+        </p>
+    </div>
+
+</div>
+{% endblock %}

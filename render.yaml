@@ -1,0 +1,65 @@
+databases:
+  - name: greenlens-db
+    databaseName: greenlens
+    user: greenlens_user
+    plan: starter
+
+services:
+  - type: redis
+    name: greenlens-redis
+    plan: free
+    ipAllowList: []
+
+  - type: web
+    name: greenlens-web
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn greenlens.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: greenlens-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: greenlens-redis
+          property: connectionString
+      - key: DJANGO_SETTINGS_MODULE
+        value: greenlens.settings_production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "greenlens-web.onrender.com"
+      - key: EE_SERVICE_ACCOUNT
+        sync: false
+      - key: EE_PRIVATE_KEY
+        sync: false
+
+  - type: worker
+    name: greenlens-celery
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "celery -A greenlens worker -l info"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: greenlens-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: greenlens-redis
+          property: connectionString
+      - key: DJANGO_SETTINGS_MODULE
+        value: greenlens.settings_production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: EE_SERVICE_ACCOUNT
+        sync: false
+      - key: EE_PRIVATE_KEY
+        sync: false

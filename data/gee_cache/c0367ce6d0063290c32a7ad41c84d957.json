@@ -1,0 +1,9 @@
+{
+  "before_ndvi": 0.7846,
+  "after_ndvi": 0.6725,
+  "change": -0.1121,
+  "change_pct": -14.29,
+  "n_images_before": 9,
+  "n_images_after": 17,
+  "source": "gee"
+}

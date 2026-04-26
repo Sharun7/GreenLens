@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}GreenLens — Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+  .chart-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.25rem; }
+  .chart-card h6 { color: #8b949e; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .risk-low    { color: #3fb950; }
+  .risk-medium { color: #e3b341; }
+  .risk-high   { color: #f85149; }
+  /* Stat card label — explicit bright colour so it shows on dark background */
+  .stat-card .label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #c9d1d9;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.35rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="h4 mb-0">Market Overview</h2>
+  <a href="{% url 'dashboard:export_csv' %}" class="btn btn-sm btn-outline-success">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16">
+      <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+      <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+    </svg>
+    Export Full Dataset (CSV)
+  </a>
+</div>
+
+<!-- Summary stats row -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="label">Total Green Bonds</div>
+      <div class="value" id="stat-total">{{ stats.total_bonds }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="label">Avg PCR Score</div>
+      <div class="value" id="stat-pcr">{{ stats.avg_pcr_score|floatformat:1 }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="label">Mispriced Bonds</div>
+      <div class="value text-warning" id="stat-mispriced">{{ stats.mispriced_count }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="label">Greenwash Flags</div>
+      <div class="value text-danger" id="stat-flagged">{{ stats.flagged_count }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Map + Charts row -->
+<div class="row g-3 mb-3">
+  <div class="col-xl-8">
+    <div id="map"></div>
+  </div>
+  <div class="col-xl-4 d-flex flex-column gap-3">
+    <div class="chart-card flex-grow-1">
+      <h6>PCR Score Distribution</h6>
+      <canvas id="pcr-dist-chart" height="140"></canvas>
+    </div>
+    <div class="chart-card flex-grow-1">
+      <h6>Risk Band Breakdown</h6>
+      <canvas id="risk-band-chart" height="140"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Second charts row -->
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="chart-card">
+      <h6>Bonds by Project Category</h6>
+      <canvas id="category-chart" height="180"></canvas>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="chart-card">
+      <h6>Pricing Gap Distribution</h6>
+      <canvas id="gap-chart" height="180"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Pricing Gap Scatter — risk-adjusted mispricing analysis -->
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="stat-card">
+      <div class="d-flex flex-wrap gap-4">
+        <div>
+          <div class="label">Bonds Analysed</div>
+          <div class="value" id="pg-total">—</div>
+        </div>
+        <div>
+          <div class="label">Underpricing Risk</div>
+          <div class="value text-warning" id="pg-underpriced">—</div>
+          <div style="color:#c9d1d9;font-size:0.75rem;" id="pg-pct-underpriced"></div>
+        </div>
+        <div>
+          <div class="label">Overpricing Risk</div>
+          <div class="value text-info" id="pg-overpriced">—</div>
+          <div style="color:#c9d1d9;font-size:0.75rem;" id="pg-pct-overpriced"></div>
+        </div>
+        <div>
+          <div class="label">Fairly Priced</div>
+          <div class="value text-success" id="pg-fairly-priced">—</div>
+        </div>
+        <div>
+          <div class="label">Model R²</div>
+          <div class="value" id="pg-r2">—</div>
+        </div>
+        <div>
+          <div class="label">Gap Std Dev</div>
+          <div class="value" id="pg-gap-std">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-12">
+    <div class="chart-card" style="height: 420px;">
+      <h6>Risk-Adjusted Pricing Gap — PCRS vs Yield Spread</h6>
+      <canvas id="pricing-scatter-chart" style="height: 360px;"></canvas>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Chart defaults ──────────────────────────────────────────────────────────
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = '#30363d';
+Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+
+// ── Map ─────────────────────────────────────────────────────────────────────
+const map = L.map('map').setView([20, 0], 2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 20
+}).addTo(map);
+
+const bonds = [
+  {% for item in bonds %}
+  {
+    lat: {{ item.bond.lat }},
+    lon: {{ item.bond.lon }},
+    id: "{{ item.bond.bond_id }}",
+    issuer: "{{ item.bond.issuer_name|escapejs }}",
+    category: "{{ item.bond.project_category }}",
+    score: {% if item.pcr_score %}{{ item.pcr_score }}{% else %}null{% endif %},
+    risk_band: "{{ item.risk_band|default:'' }}",
+    is_flagged: {{ item.is_flagged|lower }},
+    is_mispriced: {{ item.is_mispriced|lower }},
+    url: "{% url 'dashboard:bond_detail' item.bond.bond_id %}"
+  }{% if not forloop.last %},{% endif %}
+  {% endfor %}
+];
+
+function markerColor(b) {
+  if (b.is_flagged) return '#f85149';
+  if (b.score === null) return '#8b949e';
+  if (b.score >= 65) return '#f85149';
+  if (b.score >= 45) return '#e3b341';
+  return '#3fb950';
+}
+
+bonds.forEach(b => {
+  const badge = b.is_flagged
+    ? '<span style="color:#f85149">⚠ Flagged</span><br>'
+    : '';
+  const mispriced = b.is_mispriced
+    ? '<span style="color:#e3b341">⚡ Mispriced</span><br>'
+    : '';
+  const score = b.score !== null ? `PCR: <b>${b.score.toFixed(1)}</b> (${b.risk_band})<br>` : '';
+  L.circleMarker([b.lat, b.lon], {
+    radius: 6,
+    color: markerColor(b),
+    fillColor: markerColor(b),
+    fillOpacity: 0.85,
+    weight: 1,
+  })
+  .bindPopup(`<b>${b.issuer}</b><br>${b.category}<br>${score}${badge}${mispriced}<a href="${b.url}">View details →</a>`)
+  .addTo(map);
+});
+
+// ── PCR Distribution Chart ──────────────────────────────────────────────────
+async function loadPCRDistribution() {
+  try {
+    const r = await fetch('/api/risk/scores/distribution/');
+    const data = await r.json();
+    const result = data.result;
+    if (!result.bins.length) return;
+
+    const labels = result.bins.slice(0, -1).map((b, i) =>
+      `${b.toFixed(0)}–${result.bins[i+1].toFixed(0)}`
+    );
+    const colors = result.bins.slice(0, -1).map(b =>
+      b >= 65 ? 'rgba(248,81,73,0.8)' : b >= 45 ? 'rgba(227,179,65,0.8)' : 'rgba(63,185,80,0.8)'
+    );
+
+    new Chart(document.getElementById('pcr-dist-chart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Bonds', data: result.counts, backgroundColor: colors, borderWidth: 0 }] },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#21262d' } },
+          y: { grid: { color: '#21262d' }, ticks: { stepSize: 1 } },
+        },
+      },
+    });
+  } catch(e) { console.warn('PCR distribution unavailable', e); }
+}
+
+// ── Risk Band Pie ───────────────────────────────────────────────────────────
+async function loadRiskBandChart() {
+  try {
+    const r = await fetch('/api/dashboard/stats/');
+    const data = await r.json();
+    const bands = data.risk_band_distribution;
+    if (!bands.length) return;
+
+    const colourMap = {
+      'Low': '#3fb950', 'Medium-Low': '#56d364', 'Medium': '#e3b341',
+      'Medium-High': '#f0883e', 'High': '#f85149',
+    };
+    new Chart(document.getElementById('risk-band-chart'), {
+      type: 'doughnut',
+      data: {
+        labels: bands.map(b => b.risk_band || 'Unknown'),
+        datasets: [{
+          data: bands.map(b => b.count),
+          backgroundColor: bands.map(b => colourMap[b.risk_band] || '#8b949e'),
+          borderWidth: 2,
+          borderColor: '#161b22',
+        }],
+      },
+      options: {
+        plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 8 } } },
+        cutout: '60%',
+      },
+    });
+
+    // Category bar chart
+    const cats = data.category_breakdown;
+    new Chart(document.getElementById('category-chart'), {
+      type: 'bar',
+      data: {
+        labels: cats.map(c => c.project_category),
+        datasets: [{
+          label: 'Bonds', data: cats.map(c => c.count),
+          backgroundColor: 'rgba(63,185,80,0.7)', borderWidth: 0,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#21262d' } },
+          y: { grid: { display: false } },
+        },
+      },
+    });
+  } catch(e) { console.warn('Dashboard stats unavailable', e); }
+}
+
+// ── Pricing Gap Chart ───────────────────────────────────────────────────────
+async function loadGapChart() {
+  try {
+    const r = await fetch('/api/pricing/gaps/summary/');
+    const data = await r.json();
+    const cats = data.by_category;
+    if (!cats.length) return;
+
+    new Chart(document.getElementById('gap-chart'), {
+      type: 'bar',
+      data: {
+        labels: cats.map(c => c.bond__project_category || 'Unknown'),
+        datasets: [{
+          label: 'Avg Gap (bps)',
+          data: cats.map(c => parseFloat(c.avg_gap || 0).toFixed(1)),
+          backgroundColor: cats.map(c => parseFloat(c.avg_gap || 0) >= 20
+            ? 'rgba(248,81,73,0.7)' : 'rgba(63,185,80,0.7)'),
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: '#21262d' }, title: { display: true, text: 'bps' } },
+        },
+      },
+    });
+  } catch(e) { console.warn('Pricing gap chart unavailable', e); }
+}
+
+loadPCRDistribution();
+loadRiskBandChart();
+loadGapChart();
+</script>
+<script src="{% static 'js/pricing_gap_chart.js' %}"></script>
+<script>
+initPricingGapChart("pricing-scatter-chart");
+</script>
+{% endblock %}

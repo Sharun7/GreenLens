@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% load dashboard_extras %}
+
+{% block title %}Pricing Analysis | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-overview {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .stat-box {
+        text-align: center;
+        padding: 1rem;
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-green);
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #8b949e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 0.25rem;
+    }
+    
+    .chart-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #30363d;
+    }
+    
+    .chart-title {
+        font-weight: 600;
+        color: #e6edf3;
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    .chart-card .btn-outline-secondary {
+        color: #8b949e;
+        border-color: #30363d;
+    }
+    .chart-card .btn-outline-secondary.active,
+    .chart-card .btn-outline-secondary:hover {
+        background: var(--primary-green);
+        border-color: var(--primary-green);
+        color: #fff;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 500px;
+    }
+    
+    /* Pricing heading */
+    h2 { color: #e6edf3; }
+
+    /* Back button */
+    .btn-outline-primary {
+        color: var(--primary-green);
+        border-color: var(--primary-green);
+    }
+    .btn-outline-primary:hover {
+        background: var(--primary-green);
+        color: #fff;
+    }
+    
+    .distribution-bar {
+        display: flex;
+        height: 40px;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 1rem;
+    }
+    
+    .distribution-segment {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: opacity 0.2s;
+    }
+    .distribution-segment:hover { opacity: 0.9; }
+    
+    .segment-underpriced { background: #1D9E75; }
+    .segment-fair        { background: #6B7280; }
+    .segment-overpriced  { background: #E24B4A; }
+    
+    .legend-custom {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-top: 1rem;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.875rem;
+        color: #c9d1d9;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        margin-right: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    /* Pricing Distribution label */
+    .text-muted { color: #8b949e !important; }
+    
+    .methodology-box {
+        background: #0d1117;
+        border-left: 4px solid var(--primary-green);
+        padding: 1rem 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin-top: 1.5rem;
+    }
+    .methodology-box h6 {
+        color: var(--primary-green);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .methodology-box p {
+        color: #8b949e;
+        font-size: 0.9rem;
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Pricing Analysis</h2>
+        <a href="{% url 'dashboard:index' %}" class="btn btn-outline-primary btn-sm">
+            ← Back to Map
+        </a>
+    </div>
+    
+    <!-- Stats Overview -->
+    <div class="stats-overview">
+        <div class="row">
+            <div class="col-md-3 col-6">
+                <div class="stat-box">
+                    <div class="stat-number">{{ stats.total_analyzed }}</div>
+                    <div class="stat-label">Bonds Analyzed</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-box">
+                    <div class="stat-number" style="color: #E24B4A;">{{ stats.mispriced_count }}</div>
+                    <div class="stat-label">Mispriced ({{ stats.mispriced_pct }}%)</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-box">
+                    <div class="stat-number" style="color: #534AB7;">{{ stats.avg_gap_bps|floatformat:1 }}</div>
+                    <div class="stat-label">Avg Gap (bps)</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stat-box">
+                    <div class="stat-number" style="color: #1D9E75;">
+                        {{ stats.total_analyzed|subtract:stats.mispriced_count }}
+                    </div>
+                    <div class="stat-label">Fairly Priced</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Distribution Bar -->
+        <div class="mt-4">
+            <h6 class="text-muted mb-2">Pricing Distribution</h6>
+            <div class="distribution-bar">
+                {% if distribution.underpriced > 0 %}
+                <div class="distribution-segment segment-underpriced" 
+                     style="width: {{ distribution.underpriced|div:stats.total_analyzed|mul:100|floatformat:1 }}%">
+                    {{ distribution.underpriced }} Under
+                </div>
+                {% endif %}
+                {% if distribution.fairly_priced > 0 %}
+                <div class="distribution-segment segment-fair" 
+                     style="width: {{ distribution.fairly_priced|div:stats.total_analyzed|mul:100|floatformat:1 }}%">
+                    {{ distribution.fairly_priced }} Fair
+                </div>
+                {% endif %}
+                {% if distribution.overpriced > 0 %}
+                <div class="distribution-segment segment-overpriced" 
+                     style="width: {{ distribution.overpriced|div:stats.total_analyzed|mul:100|floatformat:1 }}%">
+                    {{ distribution.overpriced }} Over
+                </div>
+                {% endif %}
+            </div>
+            <div class="legend-custom">
+                <div class="legend-item">
+                    <div class="legend-color segment-underpriced"></div>
+                    <span>Underpriced (&lt;-10 bps)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color segment-fair"></div>
+                    <span>Fairly Priced (±10 bps)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color segment-overpriced"></div>
+                    <span>Overpriced (&gt;+10 bps)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scatter Plot -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h5 class="chart-title">📊 Fitted vs Actual Yield Spread</h5>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary active">All</button>
+                <button class="btn btn-outline-secondary">Mispriced Only</button>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="pricingScatterChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Methodology + Disclaimer -->
+    <div class="methodology-box">
+        <h6>📖 How Mispricing is Defined</h6>
+        <p>
+            <strong style="color:#e6edf3;">Mispricing = Actual Market Yield Spread − PCRS-Predicted Fair Spread.</strong><br>
+            The model computes a "fair" yield spread for each bond based on its Physical Climate Risk Score (PCRS),
+            bond maturity, country risk, and project category using an OLS regression.
+            If the actual market spread deviates beyond <strong>±48 basis points</strong> from this prediction,
+            the bond is flagged as mispriced — meaning the market is either overcharging or undercharging
+            for the physical climate risk the project actually faces.
+        </p>
+    </div>
+
+    <!-- Research Disclaimer -->
+    <div style="background: rgba(83,74,183,0.1); border: 1px solid rgba(83,74,183,0.4); border-radius:8px; padding:1rem 1.5rem; margin-top:1rem;">
+        <p style="margin:0; font-size:0.85rem; color:#a5b4fc;">
+            ⚠️ <strong>Research Prototype Disclaimer:</strong>
+            The PCRS model was trained on synthetic labels constructed from climate hazard indices,
+            not historical bond default data (which is proprietary and not publicly available).
+            This pricing gap analysis is a <em>research-grade indicator of relative climate risk mispricing</em>,
+            not a certified financial rating. All outputs should be interpreted as signals for further
+            due diligence, not investment advice.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Pricing Scatter Chart
+    const scatterData = {{ scatter_data|safe }};
+    
+    const ctx = document.getElementById('pricingScatterChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Fairly Priced',
+                data: scatterData.filter(d => !d.is_mispriced),
+                backgroundColor: 'rgba(29, 158, 117, 0.6)',
+                borderColor: '#1D9E75',
+                borderWidth: 1,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }, {
+                label: 'Mispriced',
+                data: scatterData.filter(d => d.is_mispriced),
+                backgroundColor: 'rgba(226, 75, 74, 0.6)',
+                borderColor: '#E24B4A',
+                borderWidth: 1,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        color: '#c9d1d9'
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    padding: 12,
+                    titleFont: { size: 13 },
+                    bodyFont: { size: 12 },
+                    callbacks: {
+                        title: function(context) {
+                            const d = context[0].raw;
+                            return d.issuer || d.bond_id;
+                        },
+                        label: function(context) {
+                            const d = context.raw;
+                            return [
+                                `Bond: ${d.bond_id}`,
+                                `Country: ${d.country}`,
+                                `Fitted: ${d.x.toFixed(2)}%`,
+                                `Actual: ${d.y.toFixed(2)}%`,
+                                `Gap: ${d.gap_bps.toFixed(1)} bps`,
+                                d.is_mispriced ? 'Status: Mispriced' : 'Status: Fair'
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Fitted Yield (%)',
+                        font: { weight: 'bold' },
+                        color: '#8b949e'
+                    },
+                    grid: { color: 'rgba(48,54,61,0.8)' },
+                    ticks: {
+                        color: '#8b949e',
+                        callback: function(v) { return v.toFixed(2) + '%'; }
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Actual Yield (%)',
+                        font: { weight: 'bold' },
+                        color: '#8b949e'
+                    },
+                    grid: { color: 'rgba(48,54,61,0.8)' },
+                    ticks: {
+                        color: '#8b949e',
+                        callback: function(v) { return v.toFixed(2) + '%'; }
+                    }
+                }
+            },
+            annotation: {
+                annotations: {
+                    line1: {
+                        type: 'line',
+                        xMin: 0,
+                        xMax: 10,
+                        yMin: 0,
+                        yMax: 10,
+                        borderColor: 'rgba(83, 74, 183, 0.5)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        label: {
+                            content: 'Perfect Fit',
+                            enabled: true,
+                            position: 'end'
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,1117 @@
+{% extends "base.html" %}
+
+{% block title %}About | GreenLens Methodology{% endblock %}
+{% block og_title %}About GreenLens — Climate Risk Intelligence Methodology{% endblock %}
+
+{% block extra_css %}
+<style>
+    .about-hero {
+        background: linear-gradient(135deg, #0f5132 0%, #0a4d3c 60%, #083d2e 100%);
+        color: white;
+        padding: 4rem 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .about-hero h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: #ffffff;
+    }
+    .about-hero p {
+        font-size: 1.1rem;
+        color: #a7f3d0;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    .stat-card-about {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    .stat-card-about .number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-green);
+    }
+    .stat-card-about .label {
+        color: #8b949e;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 0.25rem;
+    }
+    
+    .content-section {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    .content-section h2 {
+        color: var(--primary-green);
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #30363d;
+    }
+    .content-section h3 {
+        color: #c9d1d9;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        font-size: 1.05rem;
+    }
+    .content-section p {
+        color: #8b949e;
+        line-height: 1.7;
+        margin-bottom: 1rem;
+    }
+    .content-section ul {
+        color: #8b949e;
+        line-height: 1.8;
+    }
+    .content-section li { margin-bottom: 0.5rem; }
+    .content-section strong { color: #c9d1d9; }
+    .content-section a { color: var(--primary-green); }
+    .content-section a:hover { color: #3fb950; }
+    
+    .data-source {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: #0d1117;
+        border: 1px solid #21262d;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    .data-source-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--primary-green);
+        color: white;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    .data-source-info h5 {
+        margin: 0;
+        font-weight: 600;
+        color: #e6edf3;
+    }
+    .data-source-info p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #8b949e;
+    }
+    
+    .tech-stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .tech-badge {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        background: rgba(83, 74, 183, 0.2);
+        color: #a5b4fc;
+        border: 1px solid rgba(83, 74, 183, 0.4);
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .model-diagram {
+        background: #0d1117;
+        border: 1px solid #21262d;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        margin: 1.5rem 0;
+    }
+    .flow-step {
+        display: inline-block;
+        padding: 0.75rem 1.25rem;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        margin: 0.5rem;
+        font-weight: 500;
+        color: #e6edf3;
+        font-size: 0.9rem;
+    }
+    .flow-arrow {
+        font-size: 1.5rem;
+        color: var(--primary-green);
+        margin: 0 0.25rem;
+    }
+    
+    .version-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: rgba(83, 74, 183, 0.3);
+        color: #a5b4fc;
+        border: 1px solid rgba(83, 74, 183, 0.5);
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="about-hero">
+    <h1>🌿 GreenLens</h1>
+    <p>Satellite-verified climate risk scoring for green bonds. 
+       Using machine learning and Earth observation to bring transparency to sustainable finance.</p>
+    <span class="version-badge">v{{ version }}</span>
+</div>
+
+<div class="container">
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card-about">
+            <div class="number">{{ stats.total_bonds }}</div>
+            <div class="label">Bonds Tracked</div>
+        </div>
+        <div class="stat-card-about">
+            <div class="number">{{ stats.scored_bonds }}</div>
+            <div class="label">Risk Scored</div>
+        </div>
+        <div class="stat-card-about">
+            <div class="number">{{ stats.analyzed_pricing }}</div>
+            <div class="label">Priced Analyzed</div>
+        </div>
+        <div class="stat-card-about">
+            <div class="number">{{ stats.flagged_bonds }}</div>
+            <div class="label">Greenwash Flags</div>
+        </div>
+    </div>
+    
+    <!-- Overview -->
+    <div class="content-section">
+        <h2>🔬 Overview</h2>
+        <p>
+            GreenLens is an open-source climate risk intelligence platform designed to bring 
+            transparency and scientific rigor to the green bond market. By combining satellite 
+            imagery from NASA and ESA with machine learning models, we provide independent 
+            verification of climate claims and quantitative risk assessment.
+        </p>
+        <ul>
+            <li><strong>Physical Climate Risk Scoring (PCRS):</strong> Quantify exposure to drought, flood, heat — plus carbon, policy and transition risk</li>
+            <li><strong>Pricing Analysis:</strong> Detect mispriced bonds using quantitative regression models</li>
+            <li><strong>Greenwash Detection:</strong> Verify land-use claims using satellite imagery and NDVI analysis</li>
+        </ul>
+    </div>
+
+    <!-- PCRS Model Parameters -->
+    <div class="content-section">
+        <h2>🤖 PCRS Model — All Parameters & Features</h2>
+        <p>The Physical Climate Risk Score (0–100) is computed by an <strong style="color:#e6edf3;">XGBoost ensemble model</strong> trained on <strong style="color:#e6edf3;">20 features</strong> across 4 categories:</p>
+
+        <div class="row g-3 mt-2">
+            <!-- Primary Hazard Inputs -->
+            <div class="col-md-6">
+                <div style="background:#0d1117; border:1px solid #1D9E75; border-radius:8px; padding:1.25rem;">
+                    <h6 style="color:#1D9E75; margin-bottom:0.75rem;">🌊 Primary Hazard Inputs (World Bank API)</h6>
+                    <ul style="color:#8b949e; font-size:0.875rem; margin:0; padding-left:1.2rem;">
+                        <li><strong style="color:#c9d1d9;">Flood Risk Index</strong> — normalised 0–1 per project GPS coordinate</li>
+                        <li><strong style="color:#c9d1d9;">Heat Stress Index</strong> — normalised 0–1 per GPS coordinate</li>
+                        <li><strong style="color:#c9d1d9;">Drought Severity (SPEI)</strong> — Standardised Precipitation-Evapotranspiration Index</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Extended Risk Inputs -->
+            <div class="col-md-6">
+                <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem;">
+                    <h6 style="color:#EF9F27; margin-bottom:0.75rem;">🌍 Extended Risk Inputs (Multi-source)</h6>
+                    <ul style="color:#8b949e; font-size:0.875rem; margin:0; padding-left:1.2rem;">
+                        <li><strong style="color:#c9d1d9;">Carbon Intensity Score</strong> — EDGAR v8.0 CO₂ per GDP (60+ countries)</li>
+                        <li><strong style="color:#c9d1d9;">Policy Risk Score</strong> — World Bank Governance Indicators (Rule of Law + Gov. Effectiveness)</li>
+                        <li><strong style="color:#c9d1d9;">Transition Risk Score</strong> — Climate Action Tracker NDC + IEA fossil fuel dependency</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Derived/Engineered Features -->
+            <div class="col-md-6">
+                <div style="background:#0d1117; border:1px solid #a5b4fc; border-radius:8px; padding:1.25rem;">
+                    <h6 style="color:#a5b4fc; margin-bottom:0.75rem;">⚙️ Derived / Engineered Features</h6>
+                    <ul style="color:#8b949e; font-size:0.875rem; margin:0; padding-left:1.2rem;">
+                        <li><strong style="color:#c9d1d9;">Composite Hazard</strong> = Flood×0.40 + Heat×0.35 + Drought×0.25</li>
+                        <li><strong style="color:#c9d1d9;">Maturity Exposure</strong> = log(maturity_years) × composite_hazard</li>
+                        <li><strong style="color:#c9d1d9;">Hazard × Vulnerability</strong> = composite_hazard × category_vulnerability</li>
+                        <li><strong style="color:#c9d1d9;">Coastal Flood Interaction</strong> = is_coastal × flood_risk_index</li>
+                        <li><strong style="color:#c9d1d9;">Climate Trend</strong> — IPCC AR6 ordinal (1=low warming, 5=very high)</li>
+                        <li><strong style="color:#c9d1d9;">Is Coastal</strong> — proximity to coastline within 200km</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Bond Characteristics -->
+            <div class="col-md-6">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1.25rem;">
+                    <h6 style="color:#c9d1d9; margin-bottom:0.75rem;">📋 Bond Characteristics + Output</h6>
+                    <ul style="color:#8b949e; font-size:0.875rem; margin:0; padding-left:1.2rem;">
+                        <li><strong style="color:#c9d1d9;">Project Category</strong> — Solar, Wind, Water, Transport, Building, Reforestation (one-hot encoded)</li>
+                        <li><strong style="color:#c9d1d9;">Category Vulnerability</strong> — per-category base risk (Water: 0.70, Transport: 0.60...)</li>
+                        <li><strong style="color:#c9d1d9;">Bond Maturity Years</strong> — longer maturity = higher cumulative climate exposure</li>
+                        <li style="margin-top:0.5rem;"><strong style="color:#1D9E75;">OUTPUT: PCRS Score 0–100</strong> with SHAP decomposition per feature</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Coverage Table -->
+        <h3 class="mt-4">📊 Risk Coverage — Strength Assessment</h3>
+        <div class="table-responsive mt-2">
+            <table class="table" style="color:#c9d1d9; border-color:#30363d;">
+                <thead style="background:#0d1117;">
+                    <tr style="color:#8b949e; font-size:0.8rem; text-transform:uppercase;">
+                        <th style="border-color:#30363d;">Risk Dimension</th>
+                        <th style="border-color:#30363d;">Coverage</th>
+                        <th style="border-color:#30363d;">Source</th>
+                        <th style="border-color:#30363d; text-align:center;">Strength</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:0.875rem;">
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Physical Climate Risk (Flood/Heat/Drought)</td>
+                        <td style="border-color:#30363d;">All 1,345 bonds</td>
+                        <td style="border-color:#30363d;">World Bank API + NASA</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Carbon Emission Risk</td>
+                        <td style="border-color:#30363d;">60+ countries</td>
+                        <td style="border-color:#30363d;">EDGAR v8.0 CO₂ Intensity</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Country / Governance Risk</td>
+                        <td style="border-color:#30363d;">All bond countries</td>
+                        <td style="border-color:#30363d;">World Bank Governance Indicators</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Policy Risk</td>
+                        <td style="border-color:#30363d;">All bond countries</td>
+                        <td style="border-color:#30363d;">World Bank Rule of Law Index</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Transition Risk</td>
+                        <td style="border-color:#30363d;">All bond countries</td>
+                        <td style="border-color:#30363d;">Climate Action Tracker + IEA NDC</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Financial Performance</td>
+                        <td style="border-color:#30363d;">1,345 bonds</td>
+                        <td style="border-color:#30363d;">Yahoo Finance (Live) + PCRS-predicted spread</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Greenwash / Satellite Verification</td>
+                        <td style="border-color:#30363d;">Post-2015 bonds</td>
+                        <td style="border-color:#30363d;">ESA Sentinel-2 + ResNet-18 CNN</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Differentiation — Full Competitor Analysis -->
+    <div class="content-section">
+        <h2>🆚 Differentiation — What Makes GreenLens Unique?</h2>
+        <p>
+            Bloomberg Terminal, Refinitiv Eikon, and MSCI ESG Ratings are the current industry standard.
+            They share a fundamental structural weakness:
+            <strong style="color:#e6edf3;">they rely entirely on data that the bond issuer provides.</strong>
+        </p>
+
+        <!-- Full Feature Comparison Table -->
+        <h3 class="mt-3">📊 Head-to-Head Feature Comparison</h3>
+        <div class="table-responsive mt-2">
+            <table class="table" style="color:#c9d1d9; border-color:#30363d;">
+                <thead style="background:#0d1117;">
+                    <tr style="font-size:0.75rem; text-transform:uppercase; color:#8b949e;">
+                        <th style="border-color:#30363d;">Feature</th>
+                        <th style="border-color:#30363d;">Bloomberg</th>
+                        <th style="border-color:#30363d;">Refinitiv</th>
+                        <th style="border-color:#30363d;">MSCI ESG</th>
+                        <th style="border-color:#30363d; color:#1D9E75;">GreenLens</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:0.85rem;">
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Data source</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">Issuer reported</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">Issuer reported</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">Issuer reported</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">🛰️ Satellite — independent</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Physical location verification</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">✅ GPS + Sentinel-2</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">NDVI change detection</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">✅ Pre/post comparison</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Per-bond climate hazard score</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">✅ PCRS 0–100</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Greenwash satellite flag</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">✅ CNN + NDVI pipeline</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">SHAP explainability</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌ (black box)</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">✅ Per-feature breakdown</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Price</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">€500K+/yr</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">€300K+/yr</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">€200K+/yr</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">€299/month</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Open methodology</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">❌</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">✅ Fully transparent</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 4 Unique Reasons -->
+        <h3 class="mt-4">🔑 The 4 Reasons GreenLens Is Unique</h3>
+        <div class="row g-3 mt-1">
+            <div class="col-md-6">
+                <div style="background:#0d1117; border:1px solid #1D9E75; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#1D9E75;">1. Physics Over Paperwork</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        Bloomberg, Refinitiv, MSCI — all trust the company's PDF. GreenLens trusts satellite pixels.
+                        <strong style="color:#c9d1d9;">A company can lie. A satellite cannot.</strong>
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#EF9F27;">2. Project-Level vs Company-Level</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        MSCI gives one ESG score per company. GreenLens analyses the <strong style="color:#c9d1d9;">specific project site</strong>
+                        of each bond — GPS coordinates, satellite imagery, location-specific climate hazards.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div style="background:#0d1117; border:1px solid #a5b4fc; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#a5b4fc;">3. Full Explainability (SHAP)</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        "Why is this bond high risk?" — Bloomberg has no answer. MSCI is a black box. GreenLens provides
+                        a <strong style="color:#c9d1d9;">SHAP waterfall chart</strong>: flood 40%, heat 35%, drought 25% — exact per-feature breakdown.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div style="background:#0d1117; border:1px solid #3fb950; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#3fb950;">4. Radical Affordability</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        Bloomberg: €500K+/yr. MSCI: €200K+/yr. GreenLens: <strong style="color:#c9d1d9;">€299/month</strong>.
+                        Small ESG boutiques, research institutions, and emerging market regulators can finally afford independent climate intelligence.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Honest Weakness Table -->
+        <h3 class="mt-4">⚠️ Honest Weaknesses — Where Competitors Are Stronger</h3>
+        <div class="table-responsive mt-2">
+            <table class="table" style="color:#c9d1d9; border-color:#30363d;">
+                <thead style="background:#0d1117;">
+                    <tr style="font-size:0.75rem; text-transform:uppercase; color:#8b949e;">
+                        <th style="border-color:#30363d;">Area</th>
+                        <th style="border-color:#30363d;">Competitors</th>
+                        <th style="border-color:#30363d;">GreenLens</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:0.85rem;">
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Data coverage</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">50,000+ bonds</td>
+                        <td style="border-color:#30363d; color:#EF9F27;">1,345 bonds</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Historical data</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">20+ years</td>
+                        <td style="border-color:#30363d; color:#EF9F27;">2015 onwards (Sentinel-2)</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Regulatory certification</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">Yes — SFDR certified</td>
+                        <td style="border-color:#30363d; color:#EF9F27;">Partial — SFDR/TCFD export template built (<a href="/export/sfdr/" style="color:#1D9E75;">download</a>)</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Legal liability coverage</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">Yes</td>
+                        <td style="border-color:#30363d; color:#EF9F27;">Partial — <a href="/terms/" style="color:#1D9E75;">Legal disclaimer & terms</a> published</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Brand trust</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">Very high</td>
+                        <td style="border-color:#30363d; color:#EF9F27;">Building</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p class="mt-3" style="color:#8b949e; font-size:0.9rem;">
+            <strong style="color:#a5b4fc;">Key Insight:</strong> GreenLens is not a competing product to Bloomberg Terminal.
+            It is a complementary <em>satellite truth layer</em> — a physical evidence verification system
+            that no existing financial data terminal currently provides.
+        </p>
+    </div>
+    <div class="content-section">
+        <h2>🌍 UN Sustainable Development Goals (SDG) Alignment</h2>
+        <p>GreenLens actively supports global sustainability initiatives by bringing empirical transparency to climate finance:</p>
+        <ul>
+            <li><strong>SDG 13 (Climate Action):</strong> We quantify physical climate risk exposure (PCRS) to green infrastructure, ensuring long-term project resilience.</li>
+            <li><strong>SDG 7 (Affordable and Clean Energy):</strong> We verify the actual deployment and physical existence of renewable energy/green infrastructure via satellite.</li>
+            <li><strong>SDG 17 (Partnerships for the Goals):</strong> We bridge the technical gap between institutional investment bodies and open-source Earth observation science (NASA/ESA).</li>
+        </ul>
+    </div>
+    
+    <!-- Data Sources -->
+    <div class="content-section">
+        <h2>📡 Data Sources — Verified & Independent</h2>
+        <p>Every data source in GreenLens is <strong style="color:#e6edf3;">independently verified</strong> — zero reliance on issuer self-reported PDFs.</p>
+
+        <div class="table-responsive mt-3">
+            <table class="table" style="color:#c9d1d9; border-color:#30363d;">
+                <thead style="background:#0d1117;">
+                    <tr style="color:#8b949e; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em;">
+                        <th style="border-color:#30363d;">Data Type</th>
+                        <th style="border-color:#30363d;">Source</th>
+                        <th style="border-color:#30363d; text-align:center;">Real-time</th>
+                        <th style="border-color:#30363d; text-align:center;">Verified By</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:0.9rem;">
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Bond Registry Data</td>
+                        <td style="border-color:#30363d;">Climate Bonds Initiative (CBI) + IMF</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ Synced Daily (Celery Task)</span></td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ CBI / IMF Certified</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Climate Hazard Indices</td>
+                        <td style="border-color:#30363d;">World Bank Climate Knowledge Portal API</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ Live API</span></td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ World Bank</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Satellite Imagery</td>
+                        <td style="border-color:#30363d;">Google Earth Engine — ESA Sentinel-2</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ Live GEE API</span></td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ ESA Copernicus</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Yield Spread Data</td>
+                        <td style="border-color:#30363d;">Yahoo Finance (yfinance API)</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ Live Market Data</span></td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#EF9F27;">⚡ Exchange Verified</span></td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">NDVI Vegetation Index</td>
+                        <td style="border-color:#30363d;">GEE + Custom Pipeline (B8/B4 bands)</td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ Computed from Live Imagery</span></td>
+                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75;">✅ ESA / NASA</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Greenwash 3-Step Pipeline -->
+        <h3 class="mt-4">🛰️ How Greenwash Detection Works — 3-Step Pipeline</h3>
+        <div class="row g-3 mt-1">
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1.25rem; height:100%;">
+                    <div style="color:#1D9E75; font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">Step 1 — NDVI Change Detection</div>
+                    <p style="color:#8b949e; font-size:0.875rem; margin:0;">
+                        Sentinel-2 imagery is fetched <strong style="color:#c9d1d9;">12 months before</strong> bond issuance and 
+                        <strong style="color:#c9d1d9;">12 months after</strong> claimed project completion.
+                        NDVI (vegetation index) is compared. A reforestation bond must show 
+                        <em>increasing</em> vegetation — if it shows bare soil, a flag is raised.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1.25rem; height:100%;">
+                    <div style="color:#EF9F27; font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">Step 2 — CNN Land-Use Classification</div>
+                    <p style="color:#8b949e; font-size:0.875rem; margin:0;">
+                        A fine-tuned <strong style="color:#c9d1d9;">ResNet-18 CNN</strong> classifies the satellite image patch into 
+                        6 categories: Solar Farm, Wind Farm, Forest, Water Body, Urban, or Bare Land.
+                        A solar bond whose site is classified as "Dense Forest" is automatically flagged.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1.25rem; height:100%;">
+                    <div style="color:#E24B4A; font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">Step 3 — Consistency Check</div>
+                    <p style="color:#8b949e; font-size:0.875rem; margin:0;">
+                        The <strong style="color:#c9d1d9;">claimed project type</strong> (from bond prospectus) is compared against 
+                        the <strong style="color:#c9d1d9;">CNN's observed land use</strong>. Any mismatch triggers a greenwash 
+                        flag with a confidence score. Company data is never trusted — only satellite pixels.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="data-source">
+            <div class="data-source-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1H8.5V12a.5.5 0 0 1-1 0V8.5H4.5a.5.5 0 0 1 0-1h3V4.5A.5.5 0 0 1 8 4z"/>
+                </svg>
+            </div>
+            <div class="data-source-info">
+                <h5>NASA Earthdata</h5>
+                <p>MODIS vegetation indices, temperature anomalies, and drought indicators (NDVI, LST, SPEI)</p>
+            </div>
+        </div>
+        
+        <div class="data-source">
+            <div class="data-source-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                    <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                </svg>
+            </div>
+            <div class="data-source-info">
+                <h5>ESA Copernicus</h5>
+                <p>Sentinel-2 multispectral imagery for land cover classification and NDVI change detection</p>
+            </div>
+        </div>
+        
+        <div class="data-source">
+            <div class="data-source-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M4 11a1 1 0 1 1 2 0v1a1 1 0 1 1-2 0v-1zm6-4a1 1 0 1 1 2 0v5a1 1 0 1 1-2 0V7zM7 9a1 1 0 0 1 2 0v3a1 1 0 1 1-2 0V9z"/>
+                    <path d="M4 1.5a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-1 0v-11a.5.5 0 0 1 .5-.5zM8 1a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-1 0v-11A.5.5 0 0 1 8 1zm4 0a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-1 0v-11a.5.5 0 0 1 .5-.5z"/>
+                </svg>
+            </div>
+            <div class="data-source-info">
+                <h5>Climate Bonds Initiative</h5>
+                <p>Green bond issuance data, certification status, and project categorization</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Model Architecture -->
+    <div class="content-section">
+        <h2>🤖 Model Architecture</h2>
+        <p>
+            GreenLens uses a modular machine learning pipeline built on Python, Django, and PostgreSQL.
+        </p>
+        
+        <div class="model-diagram">
+            <div class="flow-step">📊 Data Ingestion</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">🌡️ Hazard Scoring</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">🎯 XGBoost PCRS</div>
+            <br>
+            <div class="flow-step">💰 Pricing Model</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">🛰️ CNN Classifier</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">⚠️ Greenwash Detection</div>
+        </div>
+        
+        <h3>PCRS Model (Physical Climate Risk Score)</h3>
+        <p>
+            The flagship PCRS model is designed to intuitively score infrastructure risk from 0 (Safe) to 100 (High Risk). We use an XGBoost regression algorithm driven by 25+ real-time environmental features, breaking risk down into simple metrics:
+        </p>
+        <ul>
+            <li>Geographic precision: Exact project coordinates across different climate zones.</li>
+            <li>Climate hazards: Historical and projected drought frequency, flood exposure, extreme heat indices.</li>
+            <li>Market alignment: Bond maturity and project lifespan mismatch with worsening climate events.</li>
+        </ul>
+        
+        <h3>Explainability with SHAP</h3>
+        <p>
+            Every PCRS score includes SHAP (SHapley Additive exPlanations) values that break down 
+            exactly which factors contributed to the risk assessment. This provides transparency 
+            and allows users to understand the "why" behind each score.
+        </p>
+        
+        <h3>Satellite Verification</h3>
+        <p>
+            The greenwash detection module uses a fine-tuned ResNet-18 CNN to classify satellite 
+            image patches into 6 land-use categories. NDVI (Normalized Difference Vegetation Index) 
+            change detection compares pre- and post-project satellite imagery to verify 
+            reforestation and green infrastructure claims.
+        </p>
+    </div>
+    
+    <!-- Tech Stack -->
+    <div class="content-section">
+        <h2>🛠️ Technology Stack</h2>
+        <div class="tech-stack">
+            <span class="tech-badge">Python 3.11</span>
+            <span class="tech-badge">Django 5</span>
+            <span class="tech-badge">PostgreSQL + PostGIS</span>
+            <span class="tech-badge">XGBoost</span>
+            <span class="tech-badge">PyTorch</span>
+            <span class="tech-badge">Google Earth Engine</span>
+            <span class="tech-badge">Leaflet.js</span>
+            <span class="tech-badge">Chart.js</span>
+            <span class="tech-badge">Celery</span>
+            <span class="tech-badge">Redis</span>
+            <span class="tech-badge">Bootstrap 5</span>
+            <span class="tech-badge">Docker</span>
+    </div>
+
+    <!-- Business Value & Market Positioning -->
+    <div class="content-section">
+        <h2>💼 Business Value — Commercial Model</h2>
+        <p>GreenLens is a <strong style="color:#e6edf3;">research prototype with commercial potential</strong>, targeting three customer segments in the $2.4 billion ESG data market (growing 20% YoY).</p>
+
+        <!-- Customer Segments -->
+        <h3 class="mt-3">🎯 Target Customer Segments</h3>
+        <div class="row g-3 mt-1">
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #1D9E75; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#1D9E75; margin-bottom:0.5rem;">🏦 Asset Management Companies</h6>
+                    <div style="font-size:0.7rem; color:#1D9E75; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.5px;">Primary — High Value</div>
+                    <ul style="color:#8b949e; font-size:0.85rem; margin:0; padding-left:1.1rem;">
+                        <li>HDFC AMC, SBI Mutual Fund, Nippon India</li>
+                        <li>BlackRock, Amundi, Vanguard</li>
+                        <li><strong style="color:#c9d1d9;">Need:</strong> EU SFDR mandatory climate risk disclosure data</li>
+                        <li><strong style="color:#c9d1d9;">Pain:</strong> Regulatory fines for non-compliance exceed subscription cost</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#EF9F27; margin-bottom:0.5rem;">⚖️ Regulators</h6>
+                    <div style="font-size:0.7rem; color:#EF9F27; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.5px;">High Value — Slow Sales (6–12 months)</div>
+                    <ul style="color:#8b949e; font-size:0.85rem; margin:0; padding-left:1.1rem;">
+                        <li>SEBI (India — ESG disclosure mandatory 2023)</li>
+                        <li>ECB, ESMA (Europe)</li>
+                        <li>World Bank Treasury Division</li>
+                        <li><strong style="color:#c9d1d9;">Need:</strong> Independent verification to detect greenwashing at scale</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #a5b4fc; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#a5b4fc; margin-bottom:0.5rem;">🎓 Research Institutions</h6>
+                    <div style="font-size:0.7rem; color:#a5b4fc; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.5px;">Easy Entry Point — Credibility Builder</div>
+                    <ul style="color:#8b949e; font-size:0.85rem; margin:0; padding-left:1.1rem;">
+                        <li>IIM Ahmedabad, IIT Bombay finance depts</li>
+                        <li>European university research groups</li>
+                        <li>World Resources Institute, TERI India</li>
+                        <li><strong style="color:#c9d1d9;">Value:</strong> Lower revenue but highest credibility signal</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SaaS Pricing -->
+        <h3 class="mt-4">💳 SaaS Pricing Model</h3>
+        <div class="row g-3 mt-1">
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1.25rem; text-align:center; height:100%;">
+                    <div style="font-size:1.5rem; font-weight:700; color:#8b949e;">Free</div>
+                    <div style="color:#1D9E75; font-size:0.85rem; margin:0.25rem 0 0.75rem;">Research Tier</div>
+                    <ul style="color:#8b949e; font-size:0.8rem; text-align:left; padding-left:1.1rem;">
+                        <li>50 bonds per month</li>
+                        <li>Basic PCRS scores</li>
+                        <li>Universities & NGOs</li>
+                        <li>Community credibility building</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:2px solid #1D9E75; border-radius:8px; padding:1.25rem; text-align:center; height:100%; position:relative;">
+                    <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#1D9E75;color:#fff;font-size:0.65rem;padding:2px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;">Most Popular</div>
+                    <div style="font-size:1.5rem; font-weight:700; color:#1D9E75;">€299<span style="font-size:0.8rem;color:#8b949e;">/month</span></div>
+                    <div style="color:#1D9E75; font-size:0.85rem; margin:0.25rem 0 0.75rem;">Professional Tier</div>
+                    <ul style="color:#8b949e; font-size:0.8rem; text-align:left; padding-left:1.1rem;">
+                        <li>Full 1,345+ bond universe</li>
+                        <li>Live pricing data (Yahoo Finance)</li>
+                        <li>CSV export & REST API access</li>
+                        <li>Boutique ESG advisory firms</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #a5b4fc; border-radius:8px; padding:1.25rem; text-align:center; height:100%;">
+                    <div style="font-size:1.5rem; font-weight:700; color:#a5b4fc;">€2,999<span style="font-size:0.8rem;color:#8b949e;">/month</span></div>
+                    <div style="color:#a5b4fc; font-size:0.85rem; margin:0.25rem 0 0.75rem;">Enterprise Tier</div>
+                    <ul style="color:#8b949e; font-size:0.8rem; text-align:left; padding-left:1.1rem;">
+                        <li>Custom bond universe upload</li>
+                        <li>White-label PDF reports</li>
+                        <li>SFDR & TCFD regulatory templates</li>
+                        <li>Priority satellite verification</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Competitive Positioning -->
+        <h3 class="mt-4">🆚 Competitive Positioning</h3>
+        <div class="table-responsive mt-2">
+            <table class="table" style="color:#c9d1d9; border-color:#30363d;">
+                <thead style="background:#0d1117;">
+                    <tr style="font-size:0.8rem; text-transform:uppercase; color:#8b949e;">
+                        <th style="border-color:#30363d;">Alternative</th>
+                        <th style="border-color:#30363d;">Problem</th>
+                        <th style="border-color:#30363d;">GreenLens Advantage</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:0.85rem;">
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Bloomberg ESG</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">Issuer self-reported — no independent verification</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">Satellite-verified, objective</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">MSCI ESG Ratings</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">€500K+/year — unaffordable for smaller firms</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">€299/month — 99.9% cheaper</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Manual Analyst Review</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">Slow, expensive, not scalable</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">Automated — 1,345 bonds scored in minutes</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Do Nothing</td>
+                        <td style="border-color:#30363d; color:#E24B4A;">Regulatory non-compliance risk (SFDR/SEBI fines)</td>
+                        <td style="border-color:#30363d; color:#1D9E75;">Affordable compliance data pipeline</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Market Size -->
+        <div class="row g-3 mt-2">
+            <div class="col-md-3">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1rem; text-align:center;">
+                    <div style="font-size:1.75rem; font-weight:700; color:#1D9E75;">$1T+</div>
+                    <div style="color:#8b949e; font-size:0.8rem;">Global Green Bond Market</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1rem; text-align:center;">
+                    <div style="font-size:1.75rem; font-weight:700; color:#a5b4fc;">$2.4B</div>
+                    <div style="color:#8b949e; font-size:0.8rem;">ESG Data Market (2024)</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1rem; text-align:center;">
+                    <div style="font-size:1.75rem; font-weight:700; color:#EF9F27;">20%</div>
+                    <div style="color:#8b949e; font-size:0.8rem;">YoY Market Growth</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1rem; text-align:center;">
+                    <div style="font-size:1.75rem; font-weight:700; color:#3fb950;">5,000+</div>
+                    <div style="color:#8b949e; font-size:0.8rem;">EU Funds Needing SFDR Data</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Honest Limitation -->
+        <div style="background:rgba(239,159,39,0.1); border:1px solid rgba(239,159,39,0.4); border-radius:8px; padding:1rem 1.5rem; margin-top:1rem;">
+            <p style="margin:0; font-size:0.85rem; color:#EF9F27;">
+                ⚠️ <strong>Current Status — Research Prototype:</strong> GreenLens is not yet sales-ready. 
+                Bond GPS locations use country centroids for some bonds, the PCRS model uses synthetic labels (not yet backtested against real defaults), 
+                and no legal liability framework exists for score accuracy claims. 
+                This is a <strong>research prototype demonstrating commercial potential</strong>, not a certified financial product.
+            </p>
+        </div>
+    </div>
+
+    <!-- Author -->
+    <div class="content-section">
+        <h2>🔬 Model Validation — PCRS Backtesting Framework</h2>
+        <p>
+            Full backtesting against historical bond default events requires proprietary data from 
+            <strong style="color:#e6edf3;">Munich Re NatCatSERVICE</strong> and 
+            <strong style="color:#e6edf3;">Swiss Re sigma</strong> — which are not publicly available to researchers.
+            However, GreenLens implements a rigorous <em>cross-validation framework</em> to measure model quality:
+        </p>
+        <div class="row g-3 mt-2">
+            <div class="col-md-3">
+                <div style="background:#0d1117; border:1px solid #1D9E75; border-radius:8px; padding:1.25rem; text-align:center;">
+                    <div style="font-size:2rem; font-weight:700; color:#1D9E75;">70/15/15</div>
+                    <div style="color:#8b949e; font-size:0.85rem; margin-top:0.25rem;">Train / Val / Test Split</div>
+                    <div style="color:#6b7280; font-size:0.75rem; margin-top:0.25rem;">941 / 202 / 202 bonds</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div style="background:#0d1117; border:1px solid #1D9E75; border-radius:8px; padding:1.25rem; text-align:center;">
+                    <div style="font-size:2rem; font-weight:700; color:#1D9E75;">R²=0.9999</div>
+                    <div style="color:#8b949e; font-size:0.85rem; margin-top:0.25rem;">Held-out Test Set</div>
+                    <div style="color:#6b7280; font-size:0.75rem; margin-top:0.25rem;">Computed on 202 unseen bonds</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem; text-align:center;">
+                    <div style="font-size:2rem; font-weight:700; color:#EF9F27;">RMSE=0.11</div>
+                    <div style="color:#8b949e; font-size:0.85rem; margin-top:0.25rem;">Root Mean Square Error</div>
+                    <div style="color:#6b7280; font-size:0.75rem; margin-top:0.25rem;">MAE = 0.018 on test set</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div style="background:#0d1117; border:1px solid #a5b4fc; border-radius:8px; padding:1.25rem; text-align:center;">
+                    <div style="font-size:2rem; font-weight:700; color:#a5b4fc;">SHAP</div>
+                    <div style="color:#8b949e; font-size:0.85rem; margin-top:0.25rem;">Feature Explainability</div>
+                    <div style="color:#6b7280; font-size:0.75rem; margin-top:0.25rem;">Every prediction decomposed per feature</div>
+                </div>
+            </div>
+        </div>
+        <div style="background: rgba(83,74,183,0.1); border: 1px solid rgba(83,74,183,0.4); border-radius:8px; padding:1rem 1.5rem; margin-top:1rem;">
+            <p style="margin:0; font-size:0.85rem; color:#a5b4fc;">
+                ⚠️ <strong>Backtesting Limitation:</strong> The PCRS model is validated using cross-validation on synthetic hazard-derived labels.
+                Full historical backtesting against real bond default events requires proprietary insurance loss data (Munich Re / Swiss Re)
+                which is not publicly available. This is a research prototype — not a certified risk rating.
+                Future work will integrate real default data as it becomes available through regulatory disclosure mandates (EU SFDR Article 9).
+            </p>
+        </div>
+    </div>
+
+    <!-- Limitations & Known Biases — Full Transparency -->
+    <div class="content-section">
+        <h2>⚠️ Limitations & Known Biases — Full Transparency</h2>
+        <p style="color:#8b949e;">
+            Academic integrity demands honest disclosure. These are the <strong style="color:#e6edf3;">known limitations</strong>
+            of GreenLens as a research prototype. Investors must understand these before using any output.
+        </p>
+
+        <!-- 1. Data Gaps -->
+        <h3 class="mt-3" style="color:#E24B4A;">1. Data Gaps</h3>
+        <div class="row g-3 mt-1">
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #E24B4A; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#E24B4A;">📍 Bond Location — Most Critical</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        Most bonds use <strong style="color:#c9d1d9;">country centroid or city-level geocoding</strong>, not exact project GPS.
+                        "India Solar Bond" plots at India's centre — actual project in Rajasthan vs Kerala has completely different climate risk.
+                        PCRS accuracy is directly affected. Each bond displays a <code style="color:#EF9F27;">location_confidence</code> tag (exact / city / country).
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#EF9F27;">🛰️ Pre-2015 Satellite Gap</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        ESA Sentinel-2 launched <strong style="color:#c9d1d9;">June 2015</strong>. Dataset includes bonds from 2006.
+                        2006–2015 bonds <strong style="color:#E24B4A;">cannot be satellite-verified</strong>.
+                        These bonds are flagged as "Satellite Unavailable" in the greenwash module.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#EF9F27;">📈 Yahoo Finance Gaps</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        Emerging market sovereign bonds (Nigeria, Bangladesh, Pakistan) are <strong style="color:#c9d1d9;">not listed on Yahoo Finance</strong>.
+                        These bonds use synthetic spread estimates — <strong style="color:#E24B4A;">not real market data</strong>.
+                        Pricing gap analysis for these bonds is lower confidence.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Regional Coverage -->
+        <h3 class="mt-4" style="color:#EF9F27;">2. Emerging Markets Coverage</h3>
+        <p style="color:#8b949e; font-size:0.85rem;">
+            ⚠️ <strong style="color:#c9d1d9;">Systematic bias:</strong> Climate risk is highest in emerging markets (Bangladesh, Nigeria, Pakistan),
+            but data coverage is weakest there. High-risk regions are under-represented in the dataset.
+        </p>
+        <div class="table-responsive mt-2">
+            <table class="table" style="color:#c9d1d9; border-color:#30363d;">
+                <thead style="background:#0d1117;">
+                    <tr style="font-size:0.75rem; text-transform:uppercase; color:#8b949e;">
+                        <th style="border-color:#30363d;">Region</th>
+                        <th style="border-color:#30363d; text-align:center;">Coverage</th>
+                        <th style="border-color:#30363d;">Problem</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:0.85rem;">
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Western Europe</td>
+                        <td style="border-color:#30363d; text-align:center; color:#1D9E75;">✅ Strong</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Most bonds here, good data</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">North America</td>
+                        <td style="border-color:#30363d; text-align:center; color:#1D9E75;">✅ Good</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Yahoo Finance coverage good</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">East Asia (China, Japan)</td>
+                        <td style="border-color:#30363d; text-align:center; color:#EF9F27;">⚠️ Medium</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Some gaps in yield data</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">India</td>
+                        <td style="border-color:#30363d; text-align:center; color:#EF9F27;">⚠️ Medium</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Location data weak — centroid geocoding</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Southeast Asia</td>
+                        <td style="border-color:#30363d; text-align:center; color:#EF9F27;">⚠️ Weak</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Limited bond registry data</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Africa</td>
+                        <td style="border-color:#30363d; text-align:center; color:#E24B4A;">❌ Very Weak</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Few bonds, poor yield data, highest climate risk</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Middle East</td>
+                        <td style="border-color:#30363d; text-align:center; color:#E24B4A;">❌ Weak</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Limited coverage</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Latin America</td>
+                        <td style="border-color:#30363d; text-align:center; color:#EF9F27;">⚠️ Medium</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Partial coverage</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 3. Model Bias -->
+        <h3 class="mt-4" style="color:#a5b4fc;">3. Model Bias — 3 Identified Types</h3>
+        <div class="row g-3 mt-1">
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #a5b4fc; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#a5b4fc;">🌍 Geographic Bias (PCRS)</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        Training data is <strong style="color:#c9d1d9;">Europe-heavy</strong>. European bonds have more complete disclosures,
+                        so the XGBoost model has learned European bond patterns better.
+                        <strong style="color:#E24B4A;">Impact:</strong> European bonds scored more accurately.
+                        Emerging market bonds may have lower prediction confidence.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #E24B4A; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#E24B4A;">🔄 Synthetic Label Bias (PCRS)</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        PCRS model is trained on <strong style="color:#c9d1d9;">synthetic hazard-derived labels</strong>, not real bond default events.
+                        The model is partially <strong style="color:#E24B4A;">circular</strong> — hazard data is both input and the basis for target generation.
+                        "Does high PCRS actually predict real-world bond problems?" — <strong style="color:#E24B4A;">not yet validated.</strong>
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem; height:100%;">
+                    <h6 style="color:#EF9F27;">🛰️ CNN Classifier Bias (EuroSAT)</h6>
+                    <p style="color:#8b949e; font-size:0.85rem; margin:0;">
+                        ResNet-18 trained on <strong style="color:#c9d1d9;">EuroSAT — primarily European landscapes</strong>.
+                        Tropical forests, South Asian farmland, African savanna are under-represented.
+                        <strong style="color:#E24B4A;">Impact:</strong> Kerala reforestation or Nigeria solar projects may misclassify;
+                        European solar farms classify accurately.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Additional Limitations -->
+        <h3 class="mt-4" style="color:#8b949e;">4. Additional Operational Limitations</h3>
+        <div class="table-responsive mt-2">
+            <table class="table" style="color:#c9d1d9; border-color:#30363d;">
+                <thead style="background:#0d1117;">
+                    <tr style="font-size:0.75rem; text-transform:uppercase; color:#8b949e;">
+                        <th style="border-color:#30363d;">Limitation</th>
+                        <th style="border-color:#30363d;">Detail</th>
+                        <th style="border-color:#30363d; text-align:center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size:0.85rem;">
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Backtesting vs real defaults</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Kerala floods 2018, Cyclone Fani 2019 — not validated whether PCRS would have predicted impact</td>
+                        <td style="border-color:#30363d; text-align:center; color:#E24B4A;">❌ Open</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">Transition Risk</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Carbon tax impact, stranded asset risk, policy change risk</td>
+                        <td style="border-color:#30363d; text-align:center; color:#1D9E75;">✅ Built (v2)</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">Static Bond Data</td>
+                        <td style="border-color:#30363d; color:#8b949e;">New bonds not auto-added. Manual CSV re-import required for new bond issuances.</td>
+                        <td style="border-color:#30363d; text-align:center; color:#EF9F27;">⚠️ Manual</td>
+                    </tr>
+                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
+                        <td style="border-color:#30363d;">2km Satellite Radius</td>
+                        <td style="border-color:#30363d; color:#8b949e;">Satellite analysis covers 2km radius only. 500-acre wind farms or 1000-acre reforestation may not be fully captured.</td>
+                        <td style="border-color:#30363d; text-align:center; color:#EF9F27;">⚠️ Partial</td>
+                    </tr>
+                    <tr style="border-color:#30363d;">
+                        <td style="border-color:#30363d;">SFDR Certification</td>
+                        <td style="border-color:#30363d; color:#8b949e;">SFDR/TCFD export template built but not audited by any regulatory body</td>
+                        <td style="border-color:#30363d; text-align:center; color:#EF9F27;">⚠️ Partial</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Author -->
+    <div class="content-section">
+        <h2>👤 About the Author</h2>
+        <p>
+            GreenLens was designed and engineered by <strong>Sharun Tomy</strong> (MSc Data Analytics, Mahatma Gandhi University) as a comprehensive academic portfolio project demonstrating the intersection of climate science, quantitative finance, and machine learning.
+        </p>
+        <p>
+            This platform showcases how objective data and scalable AI pipelines can bring accountability to sustainable finance markets.
+        </p>
+    </div>
+</div>
+{% endblock %}

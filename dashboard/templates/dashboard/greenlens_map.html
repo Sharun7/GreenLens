@@ -1,0 +1,884 @@
+{% extends "base.html" %}
+
+{% block title %}GreenLens Map — Climate Risk Intelligence{% endblock %}
+{% block og_title %}GreenLens Interactive Bond Map{% endblock %}
+
+{% block extra_css %}
+<style>
+    .map-container {
+        position: relative;
+        height: calc(100vh - 180px);
+        min-height: 500px;
+    }
+    
+    #bond-map {
+        height: 100%;
+        width: 100%;
+        border-radius: 8px;
+    }
+    
+    /* Pulsing ring animation for mispriced bonds */
+    .marker-ring {
+        position: absolute;
+        border-radius: 50%;
+        animation: pulse-ring 2s infinite;
+    }
+    
+    @keyframes pulse-ring {
+        0% {
+            transform: scale(1);
+            opacity: 0.8;
+            box-shadow: 0 0 0 0 rgba(83, 74, 183, 0.7);
+        }
+        70% {
+            transform: scale(1.5);
+            opacity: 0;
+            box-shadow: 0 0 0 20px rgba(83, 74, 183, 0);
+        }
+        100% {
+            transform: scale(1);
+            opacity: 0;
+            box-shadow: 0 0 0 0 rgba(83, 74, 183, 0);
+        }
+    }
+    
+    /* Warning icon overlay */
+    .warning-overlay {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #E24B4A;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        z-index: 1000;
+    }
+    
+    /* Custom popup styling */
+    .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+        padding: 0;
+        overflow: hidden;
+    }
+    
+    .leaflet-popup-content {
+        margin: 0;
+        padding: 16px;
+        min-width: 280px;
+    }
+    
+    .popup-header {
+        background: linear-gradient(135deg, var(--primary-green) 0%, #0a4d3c 100%);
+        color: white;
+        padding: 12px 16px;
+        margin: -16px -16px 12px -16px;
+    }
+    
+    .popup-header h5 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    .popup-header small {
+        opacity: 0.9;
+        font-size: 0.8rem;
+    }
+    
+    .popup-stat {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .popup-stat:last-child {
+        border-bottom: none;
+    }
+    
+    .popup-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .popup-value {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .pcr-mini-bar {
+        width: 60px;
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    
+    .pcr-mini-fill {
+        height: 100%;
+        border-radius: 3px;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .status-flagged {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    
+    .status-mispriced {
+        background: #e0e7ff;
+        color: #534AB7;
+    }
+    
+    .status-ok {
+        background: #d1fae5;
+        color: #059669;
+    }
+    
+    /* Filter panel */
+    .filter-sidebar {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 20px;
+        height: fit-content;
+    }
+    
+    .filter-sidebar h6 {
+        color: #e6edf3;
+    }
+
+    .filter-group {
+        margin-bottom: 20px;
+    }
+    
+    .filter-group label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #c9d1d9;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .filter-sidebar .form-select {
+        background-color: #0d1117;
+        border-color: #30363d;
+        color: #e6edf3;
+    }
+
+    .filter-sidebar .form-check-label {
+        color: #c9d1d9;
+    }
+
+    .filter-sidebar .btn-outline-secondary {
+        color: #8b949e;
+        border-color: #30363d;
+    }
+
+    .filter-sidebar .btn-outline-secondary:hover {
+        background: #30363d;
+        color: #e6edf3;
+    }
+    
+    .form-range::-webkit-slider-thumb {
+        background: var(--primary-green);
+    }
+    
+    .form-range::-moz-range-thumb {
+        background: var(--primary-green);
+    }
+    
+    .range-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #8b949e;
+        margin-top: 4px;
+    }
+    
+    /* Stats bar */
+    .stats-bar {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--primary-green);
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: #8b949e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Legend */
+    .map-legend-panel {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        padding: 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        z-index: 1000;
+        min-width: 180px;
+    }
+    
+    .legend-title {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 12px;
+        color: #e6edf3;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+        color: #c9d1d9;
+    }
+    
+    .legend-marker {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        margin-right: 10px;
+        flex-shrink: 0;
+    }
+    
+    .legend-ring {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #534AB7;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse-ring 2s infinite;
+    }
+    
+    .legend-warning {
+        width: 16px;
+        height: 16px;
+        background: #E24B4A;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    
+    /* Loading overlay */
+    #map-loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(13, 17, 23, 0.95);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        border-radius: 8px;
+    }
+    
+    .loading-text {
+        margin-top: 16px;
+        color: #8b949e;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3 mt-2">
+        <h2 class="h5 mb-0" style="color: #e6edf3;">Global Bond Portfolio</h2>
+        <a href="{% url 'dashboard:export_csv' %}" class="btn btn-sm btn-outline-success">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16">
+              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+            </svg>
+            Export Full Dataset (CSV)
+        </a>
+    </div>
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="row align-items-center">
+            <div class="col-md-3 col-6 stat-item">
+                <div class="stat-number" id="stat-total">{{ stats.total_bonds }}</div>
+                <div class="stat-label">Total Bonds</div>
+            </div>
+            <div class="col-md-3 col-6 stat-item">
+                <div class="stat-number" id="stat-mispriced">{{ stats.mispriced_count }}</div>
+                <div class="stat-label">Mispriced</div>
+            </div>
+            <div class="col-md-3 col-6 stat-item">
+                <div class="stat-number" id="stat-flagged">{{ stats.flagged_count }}</div>
+                <div class="stat-label">Greenwash Flags</div>
+            </div>
+            <div class="col-md-3 col-6 stat-item">
+                <div class="stat-number" id="stat-visible">0</div>
+                <div class="stat-label">Visible on Map</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Filter Sidebar -->
+        <div class="col-lg-3 col-md-4 mb-3">
+            <div class="filter-sidebar">
+                <h6 class="fw-bold mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-funnel me-2" viewBox="0 0 16 16">
+                        <path d="M1.5 1.5A.5.5 0 0 1 2 1h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.128.334L10 8.692V13.5a.5.5 0 0 1-.342.474l-3 1A.5.5 0 0 1 6 14.5V8.692L1.628 3.834A.5.5 0 0 1 1.5 3.5v-2z"/>
+                    </svg>
+                    Filter Bonds
+                </h6>
+                
+                <!-- Project Category Filter -->
+                <div class="filter-group">
+                    <label for="category-filter">Project Category</label>
+                    <select class="form-select form-select-sm" id="category-filter">
+                        <option value="">All Categories</option>
+                        <option value="reforestation">Reforestation</option>
+                        <option value="solar">Solar Energy</option>
+                        <option value="wind">Wind Energy</option>
+                        <option value="water">Water Management</option>
+                        <option value="transport">Transport</option>
+                        <option value="building">Green Buildings</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Country Filter -->
+                <div class="filter-group">
+                    <label for="country-filter">Country</label>
+                    <select class="form-select form-select-sm" id="country-filter">
+                        <option value="">All Countries</option>
+                        {% for c in countries %}
+                        <option value="{{ c }}">{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Year Filter -->
+                <div class="filter-group">
+                    <label for="year-filter">Issuance Year (from)</label>
+                    <select class="form-select form-select-sm" id="year-filter">
+                        <option value="">All Years</option>
+                        <option value="2024">2024+</option>
+                        <option value="2023">2023+</option>
+                        <option value="2022">2022+</option>
+                        <option value="2021">2021+</option>
+                        <option value="2020">2020+</option>
+                        <option value="2018">2018+</option>
+                        <option value="2015">2015+</option>
+                    </select>
+                </div>
+
+                <!-- Maturity Filter -->
+                <div class="filter-group">
+                    <label for="maturity-filter">Min Maturity (years)</label>
+                    <select class="form-select form-select-sm" id="maturity-filter">
+                        <option value="">Any Maturity</option>
+                        <option value="5">5+ years</option>
+                        <option value="10">10+ years</option>
+                        <option value="15">15+ years</option>
+                        <option value="20">20+ years</option>
+                        <option value="30">30+ years</option>
+                    </select>
+                </div>
+                
+                <!-- PCRS Score Range -->
+                <div class="filter-group">
+                    <label>PCRS Score Range</label>
+                    <input type="range" class="form-range" id="pcrs-min" min="0" max="100" value="0">
+                    <input type="range" class="form-range" id="pcrs-max" min="0" max="100" value="100">
+                    <div class="range-labels">
+                        <span id="pcrs-min-label">0</span>
+                        <span id="pcrs-range-display">0 - 100</span>
+                        <span id="pcrs-max-label">100</span>
+                    </div>
+                </div>
+                
+                <!-- Toggles -->
+                <div class="filter-group">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="mispriced-toggle">
+                        <label class="form-check-label" for="mispriced-toggle">
+                            Show only mispriced
+                        </label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="flagged-toggle">
+                        <label class="form-check-label" for="flagged-toggle">
+                            Show only flagged
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Reset Button -->
+                <button class="btn btn-outline-secondary btn-sm w-100" id="reset-filters">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrow-counterclockwise me-1" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/>
+                        <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0-.01.374l2.55 2.66a.25.25 0 0 0 .42-.186V4.466z"/>
+                    </svg>
+                    Reset Filters
+                </button>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="col-lg-9 col-md-8">
+            <!-- View Toggle -->
+            <div class="mb-2 d-flex gap-2">
+                <button class="btn btn-sm btn-success" id="btn-map-view" onclick="showView('map')">🗺️ Map View</button>
+                <button class="btn btn-sm btn-outline-secondary" id="btn-table-view" onclick="showView('table')">📊 Table View</button>
+            </div>
+
+            <!-- Map Area -->
+            <div id="map-panel">
+            <div class="map-container">
+                <!-- Loading Overlay -->
+                <div id="map-loading">
+                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="loading-text">Loading bond data...</p>
+                </div>
+                
+                <!-- Map -->
+                <div id="bond-map"></div>
+                
+                <!-- Legend -->
+                <div class="map-legend-panel">
+                    <div class="legend-title">Risk Score (PCRS)</div>
+                    <div class="legend-item">
+                        <div class="legend-marker" style="background: #1D9E75;"></div>
+                        <span>Low (0-33)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-marker" style="background: #EF9F27;"></div>
+                        <span>Medium (34-66)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-marker" style="background: #E24B4A;"></div>
+                        <span>High (67-100)</span>
+                    </div>
+                    <div class="legend-item mt-2">
+                        <div class="legend-ring"></div>
+                        <span>Mispriced</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-warning">!</div>
+                        <span>Greenwash Flag</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div><!-- end map-panel -->
+
+            <!-- Table Panel (hidden by default) -->
+            <div id="table-panel" style="display:none;">
+                <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1rem; max-height:calc(100vh - 240px); overflow-y:auto;">
+                    <table class="table table-sm" style="color:#c9d1d9; margin:0;" id="bonds-table">
+                        <thead style="position:sticky; top:0; background:#0d1117; z-index:10;">
+                            <tr style="font-size:0.75rem; text-transform:uppercase; color:#8b949e; cursor:pointer;">
+                                <th style="border-color:#30363d;" onclick="sortTable('issuer')">Issuer ↕</th>
+                                <th style="border-color:#30363d;" onclick="sortTable('country')">Country ↕</th>
+                                <th style="border-color:#30363d;" onclick="sortTable('category')">Category ↕</th>
+                                <th style="border-color:#30363d;" onclick="sortTable('pcr_score')">PCRS ↕</th>
+                                <th style="border-color:#30363d;" onclick="sortTable('gap_bps')">Gap (bps) ↕</th>
+                                <th style="border-color:#30363d;" onclick="sortTable('maturity')">Maturity ↕</th>
+                                <th style="border-color:#30363d;">Status</th>
+                                <th style="border-color:#30363d;">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bonds-tbody" style="font-size:0.85rem;"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Bond data from server
+    const bondsData = [
+        {% for item in bonds %}
+        {
+            bond_id: "{{ item.bond.bond_id }}",
+            issuer: "{{ item.bond.issuer_name|escapejs }}",
+            country: "{{ item.bond.country|escapejs }}",
+            lat: {{ item.bond.lat|default:"null" }},
+            lon: {{ item.bond.lon|default:"null" }},
+            category: "{{ item.bond.project_category }}",
+            pcr_score: {{ item.pcr_score|default:"null" }},
+            risk_band: "{{ item.risk_band|default:"" }}",
+            is_mispriced: {{ item.is_mispriced|yesno:"true,false" }},
+            is_flagged: {{ item.is_flagged|yesno:"true,false" }},
+            issuance_date: "{{ item.bond.issuance_date|date:'Y-m-d' }}",
+            maturity: {{ item.bond.bond_maturity_years|default:"0" }},
+            gap_bps: {{ item.gap_bps|default:"null" }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Color scales
+    const PCRS_COLORS = {
+        low: '#1D9E75',      // 0-33
+        medium: '#EF9F27',   // 34-66
+        high: '#E24B4A'      // 67-100
+    };
+    
+    let map;
+    let markers = [];
+    let filteredBonds = [...bondsData];
+    
+    // Initialize map
+    function initMap() {
+        map = L.map('bond-map').setView([20, 0], 2);
+        
+        // Add CartoDB dark tile layer (works locally, no referrer required, matches dark theme)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+        
+        // Render markers
+        renderMarkers();
+        
+        // Hide loading
+        document.getElementById('map-loading').style.display = 'none';
+        
+        // Update visible count
+        updateVisibleCount();
+    }
+    
+    // Get color based on PCRS score
+    function getPcrColor(score) {
+        if (score === null || score === undefined) return '#9CA3AF';
+        if (score <= 33) return PCRS_COLORS.low;
+        if (score <= 66) return PCRS_COLORS.medium;
+        return PCRS_COLORS.high;
+    }
+    
+    // Create custom marker icon
+    function createMarkerIcon(bond) {
+        const color = getPcrColor(bond.pcr_score);
+        const size = bond.is_mispriced ? 16 : 12;
+        const hasWarning = bond.is_flagged;
+        
+        // Base marker HTML
+        let html = `
+            <div style="position: relative;">
+                <div style="
+                    width: ${size}px;
+                    height: ${size}px;
+                    background: ${color};
+                    border-radius: 50%;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                "></div>
+        `;
+        
+        // Add pulsing ring for mispriced
+        if (bond.is_mispriced) {
+            html += `
+                <div class="marker-ring" style="
+                    width: ${size * 2}px;
+                    height: ${size * 2}px;
+                    top: ${-size/2}px;
+                    left: ${-size/2}px;
+                    border: 2px solid #534AB7;
+                "></div>
+            `;
+        }
+        
+        // Add warning badge for flagged
+        if (hasWarning) {
+            html += `
+                <div class="warning-overlay">!</div>
+            `;
+        }
+        
+        html += '</div>';
+        
+        return L.divIcon({
+            html: html,
+            className: 'custom-marker',
+            iconSize: [size + 8, size + 8],
+            iconAnchor: [(size + 8) / 2, (size + 8) / 2]
+        });
+    }
+    
+    // Create popup content
+    function createPopupContent(bond) {
+        const color = getPcrColor(bond.pcr_score);
+        const pcrWidth = bond.pcr_score !== null ? bond.pcr_score : 0;
+        
+        let statusBadges = '';
+        if (bond.is_flagged) {
+            statusBadges += '<span class="status-badge status-flagged me-1">⚠ Flagged</span>';
+        }
+        if (bond.is_mispriced) {
+            statusBadges += '<span class="status-badge status-mispriced">$ Mispriced</span>';
+        }
+        if (!bond.is_flagged && !bond.is_mispriced) {
+            statusBadges += '<span class="status-badge status-ok">✓ Verified</span>';
+        }
+        
+        const categoryIcons = {
+            'reforestation': '🌲',
+            'solar': '☀️',
+            'wind': '💨',
+            'water': '💧',
+            'transport': '🚗',
+            'building': '🏢',
+            'other': '📋'
+        };
+        const categoryIcon = categoryIcons[bond.category] || '📋';
+        
+        return `
+            <div class="bond-popup">
+                <div class="popup-header">
+                    <h5>${bond.issuer}</h5>
+                    <small>${bond.country} • ${bond.bond_id}</small>
+                </div>
+                <div class="popup-stat">
+                    <span class="popup-label">PCRS Score</span>
+                    <span class="popup-value">
+                        <span class="pcr-mini-bar">
+                            <span class="pcr-mini-fill" style="width: ${pcrWidth}%; background: ${color};"></span>
+                        </span>
+                        ${bond.pcr_score !== null ? bond.pcr_score.toFixed(1) : 'N/A'}
+                    </span>
+                </div>
+                <div class="popup-stat">
+                    <span class="popup-label">Category</span>
+                    <span class="popup-value">${categoryIcon} ${bond.category}</span>
+                </div>
+                <div class="popup-stat">
+                    <span class="popup-label">Issued</span>
+                    <span class="popup-value">${bond.issuance_date}</span>
+                </div>
+                <div class="popup-stat">
+                    <span class="popup-label">Status</span>
+                    <span class="popup-value">${statusBadges}</span>
+                </div>
+                <div class="mt-3">
+                    <a href="/bond/${bond.bond_id}/" class="btn btn-sm btn-primary w-100">
+                        View Full Details →
+                    </a>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Render markers on map
+    function renderMarkers() {
+        // Clear existing markers
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        
+        filteredBonds.forEach(bond => {
+            if (bond.lat === null || bond.lon === null) return;
+            
+            const marker = L.marker([bond.lat, bond.lon], {
+                icon: createMarkerIcon(bond)
+            });
+            
+            marker.bindPopup(createPopupContent(bond), {
+                maxWidth: 300,
+                className: 'custom-popup'
+            });
+            
+            marker.addTo(map);
+            markers.push(marker);
+        });
+        
+        // Fit bounds if we have markers
+        if (markers.length > 0) {
+            const group = new L.featureGroup(markers);
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+    }
+    
+    // Filter functions
+    function applyFilters() {
+        const category = document.getElementById('category-filter').value;
+        const country = document.getElementById('country-filter').value;
+        const yearFrom = document.getElementById('year-filter').value;
+        const minMaturity = document.getElementById('maturity-filter').value;
+        const pcrMin = parseInt(document.getElementById('pcrs-min').value);
+        const pcrMax = parseInt(document.getElementById('pcrs-max').value);
+        const onlyMispriced = document.getElementById('mispriced-toggle').checked;
+        const onlyFlagged = document.getElementById('flagged-toggle').checked;
+        
+        filteredBonds = bondsData.filter(bond => {
+            if (category && bond.category !== category) return false;
+            if (country && bond.country !== country) return false;
+            if (yearFrom && bond.issuance_date < yearFrom) return false;
+            if (minMaturity && bond.maturity < parseInt(minMaturity)) return false;
+            if (bond.pcr_score !== null) {
+                if (bond.pcr_score < pcrMin || bond.pcr_score > pcrMax) return false;
+            }
+            if (onlyMispriced && !bond.is_mispriced) return false;
+            if (onlyFlagged && !bond.is_flagged) return false;
+            return true;
+        });
+        
+        renderMarkers();
+        renderTable();
+        updateVisibleCount();
+    }
+    
+    function updateVisibleCount() {
+        document.getElementById('stat-visible').textContent = filteredBonds.length;
+    }
+    
+    function resetFilters() {
+        document.getElementById('category-filter').value = '';
+        document.getElementById('country-filter').value = '';
+        document.getElementById('year-filter').value = '';
+        document.getElementById('maturity-filter').value = '';
+        document.getElementById('pcrs-min').value = 0;
+        document.getElementById('pcrs-max').value = 100;
+        document.getElementById('mispriced-toggle').checked = false;
+        document.getElementById('flagged-toggle').checked = false;
+        document.getElementById('pcrs-range-display').textContent = '0 - 100';
+        filteredBonds = [...bondsData];
+        renderMarkers();
+        renderTable();
+        updateVisibleCount();
+    }
+
+    // ── Map / Table toggle ──────────────────────────────────
+    function showView(view) {
+        const mapPanel = document.getElementById('map-panel');
+        const tablePanel = document.getElementById('table-panel');
+        const btnMap = document.getElementById('btn-map-view');
+        const btnTable = document.getElementById('btn-table-view');
+        if (view === 'map') {
+            mapPanel.style.display = '';
+            tablePanel.style.display = 'none';
+            btnMap.className = 'btn btn-sm btn-success';
+            btnTable.className = 'btn btn-sm btn-outline-secondary';
+            setTimeout(() => map.invalidateSize(), 100);
+        } else {
+            mapPanel.style.display = 'none';
+            tablePanel.style.display = '';
+            btnMap.className = 'btn btn-sm btn-outline-secondary';
+            btnTable.className = 'btn btn-sm btn-success';
+            renderTable();
+        }
+    }
+
+    // ── Table rendering ─────────────────────────────────────
+    function renderTable() {
+        const tbody = document.getElementById('bonds-tbody');
+        if (!tbody) return;
+        const rows = filteredBonds.map(b => {
+            const color = getPcrColor(b.pcr_score);
+            let status = '';
+            if (b.is_flagged) status += '<span style="color:#E24B4A;font-size:0.75rem;">⚠ Flagged</span> ';
+            if (b.is_mispriced) status += '<span style="color:#534AB7;font-size:0.75rem;">💲 Mispriced</span>';
+            if (!b.is_flagged && !b.is_mispriced) status = '<span style="color:#1D9E75;font-size:0.75rem;">✓ OK</span>';
+            const gapStr = b.gap_bps !== null ? (b.gap_bps > 0 ? '+' : '') + b.gap_bps.toFixed(1) : '—';
+            const gapColor = b.gap_bps !== null ? (Math.abs(b.gap_bps) >= 48 ? '#E24B4A' : '#8b949e') : '#8b949e';
+            return `<tr style="border-color:#21262d;">
+                <td style="border-color:#21262d;">${b.issuer}</td>
+                <td style="border-color:#21262d;">${b.country}</td>
+                <td style="border-color:#21262d;">${b.category}</td>
+                <td style="border-color:#21262d;"><span style="color:${color};font-weight:600;">${b.pcr_score !== null ? b.pcr_score.toFixed(1) : '—'}</span></td>
+                <td style="border-color:#21262d;color:${gapColor};">${gapStr}</td>
+                <td style="border-color:#21262d;">${b.maturity}y</td>
+                <td style="border-color:#21262d;">${status}</td>
+                <td style="border-color:#21262d;"><a href="/bond/${b.bond_id}/" style="color:#1D9E75;font-size:0.8rem;">View →</a></td>
+            </tr>`;
+        });
+        tbody.innerHTML = rows.join('');
+    }
+
+    // ── Table sorting ───────────────────────────────────────
+    let sortField = null;
+    let sortAsc = true;
+    function sortTable(field) {
+        if (sortField === field) { sortAsc = !sortAsc; } else { sortField = field; sortAsc = true; }
+        filteredBonds.sort((a, b) => {
+            let va = a[field], vb = b[field];
+            if (va === null || va === undefined) va = -Infinity;
+            if (vb === null || vb === undefined) vb = -Infinity;
+            if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+            return sortAsc ? va - vb : vb - va;
+        });
+        renderTable();
+    }
+    
+    // Event listeners
+    document.getElementById('category-filter').addEventListener('change', applyFilters);
+    document.getElementById('country-filter').addEventListener('change', applyFilters);
+    document.getElementById('year-filter').addEventListener('change', applyFilters);
+    document.getElementById('maturity-filter').addEventListener('change', applyFilters);
+    document.getElementById('mispriced-toggle').addEventListener('change', applyFilters);
+    document.getElementById('flagged-toggle').addEventListener('change', applyFilters);
+    document.getElementById('reset-filters').addEventListener('click', resetFilters);
+    
+    // PCRS range sliders
+    const pcrMinSlider = document.getElementById('pcrs-min');
+    const pcrMaxSlider = document.getElementById('pcrs-max');
+    const pcrRangeDisplay = document.getElementById('pcrs-range-display');
+    
+    function updatePcrRange() {
+        let min = parseInt(pcrMinSlider.value);
+        let max = parseInt(pcrMaxSlider.value);
+        if (min > max) { min = max; pcrMinSlider.value = min; }
+        pcrRangeDisplay.textContent = `${min} - ${max}`;
+        applyFilters();
+    }
+    
+    pcrMinSlider.addEventListener('input', updatePcrRange);
+    pcrMaxSlider.addEventListener('input', updatePcrRange);
+    
+    // Initialize map when DOM is ready
+    document.addEventListener('DOMContentLoaded', initMap);
+</script>
+{% endblock %}
