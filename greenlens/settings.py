@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 import environ
+import dj_database_url
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,8 +27,13 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 # ── Core ───────────────────────────────────────────────────────────────────────
 SECRET_KEY = env("SECRET_KEY")
-DEBUG = env("DEBUG")
-ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '.onrender.com',
+    'greenlens.onrender.com',
+]
 
 RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default=None)
 if RENDER_EXTERNAL_HOSTNAME:
@@ -99,14 +105,16 @@ ASGI_APPLICATION = "greenlens.asgi.application"
 
 # ── Database — PostgreSQL + PostGIS ───────────────────────────────────────────
 # Render/Heroku provide DATABASE_URL; fall back to individual env vars for local dev.
-_database_url = env("DATABASE_URL", default="")
-if _database_url:
-    DATABASES = {"default": env.db("DATABASE_URL")}
-    # Force plain PostgreSQL engine — postgis:// engine triggers GDAL load (Windows issue)
-    DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
-    DATABASES["default"]["CONN_MAX_AGE"] = 600
-    DATABASES["default"].setdefault("OPTIONS", {})["connect_timeout"] = 10
-else:
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+}
+
+# If no DATABASE_URL, fall back to individual env vars for local dev
+if not os.environ.get('DATABASE_URL'):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -140,6 +148,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+# Use WhiteNoise for serving static files in production
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
