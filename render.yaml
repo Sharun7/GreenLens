@@ -2,8 +2,9 @@ services:
   - type: web
     name: greenlens
     env: python
+    plan: free
     buildCommand: ./build.sh
-    startCommand: gunicorn greenlens.wsgi:application
+    startCommand: gunicorn greenlens.wsgi:application --workers 2 --timeout 120
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -17,50 +18,6 @@ services:
         sync: false
       - key: NASA_PASSWORD
         sync: false
-      - key: REDIS_URL
-        fromService:
-          name: greenlens-redis
-          type: redis
-          property: connectionString
-
-  - type: worker
-    name: greenlens-celery
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A greenlens worker --loglevel=info --pool=solo
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: greenlens-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: greenlens-redis
-          type: redis
-          property: connectionString
-
-  - type: worker
-    name: greenlens-celery-beat
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A greenlens beat --loglevel=info
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: greenlens-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: greenlens-redis
-          type: redis
-          property: connectionString
-
-  - type: redis
-    name: greenlens-redis
-    plan: free
-    maxmemoryPolicy: allkeys-lru
-    ipAllowList: []
-
 
 databases:
   - name: greenlens-db
