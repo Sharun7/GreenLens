@@ -59,6 +59,8 @@ services:
     name: greenlens-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
 
 databases:
   - name: greenlens-db
