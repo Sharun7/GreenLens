@@ -152,6 +152,25 @@
         background: #d1fae5;
         color: #059669;
     }
+
+    .popup-takeaways {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin: 10px 0;
+    }
+
+    .popup-takeaway {
+        color: #c9d1d9;
+        font-size: 0.8rem;
+        line-height: 1.35;
+        margin-bottom: 6px;
+    }
+
+    .popup-takeaway:last-child {
+        margin-bottom: 0;
+    }
     
     /* Filter panel */
     .filter-sidebar {
@@ -168,6 +187,28 @@
 
     .filter-group {
         margin-bottom: 20px;
+    }
+
+    .quick-filter-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .quick-filter-btn {
+        border: 1px solid #30363d;
+        background: #0d1117;
+        color: #c9d1d9;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        text-align: left;
+    }
+
+    .quick-filter-btn:hover {
+        border-color: var(--primary-green);
+        color: #e6edf3;
     }
     
     .filter-group label {
@@ -368,6 +409,18 @@
                     </svg>
                     Filter Bonds
                 </h6>
+
+                <div class="quick-filter-row" aria-label="Fund manager quick views">
+                    <button type="button" class="quick-filter-btn" data-quick-filter="mispriced">
+                        Minute 2: show mispriced bonds
+                    </button>
+                    <button type="button" class="quick-filter-btn" data-quick-filter="high_mispriced">
+                        Minute 3: high risk + mispriced
+                    </button>
+                    <button type="button" class="quick-filter-btn" data-quick-filter="flagged">
+                        Satellite review queue
+                    </button>
+                </div>
                 
                 <!-- Project Category Filter -->
                 <div class="filter-group">
@@ -473,12 +526,32 @@
             <!-- Map Area -->
             <div id="map-panel">
             <div class="map-container">
+                <!-- 3-line Explainer Box (UX Fix) -->
+                <div style="position: absolute; top: 20px; left: 50px; z-index: 1000; background: rgba(13, 17, 23, 0.9); border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); pointer-events: none;">
+                    <h6 style="color: #a5b4fc; font-size: 0.9rem; margin-bottom: 4px; font-weight: 600;">🌍 Welcome to GreenLens</h6>
+                    <p style="color: #c9d1d9; font-size: 0.8rem; margin: 0; line-height: 1.4;">
+                        {{ stats.total_bonds }} green bonds globally mapped.<br>
+                        Satellite verified project data.<br>
+                        <strong>Click any bond marker</strong> to see its climate risk score.
+                    </p>
+                </div>
+                
                 <!-- Loading Overlay -->
                 <div id="map-loading">
                     <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                     <p class="loading-text">Loading bond data...</p>
+                </div>
+                
+                <!-- Climate Alerts Panel (Future Scope Implementation) -->
+                <div class="map-legend-panel" id="alerts-panel" style="top: 20px; bottom: auto; right: 20px; width: 320px; display: none;">
+                    <div class="legend-title" style="color: #E24B4A; border-bottom: 1px solid #30363d; padding-bottom: 8px;">
+                        🚨 Active Climate Alerts
+                    </div>
+                    <div id="alerts-container" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
+                        <!-- Alerts will be injected here via JS -->
+                    </div>
                 </div>
                 
                 <!-- Map -->
@@ -522,6 +595,7 @@
                                 <th style="border-color:#30363d;" onclick="sortTable('country')">Country ↕</th>
                                 <th style="border-color:#30363d;" onclick="sortTable('category')">Category ↕</th>
                                 <th style="border-color:#30363d;" onclick="sortTable('pcr_score')">PCRS ↕</th>
+                                <th style="border-color:#30363d;" onclick="sortTable('data_reliability_score')">Data ↕</th>
                                 <th style="border-color:#30363d;" onclick="sortTable('gap_bps')">Gap (bps) ↕</th>
                                 <th style="border-color:#30363d;" onclick="sortTable('maturity')">Maturity ↕</th>
                                 <th style="border-color:#30363d;">Status</th>
@@ -552,6 +626,12 @@
             category: "{{ item.bond.project_category }}",
             pcr_score: {{ item.pcr_score|default:"null" }},
             risk_band: "{{ item.risk_band|default:"" }}",
+            risk_label: "{{ item.risk_label|default:"Not Scored" }}",
+            confidence_margin: {{ item.pcr_confidence_margin|default:"null" }},
+            main_risk_driver: "{{ item.main_risk_driver|default:"Not available"|escapejs }}",
+            why_risky_popup: "{{ item.why_risky_popup|default:"PCRS not available yet."|escapejs }}",
+            data_reliability_score: {{ item.data_reliability_score|default:"0" }},
+            data_reliability_label: "{{ item.data_reliability_label|default:"Insufficient data" }}",
             is_mispriced: {{ item.is_mispriced|yesno:"true,false" }},
             is_flagged: {{ item.is_flagged|yesno:"true,false" }},
             issuance_date: "{{ item.bond.issuance_date|date:'Y-m-d' }}",
@@ -599,6 +679,43 @@
         if (score <= 33) return PCRS_COLORS.low;
         if (score <= 66) return PCRS_COLORS.medium;
         return PCRS_COLORS.high;
+    }
+
+    function getRiskLabel(score) {
+        if (score === null || score === undefined) return 'Not scored yet';
+        if (score <= 33) return 'Low Risk';
+        if (score <= 66) return 'Medium Risk';
+        return 'High Risk - Caution';
+    }
+
+    function getRiskTakeaway(bond) {
+        if (bond.why_risky_popup) return bond.why_risky_popup;
+        if (bond.main_risk_driver && bond.main_risk_driver !== 'Not available') {
+            return `${getRiskLabel(bond.pcr_score)}. Main driver: ${bond.main_risk_driver}.`;
+        }
+        return getRiskLabel(bond.pcr_score);
+    }
+
+    function getPricingTakeaway(bond) {
+        if (bond.gap_bps === null || bond.gap_bps === undefined) {
+            return 'Pricing: spread data not available yet.';
+        }
+        const absGap = Math.abs(bond.gap_bps);
+        if (!bond.is_mispriced) {
+            return `Pricing: close to fair value (${bond.gap_bps.toFixed(1)} bps gap).`;
+        }
+        const direction = bond.gap_bps > 0 ? 'higher' : 'lower';
+        const meaning = bond.gap_bps > 0
+            ? 'market may be overcompensating for risk'
+            : 'market may be undercompensating investors for risk';
+        return `Pricing: ${absGap.toFixed(0)} bps ${direction} than model; ${meaning}.`;
+    }
+
+    function getSatelliteTakeaway(bond) {
+        if (bond.is_flagged) {
+            return 'Satellite: issuer claim needs review; not a confirmed fraud finding.';
+        }
+        return 'Satellite: no inconsistency flag on latest check.';
     }
     
     // Create custom marker icon
@@ -654,6 +771,10 @@
     function createPopupContent(bond) {
         const color = getPcrColor(bond.pcr_score);
         const pcrWidth = bond.pcr_score !== null ? bond.pcr_score : 0;
+        const riskLabel = getRiskLabel(bond.pcr_score);
+        const confidenceText = typeof bond.confidence_margin === 'number'
+            ? ` ± ${bond.confidence_margin.toFixed(0)}`
+            : '';
         
         let statusBadges = '';
         if (bond.is_flagged) {
@@ -689,8 +810,14 @@
                         <span class="pcr-mini-bar">
                             <span class="pcr-mini-fill" style="width: ${pcrWidth}%; background: ${color};"></span>
                         </span>
-                        ${bond.pcr_score !== null ? bond.pcr_score.toFixed(1) : 'N/A'}
+                        ${bond.pcr_score !== null ? bond.pcr_score.toFixed(1) + confidenceText : 'N/A'}
                     </span>
+                </div>
+                <div class="popup-takeaways">
+                    <div class="popup-takeaway"><strong>Risk:</strong> ${getRiskTakeaway(bond)}</div>
+                    <div class="popup-takeaway"><strong>Pricing:</strong> ${getPricingTakeaway(bond).replace('Pricing: ', '')}</div>
+                    <div class="popup-takeaway"><strong>Satellite:</strong> ${getSatelliteTakeaway(bond).replace('Satellite: ', '')}</div>
+                    <div class="popup-takeaway"><strong>Data:</strong> ${bond.data_reliability_label} (${bond.data_reliability_score}/10)</div>
                 </div>
                 <div class="popup-stat">
                     <span class="popup-label">Category</span>
@@ -775,7 +902,7 @@
         document.getElementById('stat-visible').textContent = filteredBonds.length;
     }
     
-    function resetFilters() {
+    function resetFilterControls() {
         document.getElementById('category-filter').value = '';
         document.getElementById('country-filter').value = '';
         document.getElementById('year-filter').value = '';
@@ -785,10 +912,31 @@
         document.getElementById('mispriced-toggle').checked = false;
         document.getElementById('flagged-toggle').checked = false;
         document.getElementById('pcrs-range-display').textContent = '0 - 100';
+    }
+
+    function resetFilters() {
+        resetFilterControls();
         filteredBonds = [...bondsData];
         renderMarkers();
         renderTable();
         updateVisibleCount();
+    }
+
+    function applyQuickFilter(mode) {
+        resetFilterControls();
+        if (mode === 'mispriced') {
+            document.getElementById('mispriced-toggle').checked = true;
+        }
+        if (mode === 'high_mispriced') {
+            document.getElementById('mispriced-toggle').checked = true;
+            document.getElementById('pcrs-min').value = 67;
+            document.getElementById('pcrs-max').value = 100;
+            document.getElementById('pcrs-range-display').textContent = '67 - 100';
+        }
+        if (mode === 'flagged') {
+            document.getElementById('flagged-toggle').checked = true;
+        }
+        applyFilters();
     }
 
     // ── Map / Table toggle ──────────────────────────────────
@@ -818,6 +966,7 @@
         if (!tbody) return;
         const rows = filteredBonds.map(b => {
             const color = getPcrColor(b.pcr_score);
+            const riskLabel = getRiskLabel(b.pcr_score);
             let status = '';
             if (b.is_flagged) status += '<span style="color:#E24B4A;font-size:0.75rem;">⚠ Flagged</span> ';
             if (b.is_mispriced) status += '<span style="color:#534AB7;font-size:0.75rem;">💲 Mispriced</span>';
@@ -828,7 +977,15 @@
                 <td style="border-color:#21262d;">${b.issuer}</td>
                 <td style="border-color:#21262d;">${b.country}</td>
                 <td style="border-color:#21262d;">${b.category}</td>
-                <td style="border-color:#21262d;"><span style="color:${color};font-weight:600;">${b.pcr_score !== null ? b.pcr_score.toFixed(1) : '—'}</span></td>
+                <td style="border-color:#21262d;">
+                    <span style="color:${color};font-weight:600;">${b.pcr_score !== null ? b.pcr_score.toFixed(1) : '—'}</span>
+                    <div style="font-size:0.7rem;color:#8b949e;">${riskLabel}</div>
+                    <div style="font-size:0.7rem;color:#8b949e;">Driver: ${b.main_risk_driver}</div>
+                </td>
+                <td style="border-color:#21262d;">
+                    <span style="color:#a5b4fc;font-weight:600;">${b.data_reliability_score.toFixed(1)}</span>
+                    <div style="font-size:0.7rem;color:#8b949e;">${b.data_reliability_label}</div>
+                </td>
                 <td style="border-color:#21262d;color:${gapColor};">${gapStr}</td>
                 <td style="border-color:#21262d;">${b.maturity}y</td>
                 <td style="border-color:#21262d;">${status}</td>
@@ -861,6 +1018,9 @@
     document.getElementById('mispriced-toggle').addEventListener('change', applyFilters);
     document.getElementById('flagged-toggle').addEventListener('change', applyFilters);
     document.getElementById('reset-filters').addEventListener('click', resetFilters);
+    document.querySelectorAll('[data-quick-filter]').forEach(button => {
+        button.addEventListener('click', () => applyQuickFilter(button.dataset.quickFilter));
+    });
     
     // PCRS range sliders
     const pcrMinSlider = document.getElementById('pcrs-min');
@@ -878,7 +1038,36 @@
     pcrMinSlider.addEventListener('input', updatePcrRange);
     pcrMaxSlider.addEventListener('input', updatePcrRange);
     
+    // Fetch Predictive Climate Alerts
+    function fetchClimateAlerts() {
+        fetch('/api/alerts/')
+            .then(res => res.json())
+            .then(data => {
+                if (data.alerts && data.alerts.length > 0) {
+                    const panel = document.getElementById('alerts-panel');
+                    const container = document.getElementById('alerts-container');
+                    panel.style.display = 'block';
+                    
+                    let html = '';
+                    data.alerts.forEach(alert => {
+                        html += `
+                        <div style="margin-bottom: 12px; font-size: 0.8rem; border-left: 3px solid ${alert.color}; padding-left: 8px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
+                            <div style="font-weight: 600; color: ${alert.color};">${alert.hazard_type} — ${alert.country}</div>
+                            <div style="color: #c9d1d9; margin: 4px 0;">${alert.description}</div>
+                            <div style="color: #EF9F27; font-weight: 600;">Impact: ${alert.impact}</div>
+                            <div style="color: #8b949e; font-size: 0.75rem; margin-top: 4px;">Affects: ${alert.affected_bonds.slice(0,2).join(', ')}${alert.affected_bonds.length > 2 ? ' +'+(alert.affected_bonds.length-2)+' more' : ''}</div>
+                        </div>`;
+                    });
+                    container.innerHTML = html;
+                }
+            })
+            .catch(err => console.error("Error fetching alerts:", err));
+    }
+    
     // Initialize map when DOM is ready
-    document.addEventListener('DOMContentLoaded', initMap);
+    document.addEventListener('DOMContentLoaded', () => {
+        initMap();
+        fetchClimateAlerts();
+    });
 </script>
 {% endblock %}

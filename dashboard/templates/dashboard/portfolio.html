@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio Optimization | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    .page-header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #e6edf3;
+    }
+    .page-header p {
+        color: #8b949e;
+    }
+    .stat-card-highlight {
+        background: rgba(29, 158, 117, 0.1);
+        border: 1px solid #1D9E75;
+    }
+    .stat-card-warning {
+        background: rgba(226, 75, 74, 0.1);
+        border: 1px solid #E24B4A;
+    }
+    .chart-container {
+        position: relative;
+        height: 250px;
+        width: 100%;
+    }
+    .table-dark-custom th {
+        border-color: #30363d;
+        color: #8b949e;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        padding: 0.75rem;
+    }
+    .table-dark-custom td {
+        border-color: #21262d;
+        color: #c9d1d9;
+        padding: 0.75rem;
+        font-size: 0.85rem;
+        vertical-align: middle;
+    }
+    .score-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+    .rebalance-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 1.5rem;">
+    <div class="page-header">
+        <h1>💼 Portfolio Optimization</h1>
+        <p>Analyze your aggregate physical climate risk exposure and sector concentration. This module simulates a 10-bond portfolio for demonstration.</p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% else %}
+    <!-- Top Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="label">Total AUM</div>
+                <div class="value">{{ total_amount|floatformat:0 }}M</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="label">Bonds in Portfolio</div>
+                <div class="value">{{ portfolio_bonds|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card {% if avg_pcrs > 40 %}stat-card-warning{% else %}stat-card-highlight{% endif %}">
+                <div class="label">Weighted Avg PCRS</div>
+                <div class="value" style="{% if avg_pcrs > 40 %}color:#E24B4A;{% endif %}">{{ avg_pcrs }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="label">High Risk Exposure (>50 PCRS)</div>
+                <div class="value" style="color:#EF9F27;">{{ rebalancing_suggestions|length }} Bonds</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Sector Concentration -->
+        <div class="col-lg-6">
+            <div class="stat-card h-100">
+                <h5 style="color:#e6edf3; margin-bottom:1rem; font-size:1rem;">Sector Concentration Risk</h5>
+                <div class="chart-container">
+                    <canvas id="sectorChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Geographic Concentration -->
+        <div class="col-lg-6">
+            <div class="stat-card h-100">
+                <h5 style="color:#e6edf3; margin-bottom:1rem; font-size:1rem;">Geographic Concentration Risk</h5>
+                <div class="chart-container">
+                    <canvas id="countryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Rebalancing Suggestions -->
+    {% if rebalancing_suggestions %}
+    <div class="mb-4">
+        <h4 style="color:#e6edf3; margin-bottom:1rem;">🔄 AI Rebalancing Suggestions</h4>
+        <p style="color:#8b949e; font-size:0.9rem;">GreenLens detected high climate risk exposure in your portfolio. Consider swapping these assets for lower-risk alternatives in the same sector.</p>
+        
+        <div class="row g-3">
+            {% for suggestion in rebalancing_suggestions %}
+            <div class="col-md-6">
+                <div class="rebalance-card">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;">
+                        <div>
+                            <div style="color:#8b949e; font-size:0.75rem; text-transform:uppercase;">Current Holding (High Risk)</div>
+                            <strong style="color:#E24B4A;">{{ suggestion.current.issuer }}</strong>
+                            <div style="color:#8b949e; font-size:0.8rem;">{{ suggestion.current.country }} • {{ suggestion.current.category }}</div>
+                        </div>
+                        <span class="score-badge" style="background:rgba(226,75,74,0.2); color:#f85149; border:1px solid #E24B4A;">
+                            PCRS {{ suggestion.current.score }}
+                        </span>
+                    </div>
+                    
+                    <div style="text-align:center; color:#8b949e; margin:0.5rem 0;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                    </div>
+                    
+                    <div style="color:#8b949e; font-size:0.75rem; text-transform:uppercase; margin-bottom:0.5rem;">Suggested Alternatives (Low Risk)</div>
+                    {% for alt in suggestion.alternatives %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1117; padding:0.5rem 0.75rem; border-radius:6px; margin-bottom:0.5rem; border:1px solid #30363d;">
+                        <div>
+                            <a href="{% url 'dashboard:bond_detail' alt.id %}" style="color:#1D9E75; text-decoration:none; font-weight:500;">{{ alt.issuer }}</a>
+                            <div style="color:#8b949e; font-size:0.75rem;">{{ alt.country }}</div>
+                        </div>
+                        <span class="score-badge" style="background:rgba(29,158,117,0.2); color:#3fb950; border:1px solid #1D9E75;">
+                            PCRS {{ alt.score }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Portfolio Holdings Table -->
+    <div class="stat-card">
+        <h5 style="color:#e6edf3; margin-bottom:1rem; font-size:1rem;">Current Holdings</h5>
+        <div class="table-responsive">
+            <table class="table table-dark-custom">
+                <thead style="background:#0d1117;">
+                    <tr>
+                        <th>Issuer</th>
+                        <th>Country</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>PCRS Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bond in portfolio_bonds %}
+                    <tr>
+                        <td><a href="{% url 'dashboard:bond_detail' bond.id %}" style="color:#c9d1d9; text-decoration:none;">{{ bond.issuer }}</a></td>
+                        <td>{{ bond.country }}</td>
+                        <td>{{ bond.category }}</td>
+                        <td>{{ bond.amount|floatformat:0 }} {{ bond.currency }}</td>
+                        <td>
+                            <span class="score-badge" style="
+                                {% if bond.score < 30 %}background:rgba(29,158,117,0.2);color:#3fb950;border:1px solid #1D9E75;
+                                {% elif bond.score < 60 %}background:rgba(239,159,39,0.2);color:#f0a030;border:1px solid #EF9F27;
+                                {% else %}background:rgba(226,75,74,0.2);color:#f85149;border:1px solid #E24B4A;{% endif %}
+                            ">
+                                {{ bond.score }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const sectorLabels = JSON.parse('{{ sector_labels|safe }}');
+        const sectorValues = JSON.parse('{{ sector_values|safe }}');
+        const countryLabels = JSON.parse('{{ country_labels|safe }}');
+        const countryValues = JSON.parse('{{ country_values|safe }}');
+
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { color: '#8b949e', font: {family: 'Inter'} } }
+            }
+        };
+
+        const colors = ['#1D9E75', '#3fb950', '#a5b4fc', '#EF9F27', '#E24B4A', '#8b949e'];
+
+        new Chart(document.getElementById('sectorChart'), {
+            type: 'doughnut',
+            data: {
+                labels: sectorLabels,
+                datasets: [{
+                    data: sectorValues,
+                    backgroundColor: colors,
+                    borderWidth: 0
+                }]
+            },
+            options: chartOptions
+        });
+
+        new Chart(document.getElementById('countryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: countryLabels,
+                datasets: [{
+                    data: countryValues,
+                    backgroundColor: colors.reverse(),
+                    borderWidth: 0
+                }]
+            },
+            options: chartOptions
+        });
+    });
+</script>
+{% endblock %}

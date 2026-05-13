@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """pricing_analysis/serializers.py"""
 from rest_framework import serializers
 from .models import PricingGap

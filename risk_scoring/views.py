@@ -1,18 +1,30 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """risk_scoring/views.py — PCRS score API endpoints."""
 import logging
 import numpy as np
 from datetime import datetime, timezone
 from threading import Lock
 
+from django.db.models import Avg, Count, Q
+from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import viewsets, filters, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import PCRScore
-from .serializers import PCRScoreSerializer, PCRScoreDetailSerializer
+from .models import ModelFeedback, PCRScore
+from .explainability import build_bond_model_depth, build_model_depth_framework
+from .serializers import (
+    ModelFeedbackSerializer,
+    PCRScoreSerializer,
+    PCRScoreDetailSerializer,
+)
+from .bias_detection import BiasDetector, generate_bias_summary_table
 
 logger = logging.getLogger("greenlens.risk_scoring.views")
 
@@ -185,3 +197,148 @@ class PCRScoreViewSet(viewsets.ReadOnlyModelViewSet):
             },
         }, status=status.HTTP_200_OK)
 
+
+class ModelFeedbackViewSet(viewsets.ModelViewSet):
+    """
+    Feedback loop for model improvement.
+
+    POST /api/risk/feedback/ records a fund-manager decision and later outcome.
+    GET /api/risk/feedback/backtest_summary/ returns adverse-outcome counts used
+    to prioritize model review and retraining.
+    """
+    queryset = ModelFeedback.objects.select_related("bond", "pcr_score").order_by("-created_at")
+    serializer_class = ModelFeedbackSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["created_at", "outcome_date", "realized_loss_bps", "pcr_score_at_decision"]
+
+    @action(detail=False, methods=["get"], url_path="backtest_summary")
+    def backtest_summary(self, request):
+        adverse_filter = (
+            Q(outcome__in=[
+                ModelFeedback.Outcome.LOSS,
+                ModelFeedback.Outcome.DEFAULT,
+                ModelFeedback.Outcome.MODEL_ERROR,
+            ])
+            | Q(realized_loss_bps__gt=0)
+        )
+        agg = ModelFeedback.objects.aggregate(
+            total=Count("id"),
+            adverse=Count("id", filter=adverse_filter),
+            used_for_retraining=Count("id", filter=adverse_filter & Q(used_for_retraining=True)),
+            avg_loss_bps=Avg("realized_loss_bps", filter=Q(realized_loss_bps__isnull=False)),
+        )
+
+        by_outcome = (
+            ModelFeedback.objects
+            .values("outcome")
+            .annotate(count=Count("id"), avg_loss_bps=Avg("realized_loss_bps"))
+            .order_by("-count")
+        )
+
+        return Response({
+            "meta": _META(),
+            "result": {
+                "total_feedback_events": agg["total"] or 0,
+                "adverse_outcomes": agg["adverse"] or 0,
+                "used_for_retraining": agg["used_for_retraining"] or 0,
+                "review_queue": (agg["adverse"] or 0) - (agg["used_for_retraining"] or 0),
+                "avg_realized_loss_bps": round(agg["avg_loss_bps"] or 0.0, 2),
+                "by_outcome": list(by_outcome),
+            },
+        })
+
+    @action(detail=False, methods=["get"], url_path="review_queue")
+    def review_queue(self, request):
+        adverse_filter = (
+            Q(outcome__in=[
+                ModelFeedback.Outcome.LOSS,
+                ModelFeedback.Outcome.DEFAULT,
+                ModelFeedback.Outcome.MODEL_ERROR,
+            ])
+            | Q(realized_loss_bps__gt=0)
+        )
+        qs = self.get_queryset().filter(adverse_filter, used_for_retraining=False)
+        serializer = self.get_serializer(qs, many=True)
+        return Response({
+            "meta": _META(),
+            "count": qs.count(),
+            "results": serializer.data,
+        })
+
+    @action(detail=True, methods=["post"], url_path="mark_used_for_retraining")
+    def mark_used_for_retraining(self, request, pk=None):
+        feedback = self.get_object()
+        feedback.used_for_retraining = True
+        feedback.save(update_fields=["used_for_retraining", "updated_at"])
+        serializer = self.get_serializer(feedback)
+        return Response({"meta": _META(), "result": serializer.data})
+
+
+
+# ── Bias Detection API ─────────────────────────────────────────────────────────
+
+@api_view(["GET"])
+def bias_detection_api(request):
+    """
+    GET /api/risk/bias-detection/
+    
+    Returns comprehensive bias detection analysis including:
+    - Geographic bias (SHAP variance by region)
+    - Synthetic label bias (circular reasoning indicators)
+    - CNN classifier bias (tropical vs European accuracy)
+    - Fairness metrics by region
+    """
+    detector = BiasDetector()
+    results = detector.run_full_analysis()
+    
+    return Response({
+        "meta": _META(),
+        "results": results,
+    })
+
+
+@api_view(["GET"])
+def bias_summary_api(request):
+    """
+    GET /api/risk/bias-summary/
+    
+    Returns structured bias summary table for documentation and UI display.
+    """
+    summary = generate_bias_summary_table()
+    
+    return Response({
+        "meta": _META(),
+        "summary": summary,
+    })
+
+
+@api_view(["GET"])
+def model_depth_api(request):
+    """
+    GET /api/risk/model-depth/
+
+    Returns the full Category 11 model-depth framework:
+    three-level SHAP explainability, runtime bias detection, known bias table,
+    and fairness metrics.
+    """
+    return Response({
+        "meta": _META(),
+        "result": build_model_depth_framework(include_runtime_bias=True),
+    })
+
+
+@api_view(["GET"])
+def bond_model_depth_api(request, bond_pk):
+    """
+    GET /api/risk/model-depth/bond/<bond_pk>/
+
+    Returns the plain-English and technical explanation for one bond.
+    """
+    from data_ingestion.models import GreenBond
+
+    bond = get_object_or_404(GreenBond, pk=bond_pk)
+    return Response({
+        "meta": _META(),
+        "result": build_bond_model_depth(bond),
+    })

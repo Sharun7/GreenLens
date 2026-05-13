@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """
 Fix: replace all Unicode non-ASCII characters in load_cbi_bonds.py
 with safe ASCII equivalents so the command works on Windows cp1252.

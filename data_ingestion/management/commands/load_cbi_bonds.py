@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """
 
 data_ingestion/management/commands/load_cbi_bonds.py
@@ -33,6 +37,7 @@ from pathlib import Path
 
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 
@@ -450,6 +455,10 @@ class Command(BaseCommand):
 
             rec["lon"] = coords[1] if coords else None
 
+            rec["location_confidence"] = (
+                GreenBond.LocationConfidence.COUNTRY if coords else None
+            )
+
             if coords is None:
 
                 counts["geocode_fail"] += 1
@@ -482,6 +491,20 @@ class Command(BaseCommand):
 
                 issuer = _issuer_label(rec["country"], rec["bond_type"], rec["issuer_type"])
 
+                if rec["lat"] is None or rec["lon"] is None:
+
+                    counts["skipped"] += 1
+
+                    self.stdout.write(
+
+                        f"  [SKIP] {rec['bond_id']} | {rec['country']} | "
+
+                        "No reliable coordinates available"
+
+                    )
+
+                    continue
+
 
 
                 defaults = dict(
@@ -504,9 +527,15 @@ class Command(BaseCommand):
 
                     bond_maturity_years=7,
 
-                    lat=rec["lat"] if rec["lat"] is not None else 0.0,
+                    lat=rec["lat"],
 
-                    lon=rec["lon"] if rec["lon"] is not None else 0.0,
+                    lon=rec["lon"],
+
+                    location_confidence=rec["location_confidence"],
+
+                    data_source="IMF/Refinitiv",
+
+                    last_synced_at=timezone.now(),
 
                 )
 

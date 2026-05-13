@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """
 Fix issuer_name fields in the database that contain '?' from the previous
 load run where the en-dash (–) was not properly encoded on Windows.

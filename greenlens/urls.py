@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """greenlens/urls.py — Root URL configuration."""
 from django.contrib import admin
 from django.urls import path, include
@@ -13,6 +17,8 @@ urlpatterns = [
     path("api/risk/", include("risk_scoring.urls")),
     path("api/pricing/", include("pricing_analysis.urls")),
     path("api/greenwash/", include("greenwash_detector.urls")),
+    path("api/risk-management/", include("risk_management.urls")),
+    path("ai/", include("ai_features.urls")),
     path("", include("dashboard.urls")),
 ]
 

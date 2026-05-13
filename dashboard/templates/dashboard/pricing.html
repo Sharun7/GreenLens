@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Pricing — GreenLens{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Header -->
+    <div class="row mb-5 text-center">
+        <div class="col-12">
+            <h1 class="display-4 fw-bold text-light mb-3">Choose Your Plan</h1>
+            <p class="lead text-muted">
+                Satellite-verified climate risk intelligence for green bonds.<br>
+                90% cheaper than Bloomberg. 100% independent verification.
+            </p>
+        </div>
+    </div>
+
+    <!-- Pricing Tiers -->
+    <div class="row g-4 mb-5">
+        <!-- Academic Tier -->
+        <div class="col-md-6 col-lg-3">
+            <div class="pricing-card">
+                <div class="pricing-header">
+                    <h3>Academic</h3>
+                    <div class="price">
+                        <span class="amount">€0</span>
+                        <span class="period">/forever</span>
+                    </div>
+                    <p class="text-muted">For universities, NGOs, researchers</p>
+                </div>
+                
+                <ul class="features-list">
+                    <li>✓ 100 bonds/month view</li>
+                    <li>✓ Basic PCRS scores</li>
+                    <li>✓ Greenwash flags</li>
+                    <li>✓ Pricing gaps</li>
+                    <li>✗ No CSV export</li>
+                    <li>✗ No API access</li>
+                    <li>✗ No SHAP breakdown</li>
+                    <li>✗ GreenLens watermark</li>
+                </ul>
+                
+                <a href="/signup/?tier=academic" class="btn btn-outline-primary w-100">
+                    Get Started Free
+                </a>
+                
+                <p class="text-muted text-center mt-3" style="font-size:0.85rem;">
+                    Perfect for research and education
+                </p>
+            </div>
+        </div>
+
+        <!-- Professional Tier -->
+        <div class="col-md-6 col-lg-3">
+            <div class="pricing-card featured">
+                <div class="badge-popular">Most Popular</div>
+                <div class="pricing-header">
+                    <h3>Professional</h3>
+                    <div class="price">
+                        <span class="amount">€299</span>
+                        <span class="period">/month</span>
+                    </div>
+                    <p class="text-muted">For boutique ESG firms, analysts</p>
+                </div>
+                
+                <ul class="features-list">
+                    <li>✓ Full 1,345+ bonds</li>
+                    <li>✓ Live pricing data</li>
+                    <li>✓ Unlimited CSV export</li>
+                    <li>✓ REST API (1000 calls/day)</li>
+                    <li>✓ Full SHAP breakdown</li>
+                    <li>✓ Email support</li>
+                    <li>✓ 5 users per account</li>
+                    <li>✓ No watermark</li>
+                </ul>
+                
+                <a href="/signup/?tier=professional" class="btn btn-primary w-100">
+                    Start 14-Day Trial
+                </a>
+                
+                <p class="text-muted text-center mt-3" style="font-size:0.85rem;">
+                    85% cheaper than Bloomberg
+                </p>
+            </div>
+        </div>
+
+        <!-- Business Tier -->
+        <div class="col-md-6 col-lg-3">
+            <div class="pricing-card">
+                <div class="pricing-header">
+                    <h3>Business</h3>
+                    <div class="price">
+                        <span class="amount">€1,499</span>
+                        <span class="period">/month</span>
+                    </div>
+                    <p class="text-muted">For asset managers, ESG consultancies</p>
+                </div>
+                
+                <ul class="features-list">
+                    <li>✓ Everything in Professional</li>
+                    <li>✓ Custom bond universe upload</li>
+                    <li>✓ Portfolio-level PCRS</li>
+                    <li>✓ Automated weekly reports</li>
+                    <li>✓ 25 users per account</li>
+                    <li>✓ Priority support</li>
+                    <li>✓ SFDR Article 8/9 templates</li>
+                    <li>✓ API (5000 calls/day)</li>
+                </ul>
+                
+                <a href="/contact/?tier=business" class="btn btn-outline-primary w-100">
+                    Contact Sales
+                </a>
+                
+                <p class="text-muted text-center mt-3" style="font-size:0.85rem;">
+                    For growing teams
+                </p>
+            </div>
+        </div>
+
+        <!-- Enterprise Tier -->
+        <div class="col-md-6 col-lg-3">
+            <div class="pricing-card">
+                <div class="pricing-header">
+                    <h3>Enterprise</h3>
+                    <div class="price">
+                        <span class="amount">€4,999</span>
+                        <span class="period">/month</span>
+                    </div>
+                    <p class="text-muted">For large AMCs, central banks</p>
+                </div>
+                
+                <ul class="features-list">
+                    <li>✓ Everything in Business</li>
+                    <li>✓ White-label branding</li>
+                    <li>✓ Custom ML model training</li>
+                    <li>✓ Dedicated satellite pipeline</li>
+                    <li>✓ 99.9% SLA guarantee</li>
+                    <li>✓ On-premise deployment</li>
+                    <li>✓ Regulatory automation (SFDR, TCFD, RBI)</li>
+                    <li>✓ Unlimited users & API</li>
+                    <li>✓ Dedicated account manager</li>
+                </ul>
+                
+                <a href="/contact/?tier=enterprise" class="btn btn-outline-primary w-100">
+                    Contact Sales
+                </a>
+                
+                <p class="text-muted text-center mt-3" style="font-size:0.85rem;">
+                    Annual: €45,000/year
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center text-light mb-4">Feature Comparison</h2>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th class="text-center">Academic</th>
+                            <th class="text-center">Professional</th>
+                            <th class="text-center">Business</th>
+                            <th class="text-center">Enterprise</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Bonds per month</td>
+                            <td class="text-center">100</td>
+                            <td class="text-center">Unlimited</td>
+                            <td class="text-center">Unlimited</td>
+                            <td class="text-center">Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>Users</td>
+                            <td class="text-center">1</td>
+                            <td class="text-center">5</td>
+                            <td class="text-center">25</td>
+                            <td class="text-center">Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>API calls/day</td>
+                            <td class="text-center">—</td>
+                            <td class="text-center">1,000</td>
+                            <td class="text-center">5,000</td>
+                            <td class="text-center">Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>CSV Export</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✓</td>
+                            <td class="text-center">✓</td>
+                            <td class="text-center">✓</td>
+                        </tr>
+                        <tr>
+                            <td>SHAP Explainability</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✓</td>
+                            <td class="text-center">✓</td>
+                            <td class="text-center">✓</td>
+                        </tr>
+                        <tr>
+                            <td>Portfolio Analysis</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✓</td>
+                            <td class="text-center">✓</td>
+                        </tr>
+                        <tr>
+                            <td>Custom Reports</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✓</td>
+                            <td class="text-center">✓</td>
+                        </tr>
+                        <tr>
+                            <td>White-label</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✓</td>
+                        </tr>
+                        <tr>
+                            <td>SLA Guarantee</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">✗</td>
+                            <td class="text-center">99.9%</td>
+                        </tr>
+                        <tr>
+                            <td>Support</td>
+                            <td class="text-center">Community</td>
+                            <td class="text-center">Email</td>
+                            <td class="text-center">Priority</td>
+                            <td class="text-center">Dedicated</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Competitive Advantage -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center text-light mb-4">Why GreenLens?</h2>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="advantage-card">
+                        <h4>🛰️ Satellite Verification</h4>
+                        <p>Independent evidence from ESA Sentinel-2 and NASA. Issuers can't manipulate satellite pixels.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="advantage-card">
+                        <h4>💰 90% Cheaper</h4>
+                        <p>Bloomberg ESG: €500K/year. MSCI: €200K/year. GreenLens Enterprise: €60K/year.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="advantage-card">
+                        <h4>🔍 Full Explainability</h4>
+                        <p>SHAP values show exact feature contributions. No black box. Every score is auditable.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="row">
+        <div class="col-12">
+            <h2 class="text-center text-light mb-4">Frequently Asked Questions</h2>
+            <div class="accordion" id="faqAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                            Can I upgrade or downgrade my plan?
+                        </button>
+                    </h2>
+                    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Yes. You can upgrade or downgrade at any time. Changes take effect immediately, and billing is prorated.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                            Is there a free trial?
+                        </button>
+                    </h2>
+                    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Yes. Professional and Business tiers include a 14-day free trial. No credit card required.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                            What payment methods do you accept?
+                        </button>
+                    </h2>
+                    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            We accept credit cards, bank transfers, and purchase orders for Enterprise customers.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.pricing-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 2rem;
+    height: 100%;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.pricing-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.pricing-card.featured {
+    border-color: #0F6E56;
+    box-shadow: 0 0 20px rgba(15,110,86,0.3);
+}
+
+.badge-popular {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: #0F6E56;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pricing-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.pricing-header h3 {
+    color: #c9d1d9;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.price {
+    margin-bottom: 0.5rem;
+}
+
+.price .amount {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #0F6E56;
+}
+
+.price .period {
+    font-size: 1rem;
+    color: #8b949e;
+}
+
+.features-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 2rem;
+}
+
+.features-list li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #21262d;
+    color: #c9d1d9;
+}
+
+.features-list li:last-child {
+    border-bottom: none;
+}
+
+.advantage-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.advantage-card h4 {
+    color: #c9d1d9;
+    margin-bottom: 1rem;
+}
+
+.advantage-card p {
+    color: #8b949e;
+    margin: 0;
+}
+
+.accordion-item {
+    background: #161b22;
+    border: 1px solid #30363d;
+    margin-bottom: 1rem;
+}
+
+.accordion-button {
+    background: #161b22;
+    color: #c9d1d9;
+    border: none;
+}
+
+.accordion-button:not(.collapsed) {
+    background: #0d1117;
+    color: #0F6E56;
+}
+
+.accordion-body {
+    background: #0d1117;
+    color: #8b949e;
+}
+</style>
+{% endblock %}

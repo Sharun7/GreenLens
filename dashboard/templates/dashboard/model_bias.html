@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Model Bias Analysis — GreenLens{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-light mb-2">🔍 Model Bias Detection & Fairness Analysis</h2>
+            <p class="text-muted">
+                Comprehensive bias analysis for GreenLens PCRS model — geographic bias, synthetic label bias, 
+                CNN classifier bias, and fairness metrics by region.
+            </p>
+        </div>
+    </div>
+
+    <!-- Bias Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="detail-card">
+                <h6 class="text-muted mb-2" style="font-size:0.75rem;">GEOGRAPHIC BIAS</h6>
+                <h3 class="text-warning mb-1" id="geo-bias-severity">Loading...</h3>
+                <p class="text-muted mb-0" style="font-size:0.85rem;" id="geo-bias-status">Analyzing...</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="detail-card">
+                <h6 class="text-muted mb-2" style="font-size:0.75rem;">SYNTHETIC LABEL BIAS</h6>
+                <h3 class="text-warning mb-1" id="syn-bias-severity">Loading...</h3>
+                <p class="text-muted mb-0" style="font-size:0.85rem;" id="syn-bias-status">Analyzing...</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="detail-card">
+                <h6 class="text-muted mb-2" style="font-size:0.75rem;">CNN CLASSIFIER BIAS</h6>
+                <h3 class="text-warning mb-1" id="cnn-bias-severity">Loading...</h3>
+                <p class="text-muted mb-0" style="font-size:0.85rem;" id="cnn-bias-status">Analyzing...</p>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="detail-card">
+                <h6 class="text-muted mb-2" style="font-size:0.75rem;">REGIONS ANALYZED</h6>
+                <h3 class="text-info mb-1" id="regions-count">Loading...</h3>
+                <p class="text-muted mb-0" style="font-size:0.85rem;">Across all continents</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geographic Bias Analysis -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="detail-card">
+                <h5 class="mb-3">📊 Geographic Bias (SHAP Variance by Region)</h5>
+                <p class="text-muted mb-3" style="font-size:0.9rem;">
+                    High SHAP variance indicates model uncertainty and potential bias. 
+                    Low variance indicates model confidence and good training coverage.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover" id="geo-bias-table">
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Bonds</th>
+                                <th>Mean SHAP Variance</th>
+                                <th>Mean PCRS</th>
+                                <th>Bias Severity</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="6" class="text-center">Loading data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CNN Classifier Bias -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="detail-card">
+                <h5 class="mb-3">🛰️ CNN Classifier Bias (EuroSAT Training)</h5>
+                <p class="text-muted mb-3" style="font-size:0.9rem;">
+                    ResNet-18 trained on EuroSAT data. European landscapes over-represented, 
+                    tropical/arid zones under-represented.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover" id="cnn-bias-table">
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Total Bonds</th>
+                                <th>Verifiable</th>
+                                <th>Consistent</th>
+                                <th>Accuracy</th>
+                                <th>Bias Severity</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="7" class="text-center">Loading data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fairness Metrics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="detail-card">
+                <h5 class="mb-3">⚖️ Fairness Metrics by Region</h5>
+                <p class="text-muted mb-3" style="font-size:0.9rem;">
+                    High SHAP variance + wide confidence margins = model uncertain. 
+                    These regions need more training data or region-specific models.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover" id="fairness-table">
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Sample Size</th>
+                                <th>Mean SHAP Variance</th>
+                                <th>Mean Confidence Margin</th>
+                                <th>Mean PCRS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="text-center">Loading data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bias Summary Table -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="detail-card">
+                <h5 class="mb-3">📋 Known Biases & Mitigation Strategies</h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover" id="bias-summary-table">
+                        <thead>
+                            <tr>
+                                <th>Bias Type</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Description</th>
+                                <th>Fix Strategy</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="text-center">Loading data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Button -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <button class="btn btn-primary" id="export-bias-report">
+                📥 Export Full Bias Report (JSON)
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.detail-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.table-dark {
+    background: #0d1117;
+}
+
+.table-dark th {
+    background: #161b22;
+    border-color: #30363d;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8b949e;
+}
+
+.table-dark td {
+    border-color: #21262d;
+    color: #c9d1d9;
+}
+
+.badge-high {
+    background: #da3633;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.badge-medium {
+    background: #e3b341;
+    color: #0d1117;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.badge-low {
+    background: #3fb950;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+</style>
+
+<script>
+// Fetch bias detection data
+fetch('/api/risk/bias-detection/')
+    .then(res => res.json())
+    .then(data => {
+        const results = data.results;
+        
+        // Update summary cards
+        if (results.geographic_bias) {
+            const geoStats = Object.values(results.geographic_bias.regional_stats || {});
+            const highSeverity = geoStats.filter(s => s.bias_severity === 'HIGH').length;
+            document.getElementById('geo-bias-severity').textContent = 
+                highSeverity > 0 ? 'HIGH' : 'MEDIUM';
+            document.getElementById('geo-bias-status').textContent = 
+                `${highSeverity} regions with high bias`;
+        }
+        
+        if (results.synthetic_label_bias) {
+            document.getElementById('syn-bias-severity').textContent = 
+                results.synthetic_label_bias.bias_severity || 'N/A';
+            document.getElementById('syn-bias-status').textContent = 
+                results.synthetic_label_bias.status || 'N/A';
+        }
+        
+        if (results.cnn_classifier_bias) {
+            const cnnStats = Object.values(results.cnn_classifier_bias.regional_stats || {});
+            const highSeverity = cnnStats.filter(s => s.bias_severity === 'HIGH').length;
+            document.getElementById('cnn-bias-severity').textContent = 
+                highSeverity > 0 ? 'HIGH' : 'MEDIUM';
+            document.getElementById('cnn-bias-status').textContent = 
+                `${highSeverity} regions with low accuracy`;
+        }
+        
+        if (results.fairness_metrics) {
+            const regions = Object.keys(results.fairness_metrics.metrics || {});
+            document.getElementById('regions-count').textContent = regions.length;
+        }
+        
+        // Populate geographic bias table
+        if (results.geographic_bias && results.geographic_bias.regional_stats) {
+            const tbody = document.querySelector('#geo-bias-table tbody');
+            tbody.innerHTML = '';
+            
+            Object.entries(results.geographic_bias.regional_stats).forEach(([region, stats]) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><strong>${region}</strong></td>
+                    <td>${stats.bond_count}</td>
+                    <td>${stats.mean_shap_variance}</td>
+                    <td>${stats.mean_pcr_score}</td>
+                    <td><span class="badge-${stats.bias_severity.toLowerCase()}">${stats.bias_severity}</span></td>
+                    <td>${stats.status}</td>
+                `;
+            });
+        }
+        
+        // Populate CNN bias table
+        if (results.cnn_classifier_bias && results.cnn_classifier_bias.regional_stats) {
+            const tbody = document.querySelector('#cnn-bias-table tbody');
+            tbody.innerHTML = '';
+            
+            Object.entries(results.cnn_classifier_bias.regional_stats).forEach(([region, stats]) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><strong>${region}</strong></td>
+                    <td>${stats.total_bonds}</td>
+                    <td>${stats.verifiable}</td>
+                    <td>${stats.consistent}</td>
+                    <td>${stats.accuracy_pct}%</td>
+                    <td><span class="badge-${stats.bias_severity.toLowerCase()}">${stats.bias_severity}</span></td>
+                    <td>${stats.status}</td>
+                `;
+            });
+        }
+        
+        // Populate fairness metrics table
+        if (results.fairness_metrics && results.fairness_metrics.metrics) {
+            const tbody = document.querySelector('#fairness-table tbody');
+            tbody.innerHTML = '';
+            
+            Object.entries(results.fairness_metrics.metrics).forEach(([region, metrics]) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><strong>${region}</strong></td>
+                    <td>${metrics.sample_size}</td>
+                    <td>${metrics.mean_shap_variance}</td>
+                    <td>${metrics.mean_confidence_margin}</td>
+                    <td>${metrics.mean_pcr_score}</td>
+                `;
+            });
+        }
+    })
+    .catch(err => {
+        console.error('Failed to load bias detection data:', err);
+    });
+
+// Fetch bias summary table
+fetch('/api/risk/bias-summary/')
+    .then(res => res.json())
+    .then(data => {
+        const biases = data.summary.biases;
+        const tbody = document.querySelector('#bias-summary-table tbody');
+        tbody.innerHTML = '';
+        
+        biases.forEach(bias => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td><strong>${bias.type}</strong></td>
+                <td><span class="badge-${bias.severity.toLowerCase()}">${bias.severity}</span></td>
+                <td>${bias.status}</td>
+                <td style="max-width:300px;">${bias.description}</td>
+                <td style="max-width:300px;">${bias.fix}</td>
+            `;
+        });
+    })
+    .catch(err => {
+        console.error('Failed to load bias summary:', err);
+    });
+
+// Export bias report
+document.getElementById('export-bias-report').addEventListener('click', () => {
+    fetch('/api/risk/bias-detection/')
+        .then(res => res.json())
+        .then(data => {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'greenlens_bias_report.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+});
+</script>
+{% endblock %}

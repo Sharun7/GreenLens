@@ -36,6 +36,16 @@
     .stat-card .value { font-size: 2rem; font-weight: 700; color: var(--primary-green); }
     #map { height: 520px; border-radius: 8px; border: 1px solid var(--border-color); }
     .container-page { padding: 1.5rem; max-width: 100%; }
+    .global-disclaimer {
+      background: rgba(239, 159, 39, 0.12);
+      border-bottom: 1px solid rgba(239, 159, 39, 0.35);
+      color: #f0a030;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      padding: 0.55rem 1rem;
+      text-align: center;
+    }
+    .global-disclaimer strong { color: #f6c177; }
   </style>
   {% block extra_head %}{% endblock %}
   {% block extra_css %}{% endblock %}
@@ -53,7 +63,25 @@
         <a class="nav-link {% if request.resolver_match.url_name == 'pricing_analysis' %}active{% endif %}" href="{% url 'dashboard:pricing_analysis' %}">📊 Pricing</a>
       </li>
       <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'portfolio' %}active{% endif %}" href="{% url 'dashboard:portfolio' %}">💼 Portfolio</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'model_bias' %}active{% endif %}" href="{% url 'dashboard:model_bias' %}">Model Bias</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'decision_impact' %}active{% endif %}" href="{% url 'dashboard:decision_impact' %}">Impact</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'model_trust' %}active{% endif %}" href="{% url 'dashboard:model_trust' %}">Trust</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'data_pipeline' %}active{% endif %}" href="{% url 'dashboard:data_pipeline' %}">Pipeline</a>
+      </li>
+      <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="{% url 'dashboard:about' %}">ℹ About</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'future_innovations' %}active{% endif %}" href="{% url 'dashboard:future_innovations' %}">🚀 Future</a>
       </li>
       <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'terms' %}active{% endif %}" href="{% url 'dashboard:terms' %}">📜 Terms</a>
@@ -65,10 +93,21 @@
   </button>
 </nav>
 
+<div class="global-disclaimer">
+  <strong>GreenLens scores are research indicators only.</strong>
+  Not financial advice. Independent verification recommended before investment decisions.
+</div>
+
 <div id="page-content">
   {% block content %}{% endblock %}
 </div>
 
+<!-- Global Disclaimer Footer -->
+<footer style="background: #0d1117; border-top: 1px solid #30363d; padding: 12px 20px; text-align: center; margin-top: auto;">
+    <p style="color: #8b949e; font-size: 0.75rem; margin: 0;">
+        ⚠️ <strong>GreenLens scores are research indicators only.</strong> Not financial advice. Independent verification recommended before investment decisions.
+    </p>
+</footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 {% block extra_js %}{% endblock %}

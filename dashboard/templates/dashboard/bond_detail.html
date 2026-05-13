@@ -87,6 +87,12 @@
         margin-top: 0.3rem;
     }
 
+    @media (max-width: 992px) {
+        .summary-strip {
+            grid-template-columns: 1fr;
+        }
+    }
+
     /* ── Detail cards ──────────────────────────────────────── */
     .detail-card {
         background: #161b22;
@@ -212,6 +218,21 @@
     .table-dark-custom tr:hover td {
         background: #21262d;
     }
+
+    .feedback-form-control {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        color: #e6edf3;
+        border-radius: 8px;
+        font-size: 0.85rem;
+    }
+
+    .feedback-form-control:focus {
+        background: #0d1117;
+        border-color: var(--primary-green);
+        color: #e6edf3;
+        box-shadow: none;
+    }
     /* ── Bootstrap dark overrides ──────────────────────────── */
     /* text-muted on dark bg */
     .text-muted, small.text-muted { color: #8b949e !important; }
@@ -261,10 +282,54 @@
             Issued {{ bond.issuance_date|date:"M Y" }}
         </div>
         {% if pcr %}
-        <span class="status-badge-large status-{{ pcr.risk_band|lower }}">
-            {{ pcr.risk_band }} Risk (PCRS {{ pcr.score|floatformat:1 }})
+        <span class="status-badge-large status-{{ pcr.three_band_slug }}">
+            {{ pcr.three_band_label }}
+            (PCRS {{ pcr.score|floatformat:1 }} ± {{ pcr.confidence_margin|floatformat:0 }})
         </span>
         {% endif %}
+    </div>
+
+    <!-- Five-minute decision summary -->
+    <div class="summary-strip">
+        <div class="summary-card">
+            <div class="card-label">Risk Summary</div>
+            {% if pcr %}
+            <div class="card-value" style="color:{% if pcr.three_band_slug == 'low' %}#3fb950{% elif pcr.three_band_slug == 'medium' %}#f0a030{% else %}#f85149{% endif %};">
+                {{ pcr.score|floatformat:0 }} ± {{ pcr.confidence_margin|floatformat:0 }}
+            </div>
+            <div class="card-sub">{{ pcr.three_band_label }}. Range {{ pcr.confidence_lower|floatformat:0 }}-{{ pcr.confidence_upper|floatformat:0 }}.</div>
+            <div class="card-sub">Main driver: {{ pcr.main_risk_driver.label }}.</div>
+            <div class="card-sub">{{ prediction_explanation.detail_summary }}</div>
+            {% else %}
+            <div class="card-value">N/A</div>
+            <div class="card-sub">No PCRS score available yet.</div>
+            {% endif %}
+        </div>
+        <div class="summary-card">
+            <div class="card-label">Pricing Intelligence</div>
+            {% if gap %}
+            <div class="card-value" style="font-size:1.7rem; color:{% if gap.is_mispriced %}#f85149{% else %}#3fb950{% endif %};">
+                {{ gap.gap_bps|floatformat:1 }} bps
+            </div>
+            <div class="card-sub">{{ pricing_plain_text }}</div>
+            {% else %}
+            <div class="card-value">N/A</div>
+            <div class="card-sub">Spread data is not available yet.</div>
+            {% endif %}
+        </div>
+        <div class="summary-card">
+            <div class="card-label">Satellite Check</div>
+            {% if greenwash_data %}
+            <div class="card-value" style="font-size:1.45rem; color:{% if greenwash_data.is_inconsistent %}#f85149{% else %}#3fb950{% endif %};">
+                {% if greenwash_data.is_inconsistent %}Review{% else %}Consistent{% endif %}
+            </div>
+            <div class="card-sub">{{ greenwash_plain_text }}</div>
+            <div class="card-sub">Confidence: {{ greenwash_data.confidence_pct|floatformat:1 }}%</div>
+            {% else %}
+            <div class="card-value">N/A</div>
+            <div class="card-sub">No satellite verification result yet.</div>
+            {% endif %}
+        </div>
     </div>
     
     <div class="row">
@@ -321,6 +386,56 @@
                     </span>
                 </div>
             </div>
+
+            <div class="detail-card">
+                <h5>Data Reliability</h5>
+                <div class="metric-row">
+                    <span class="metric-label">Overall Reliability</span>
+                    <span class="metric-value" style="color:{% if data_reliability.overall_label == 'High reliability' %}#3fb950{% elif data_reliability.overall_label == 'Moderate reliability' %}#f0a030{% else %}#f85149{% endif %};">
+                        {{ data_reliability.overall_score }}/10 — {{ data_reliability.overall_label }}
+                    </span>
+                </div>
+                {% for source in data_reliability.sources %}
+                <div class="metric-row">
+                    <span class="metric-label">{{ source.name }}</span>
+                    <span class="metric-value">
+                        {{ source.effective_score }}/10
+                        <small class="text-muted d-block">{{ source.status }} — {{ source.note }}</small>
+                    </span>
+                </div>
+                {% endfor %}
+
+                <div style="margin-top: 1rem; border-top: 1px solid #30363d; padding-top: 0.75rem;">
+                    <div class="card-label" style="color:#8b949e; text-transform:uppercase; font-size:0.7rem;">Missing Data Handling</div>
+                    {% for item in data_reliability.missing_data %}
+                    <div style="font-size:0.78rem; color:#c9d1d9; margin-top:0.45rem;">
+                        <strong>{{ item.type }}:</strong> {{ item.status }}. {{ item.action }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div style="margin-top: 1rem; border-top: 1px solid #30363d; padding-top: 0.75rem;">
+                    <div class="card-label" style="color:#8b949e; text-transform:uppercase; font-size:0.7rem;">Conflict Signals</div>
+                    {% if data_reliability.conflicts %}
+                        {% for conflict in data_reliability.conflicts %}
+                        <div style="font-size:0.78rem; color:#c9d1d9; margin-top:0.45rem;">
+                            <strong>{{ conflict.type }}:</strong> {{ conflict.resolution }}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div style="font-size:0.78rem; color:#8b949e; margin-top:0.45rem;">No source conflict detected for the latest records.</div>
+                    {% endif %}
+                </div>
+
+                <div style="margin-top: 1rem; border-top: 1px solid #30363d; padding-top: 0.75rem;">
+                    <div class="card-label" style="color:#8b949e; text-transform:uppercase; font-size:0.7rem;">Evidence Hierarchy</div>
+                    {% for level in data_reliability.evidence_hierarchy %}
+                    <div style="font-size:0.75rem; color:#8b949e; margin-top:0.35rem;">
+                        {{ level.level }}. {{ level.name }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
             
             <!-- Pricing Gap Summary -->
             {% if gap %}
@@ -359,6 +474,11 @@
                             <span class="badge" style="background:rgba(83,74,183,0.2);color:#a5b4fc;border:1px solid rgba(83,74,183,0.5);">📊 Estimated Spread</span>
                         {% endif %}
                     </span>
+                </div>
+                
+                <!-- Pricing Translation (UX Fix) -->
+                <div style="margin-top: 12px; font-size: 0.8rem; color: #a5b4fc; background: rgba(83, 74, 183, 0.1); border-left: 3px solid #534AB7; padding: 8px;">
+                    {{ pricing_plain_text }}
                 </div>
             </div>
             {% endif %}
@@ -418,20 +538,30 @@
             {% if pcr %}
             <div class="detail-card">
                 <h5>🎯 PCRS Score</h5>
-                <div class="pcr-score-display">
+                <div class="pcr-score-display" style="text-align: center;">
                     <div class="pcr-score-value" style="color: 
                         {% if pcr.score <= 33 %}#1D9E75
                         {% elif pcr.score <= 66 %}#EF9F27
-                        {% else %}#E24B4A{% endif %}">
-                        {{ pcr.score|floatformat:1 }}
+                        {% else %}#E24B4A{% endif %}; font-size: 3.5rem; font-weight: 700; line-height: 1.1;">
+                        {{ pcr.score|floatformat:0 }} <span style="font-size: 1.5rem; color: #8b949e;">± {{ pcr.confidence_margin|floatformat:0 }}</span>
                     </div>
+                    
+                    <!-- Plain English Label (UX Fix) -->
+                    <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; color: 
+                        {% if pcr.score <= 33 %}#3fb950{% elif pcr.score <= 66 %}#f0a030{% else %}#f85149{% endif %};">
+                        {{ pcr.three_band_label }}
+                    </div>
+                    
                     <div class="pcr-score-label">Physical Climate Risk Score</div>
+                    <div class="pcr-score-label" style="font-size:0.85rem;">
+                        Confidence range: {{ pcr.confidence_lower|floatformat:0 }}-{{ pcr.confidence_upper|floatformat:0 }}
+                    </div>
                     <div class="pcr-gauge">
                         <div class="pcr-marker" style="left: {{ pcr.score }}%"></div>
                     </div>
                     <div class="d-flex justify-content-between mt-2 text-muted" style="font-size: 0.75rem;">
-                        <span>Low Risk</span>
-                        <span>High Risk</span>
+                        <span>0</span>
+                        <span>100</span>
                     </div>
                 </div>
                 <div class="mt-3 text-center">
@@ -445,13 +575,70 @@
             <!-- SHAP Waterfall Chart -->
             <div class="detail-card">
                 <h5>🔍 Risk Factor Breakdown (SHAP)</h5>
-                <div class="chart-container">
-                    <canvas id="shapChart"></canvas>
+                
+                <!-- UX Fix: Plain English Summary -->
+                {% if shap_data %}
+                <div style="background: rgba(29, 158, 117, 0.1); border-left: 3px solid #1D9E75; padding: 10px; margin-bottom: 12px; font-size: 0.85rem; color: #c9d1d9;">
+                    <strong>Simple summary:</strong> {{ shap_summary }}
                 </div>
-                <p class="text-muted small mt-2">
-                    Shows how each factor contributes to the overall risk score. 
-                    Positive values increase risk, negative values decrease risk.
-                </p>
+                {% endif %}
+
+                {% if shap_factor_rows %}
+                <div style="border:1px solid #30363d; border-radius:8px; padding:0.75rem; margin-bottom:12px;">
+                    <div class="card-label" style="color:#8b949e; text-transform:uppercase; font-size:0.7rem;">Top SHAP Contributors</div>
+                    {% for factor in shap_factor_rows %}
+                    <div class="metric-row">
+                        <span class="metric-label">{{ factor.label }}</span>
+                        <span class="metric-value">
+                            {{ factor.share_pct|floatformat:1 }}%
+                            <small class="text-muted d-block">{{ factor.direction }} by {{ factor.abs_contribution|floatformat:2 }} points</small>
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- Collapsible Chart -->
+                <button class="btn btn-sm btn-outline-secondary w-100 mb-2" type="button" data-bs-toggle="collapse" data-bs-target="#shapCollapse" aria-expanded="false" aria-controls="shapCollapse">
+                    View Technical Chart (Advanced) ▼
+                </button>
+                
+                <div class="collapse" id="shapCollapse">
+                    <div class="chart-container mt-3">
+                        <canvas id="shapChart"></canvas>
+                    </div>
+                    <p class="text-muted small mt-2">
+                        Shows how each factor contributes to the overall risk score. 
+                        Positive values increase risk, negative values decrease risk.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-card">
+                <h5>Model Depth & Bias Monitor</h5>
+                <div class="metric-row">
+                    <span class="metric-label">Current Region</span>
+                    <span class="metric-value">{{ model_depth.region }}</span>
+                </div>
+                <div style="margin-top: 0.75rem; font-size:0.82rem; color:#c9d1d9;">
+                    GreenLens actively monitors geographic SHAP variance, confidence interval width,
+                    regional coverage error, and calibration against outcome feedback.
+                </div>
+                <div style="margin-top: 1rem; border-top: 1px solid #30363d; padding-top: 0.75rem;">
+                    <div class="card-label" style="color:#8b949e; text-transform:uppercase; font-size:0.7rem;">Known Bias Controls</div>
+                    {% for bias in model_depth.known_biases %}
+                    <div style="font-size:0.78rem; color:#c9d1d9; margin-top:0.5rem;">
+                        <strong>{{ bias.type }}</strong>
+                        <span style="color:{% if bias.severity == 'HIGH' %}#f85149{% elif bias.severity == 'MEDIUM' %}#f0a030{% else %}#3fb950{% endif %};">
+                            {{ bias.severity }}
+                        </span>
+                        <div class="text-muted">{{ bias.fix }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <a href="{% url 'dashboard:model_bias' %}" class="btn btn-sm btn-outline-secondary w-100 mt-3">
+                    Open Full Bias Dashboard
+                </a>
             </div>
             
             <!-- PCR Trend -->
@@ -477,7 +664,14 @@
                     <strong>✓ Consistent with Claims</strong>
                     {% endif %}
                     <br>
-                    <small>Confidence: {{ greenwash_data.confidence|floatformat:1 }}%</small>
+                    <small>Confidence: {{ greenwash_data.confidence_pct|floatformat:1 }}%</small>
+                    
+                    {% if greenwash_data.is_inconsistent %}
+                    <!-- Greenwash Tooltip (UX Fix) -->
+                    <div style="margin-top: 8px; font-size: 0.75rem; color: #8b949e; line-height: 1.3; border-top: 1px dashed rgba(226, 75, 74, 0.3); padding-top: 8px;">
+                        <em>Satellite evidence does not match issuer's claimed project type. This is an alert for further investigation — not a confirmed fraud finding.</em>
+                    </div>
+                    {% endif %}
                 </div>
                 
                 <div class="metric-row">
@@ -503,6 +697,30 @@
                 <div class="metric-row">
                     <span class="metric-label">Model Version</span>
                     <span class="metric-value">{{ greenwash_data.model_version }}</span>
+                </div>
+                
+                <!-- NLP Prospectus Verification (Future Scope Mock) -->
+                <div style="margin-top: 1.5rem; border-top: 1px solid #30363d; padding-top: 1rem;">
+                    <h6 style="color: #a5b4fc; font-size: 0.9rem; margin-bottom: 0.75rem;">📄 NLP Prospectus Verification</h6>
+                    <div style="background: rgba(83, 74, 183, 0.1); border: 1px solid #534AB7; border-radius: 6px; padding: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.85rem;">
+                            <span style="color: #8b949e;">Issuer Claim (PDF Extract)</span>
+                            <strong style="color: #c9d1d9;">500 Acres Reforestation</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.85rem;">
+                            <span style="color: #8b949e;">Satellite Verified Area</span>
+                            <strong style="color: {% if flag.is_inconsistent %}#E24B4A{% else %}#1D9E75{% endif %};">
+                                {% if flag.is_inconsistent %}~50 Acres Detected{% else %}~485 Acres Detected{% endif %}
+                            </strong>
+                        </div>
+                        <div style="margin-top: 0.75rem; font-size: 0.8rem; border-top: 1px dashed rgba(83, 74, 183, 0.4); padding-top: 0.75rem; color: #a5b4fc;">
+                            {% if flag.is_inconsistent %}
+                            <span style="color: #E24B4A; font-weight: bold;">⚠️ Discrepancy Flagged:</span> The stated acreage in the bond prospectus does not match the observed satellite footprint.
+                            {% else %}
+                            <span style="color: #3fb950; font-weight: bold;">✅ Verified:</span> The stated acreage in the prospectus matches satellite observations within margin of error.
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -550,6 +768,52 @@
                 </p>
             </div>
             {% endif %}
+
+            <div class="detail-card">
+                <h5>Model Feedback Loop</h5>
+                <p class="text-muted small">
+                    Record a fund-manager decision and later realized outcome so adverse cases can enter the model review queue.
+                    Existing feedback events: {{ feedback_summary.total|default:0 }}; adverse outcomes: {{ feedback_summary.adverse|default:0 }}.
+                </p>
+                <div class="alert alert-warning py-2 mb-3" style="font-size:0.78rem;">
+                    Reported model errors and loss events feed the public review log and retraining queue.
+                    GreenLens treats this as research feedback, not investment execution support.
+                </div>
+                <form id="feedback-form">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="metric-label" for="feedback-decision">Decision</label>
+                        <select id="feedback-decision" class="form-select feedback-form-control">
+                            <option value="watchlist">Watchlist</option>
+                            <option value="avoid">Avoid</option>
+                            <option value="buy">Buy</option>
+                            <option value="hold">Hold</option>
+                            <option value="sell">Sell</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="metric-label" for="feedback-outcome">Observed outcome</label>
+                        <select id="feedback-outcome" class="form-select feedback-form-control">
+                            <option value="pending">Pending outcome</option>
+                            <option value="no_loss">No loss observed</option>
+                            <option value="loss">Loss observed</option>
+                            <option value="default">Default / distress</option>
+                            <option value="price_recovery">Price recovery</option>
+                            <option value="model_error">Model review needed</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="metric-label" for="feedback-loss">Realized loss (bps)</label>
+                        <input id="feedback-loss" class="form-control feedback-form-control" type="number" step="0.1" placeholder="Optional">
+                    </div>
+                    <div class="mb-3">
+                        <label class="metric-label" for="feedback-notes">Notes</label>
+                        <textarea id="feedback-notes" class="form-control feedback-form-control" rows="3" placeholder="Outcome, date, or analyst note"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-success w-100">Record Feedback</button>
+                    <div id="feedback-status" class="text-muted small mt-2"></div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -575,6 +839,45 @@
             console.error('Error fetching satellite thumbnails:', err);
         });
     {% endif %}
+
+    const feedbackForm = document.getElementById('feedback-form');
+    if (feedbackForm) {
+        feedbackForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const statusEl = document.getElementById('feedback-status');
+            const lossValue = document.getElementById('feedback-loss').value;
+            const csrfToken = feedbackForm.querySelector('[name=csrfmiddlewaretoken]').value;
+            statusEl.textContent = 'Recording feedback...';
+
+            try {
+                const response = await fetch('/api/risk/feedback/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        bond_pk: {{ bond.pk }},
+                        decision: document.getElementById('feedback-decision').value,
+                        outcome: document.getElementById('feedback-outcome').value,
+                        realized_loss_bps: lossValue ? Number(lossValue) : null,
+                        notes: document.getElementById('feedback-notes').value
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || errorData.error || 'Feedback request failed');
+                }
+
+                const data = await response.json();
+                statusEl.textContent = `Recorded. Review priority: ${data.review_priority}.`;
+                feedbackForm.reset();
+            } catch (error) {
+                statusEl.textContent = `Could not record feedback: ${error.message}`;
+            }
+        });
+    }
 
     // SHAP Waterfall Chart
     {% if shap_data %}
@@ -685,19 +988,21 @@
                     callbacks: {
                         label: function(context) {
                             const d = context.raw;
-                            return d.bond_id ? `${d.bond_id}: ${d.x.toFixed(2)}% vs ${d.y.toFixed(2)}%` : '';
+                            return d.bond_id ? `${d.bond_id}: predicted ${d.x.toFixed(1)} bps vs actual ${d.y.toFixed(1)} bps` : '';
                         }
                     }
                 }
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Fitted Yield (%)' },
-                    grid: { color: '#f3f4f6' }
+                    title: { display: true, text: 'Predicted spread (bps)', color: '#8b949e' },
+                    grid: { color: 'rgba(48,54,61,0.8)' },
+                    ticks: { color: '#8b949e' }
                 },
                 y: {
-                    title: { display: true, text: 'Actual Yield (%)' },
-                    grid: { color: '#f3f4f6' }
+                    title: { display: true, text: 'Actual spread (bps)', color: '#8b949e' },
+                    grid: { color: 'rgba(48,54,61,0.8)' },
+                    ticks: { color: '#8b949e' }
                 }
             }
         }

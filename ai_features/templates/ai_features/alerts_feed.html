@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+.alert-card { background:white; border-radius:8px; padding:1.25rem; margin-bottom:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.1); border-left:4px solid; }
+.alert-climate { border-left-color:#E24B4A; }
+.alert-greenwash { border-left-color:#534AB7; }
+.alert-pricing { border-left-color:#1D9E75; }
+.alert-regulatory { border-left-color:#EF9F27; }
+.alert-icon { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+.alert-icon-climate { background:#fee2e2; }
+.alert-icon-greenwash { background:#e0e7ff; }
+.alert-icon-pricing { background:#d1fae5; }
+.alert-icon-regulatory { background:#fef3c7; }
+.filter-pill { display:inline-block; padding:4px 12px; border-radius:16px; font-size:0.8rem; cursor:pointer; margin-right:8px; border:1px solid #e5e7eb; }
+.filter-pill.active { background:var(--primary-green); color:white; border-color:var(--primary-green); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Automated Alerts</h2>
+        <span class="badge bg-danger">{{ stats.unread }} Unread</span>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <div class="col-6 col-md-3"><div class="card text-center p-3">
+            <div class="h4 mb-1">{{ stats.total }}</div><div class="text-muted small">Total Alerts</div>
+        </div></div>
+        <div class="col-6 col-md-3"><div class="card text-center p-3 border-danger">
+            <div class="h4 mb-1 text-danger">{{ stats.climate }}</div><div class="text-muted small">Climate Events</div>
+        </div></div>
+        <div class="col-6 col-md-3"><div class="card text-center p-3 border-primary">
+            <div class="h4 mb-1 text-primary">{{ stats.greenwash }}</div><div class="text-muted small">Greenwash</div>
+        </div></div>
+        <div class="col-6 col-md-3"><div class="card text-center p-3 border-warning">
+            <div class="h4 mb-1 text-warning">{{ stats.pricing }}</div><div class="text-muted small">Pricing</div>
+        </div></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="mb-3">
+        <a href="?" class="filter-pill {% if not filter_type %}active{% endif %}">All</a>
+        <a href="?type=climate_event" class="filter-pill {% if filter_type == 'climate_event' %}active{% endif %}">Climate Events</a>
+        <a href="?type=greenwash" class="filter-pill {% if filter_type == 'greenwash' %}active{% endif %}">Greenwash</a>
+        <a href="?type=pricing" class="filter-pill {% if filter_type == 'pricing' %}active{% endif %}">Pricing</a>
+        <a href="?type=regulatory" class="filter-pill {% if filter_type == 'regulatory' %}active{% endif %}">Regulatory</a>
+    </div>
+
+    <!-- Alert Feed -->
+    {% for item in alerts_list %}
+    {% with alert=item.alert %}
+    <div class="alert-card alert-{{ alert.alert_type }}">
+        <div class="d-flex">
+            <div class="alert-icon alert-icon-{{ alert.alert_type }} me-3">
+                {% if alert.alert_type == 'climate_event' %}⚠️{% elif alert.alert_type == 'greenwash' %}🛰️{% elif alert.alert_type == 'pricing' %}📊{% else %}📋{% endif %}
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h6 class="mb-1">{{ alert.title }}</h6>
+                    <span class="badge {% if alert.status == 'sent' %}bg-success{% elif alert.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">{{ alert.get_status_display }}</span>
+                </div>
+                <p class="text-muted small mb-2">{{ alert.description }}</p>
+                
+                <!-- Regulatory Alert: Show Compliance Deadline -->
+                {% if alert.alert_type == 'regulatory' and item.compliance_deadline %}
+                <div class="mb-2">
+                    <span class="badge {% if item.urgency == 'OVERDUE' %}bg-danger{% elif item.urgency == 'URGENT' %}bg-warning{% elif item.urgency == 'HIGH' %}bg-info{% else %}bg-secondary{% endif %}">
+                        {% if item.urgency == 'OVERDUE' %}
+                            ⚠️ OVERDUE
+                        {% elif item.urgency == 'URGENT' %}
+                            🔥 URGENT - {{ item.days_until_deadline }} days left
+                        {% elif item.urgency == 'HIGH' %}
+                            ⏰ HIGH - {{ item.days_until_deadline }} days left
+                        {% else %}
+                            📅 {{ item.days_until_deadline }} days until effective
+                        {% endif %}
+                    </span>
+                    <small class="text-muted ms-2">Compliance deadline: {{ item.compliance_deadline|date:"M d, Y" }}</small>
+                </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-light text-dark me-1">{{ alert.get_alert_type_display }}</span>
+                        <span class="badge bg-light text-dark">{{ alert.delivery_method }}</span>
+                        {% if alert.response_time_minutes %}
+                        <span class="badge bg-light text-dark">{{ alert.response_time_minutes }} min response</span>
+                        {% endif %}
+                        <!-- Show affected bonds count -->
+                        {% if item.affected_bonds_count > 0 %}
+                        <span class="badge bg-primary">{{ item.affected_bonds_count }} bond{{ item.affected_bonds_count|pluralize }} affected</span>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">{{ alert.triggered_at|date:"M d, Y H:i" }}</small>
+                </div>
+                {% if alert.affected_bonds.exists %}
+                <div class="mt-2">
+                    <small class="text-muted">Affected bonds:</small>
+                    {% for b in alert.affected_bonds.all|slice:":5" %}
+                    <a href="{% url 'dashboard:bond_detail' b.bond_id %}" class="badge bg-secondary text-decoration-none">{{ b.bond_id }}</a>
+                    {% endfor %}
+                    {% if item.affected_bonds_count > 5 %}
+                    <span class="badge bg-light text-dark">+{{ item.affected_bonds_count|add:"-5" }} more</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div class="text-center py-5">
+        <div class="display-1 text-muted">🔔</div>
+        <p class="text-muted mt-3">No alerts matching your filters.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

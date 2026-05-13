@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}AI Predictions | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+.level-card { background:white; border-radius:8px; padding:1.5rem; margin-bottom:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+.level-badge { display:inline-block; padding:4px 12px; border-radius:12px; font-size:0.75rem; font-weight:600; margin-bottom:1rem; }
+.level-1 { background:#d1fae5; color:#059669; }
+.level-2 { background:#e0e7ff; color:#534AB7; }
+.level-3 { background:#fef3c7; color:#d97706; }
+.prediction-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f3f4f6; }
+.prediction-row:last-child { border-bottom:none; }
+.confidence-bar { width:80px; height:6px; background:#e0e0e0; border-radius:3px; overflow:hidden; display:inline-block; }
+.confidence-fill { height:100%; border-radius:3px; }
+.scenario-comparison { height:250px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">AI Climate Predictions</h2>
+        <span class="badge bg-success">MLP Neural Network v1.0</span>
+    </div>
+    
+    <div class="alert alert-info mb-4">
+        <strong>🧠 Real Machine Learning Model</strong><br>
+        This dashboard uses a <strong>Multi-Layer Perceptron (MLP) neural network</strong> trained on actual PCRS historical data from the database.<br>
+        <strong>Features:</strong> flood_risk, heat_stress, drought_spei, bond_maturity, bond_age<br>
+        <strong>Training:</strong> 80/20 train/test split with early stopping<br>
+        <strong>Confidence intervals:</strong> Calculated from prediction variance on test set
+    </div>
+
+    <!-- Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3"><div class="level-card text-center">
+            <div class="display-6 fw-bold text-success">{{ stats.total_predictions }}</div>
+            <div class="text-muted small">Bond Predictions</div>
+        </div></div>
+        <div class="col-md-3"><div class="level-card text-center">
+            <div class="display-6 fw-bold text-primary">{{ stats.avg_confidence }}%</div>
+            <div class="text-muted small">Avg Confidence</div>
+        </div></div>
+        <div class="col-md-3"><div class="level-card text-center">
+            <div class="display-6 fw-bold text-warning">{{ stats.scenario_count }}</div>
+            <div class="text-muted small">IPCC Scenarios</div>
+        </div></div>
+        <div class="col-md-3"><div class="level-card text-center">
+            <div class="display-6 fw-bold text-info">{{ stats.bonds_predicted }}</div>
+            <div class="text-muted small">Bonds Covered</div>
+        </div></div>
+    </div>
+
+    <!-- Level 1: Bond-Level -->
+    <div class="level-card">
+        <span class="level-badge level-1">Level 1 — Bond-Level Prediction</span>
+        <h5>3-Horizon PCRS Trajectory (6mo / 12mo / 24mo)</h5>
+        <p class="text-muted small">Each bond has 3 predictions: short (6-month), medium (12-month), long (24-month) under SSP2-4.5 scenario.</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead><tr>
+                    <th>Bond</th><th>Current PCRS</th><th>6 Months</th><th>12 Months</th><th>24 Months</th><th>Primary Driver</th>
+                </tr></thead>
+                <tbody>
+                {% for row in bond_rows %}
+                <tr>
+                    <td><strong>{{ row.bond.bond_id }}</strong><br><small class="text-muted">{{ row.bond.issuer_name|truncatechars:25 }}</small></td>
+                    <td><span class="badge {% if row.current_pcrs <= 33 %}bg-success{% elif row.current_pcrs <= 66 %}bg-warning{% else %}bg-danger{% endif %}">{{ row.current_pcrs }}</span></td>
+                    <td>{% if row.short %}<span class="badge {% if row.short.predicted_pcrs <= 33 %}bg-success{% elif row.short.predicted_pcrs <= 66 %}bg-warning{% else %}bg-danger{% endif %}">{{ row.short.predicted_pcrs }}</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}<br><small class="text-muted">{{ row.confidence|floatformat:0 }}%</small></td>
+                    <td>{% if row.medium %}<span class="badge {% if row.medium.predicted_pcrs <= 33 %}bg-success{% elif row.medium.predicted_pcrs <= 66 %}bg-warning{% else %}bg-danger{% endif %}">{{ row.medium.predicted_pcrs }}</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
+                    <td>{% if row.long %}<span class="badge {% if row.long.predicted_pcrs <= 33 %}bg-success{% elif row.long.predicted_pcrs <= 66 %}bg-warning{% else %}bg-danger{% endif %}">{{ row.long.predicted_pcrs }}</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
+                    <td><small>{{ row.primary_driver }}</small><br><small class="text-muted">{{ row.driver_magnitude }}</small></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Scenario Comparison Chart -->
+    <div class="level-card">
+        <h5>Scenario Comparison — Average Predicted PCRS</h5>
+        <div class="scenario-comparison"><canvas id="scenarioChart"></canvas></div>
+    </div>
+
+    <!-- Level 2: Market -->
+    <div class="level-card">
+        <span class="level-badge level-2">Level 2 — Market Prediction</span>
+        <div class="row">
+            <div class="col-md-8">
+                <h5>{{ market_prediction.region }}</h5>
+                <p>{{ market_prediction.prediction }}</p>
+                <p class="text-muted small"><strong>Recommended:</strong> {{ market_prediction.recommended_action }}</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="display-5 fw-bold text-primary">{{ market_prediction.confidence }}%</div>
+                <div class="text-muted">Confidence</div>
+                <div class="mt-2 text-muted small">Timeframe: {{ market_prediction.timeframe }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Level 3: Systemic -->
+    <div class="level-card">
+        <span class="level-badge level-3">Level 3 — Systemic Risk Prediction</span>
+        <div class="row">
+            <div class="col-md-3 text-center">
+                <div class="display-4 fw-bold text-danger">{{ systemic_prediction.unviable_pct }}%</div>
+                <div class="text-muted small">Bonds Unviable</div>
+            </div>
+            <div class="col-md-3 text-center">
+                <div class="display-4 fw-bold text-warning">{{ systemic_prediction.stranded_assets_eur }}B</div>
+                <div class="text-muted small">Stranded Assets (EUR)</div>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Scenario:</strong> {{ systemic_prediction.scenario }}</p>
+                <p><strong>Highest Concentration:</strong> {{ systemic_prediction.highest_concentration }}</p>
+                <p class="text-muted small"><strong>Regulatory Use:</strong> {{ systemic_prediction.regulatory_use }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const scData = {{ scenario_chart_data|safe }};
+new Chart(document.getElementById('scenarioChart'), {
+    type: 'bar',
+    data: {
+        labels: scData.map(d => d.name),
+        datasets: [{
+            label: 'Avg Predicted PCRS',
+            data: scData.map(d => d.avg_predicted_pcrs),
+            backgroundColor: scData.map(d => {
+                if (d.warming_2050 < 2) return '#1D9E75';
+                if (d.warming_2050 < 2.5) return '#EF9F27';
+                return '#E24B4A';
+            }),
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { min: 0, max: 100, grid: { color: '#f3f4f6' } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """
 risk_scoring/ml_engine.py — XGBoost PCRS model training, SHAP explanation,
 and PCRSPredictor inference class.
@@ -251,7 +255,7 @@ class PCRSPredictor:
         drought_shap = shap_dict.get("drought_severity", 0.0)
 
         # Persist to DB (update latest score for this bond)
-        PCRScore.objects.update_or_create(
+        score_obj, _ = PCRScore.objects.update_or_create(
             bond=bond,
             model_version=MODEL_VERSION,
             defaults={
@@ -273,6 +277,9 @@ class PCRSPredictor:
             "bond_id":              bond.bond_id,
             "score":                round(score, 2),
             "risk_band":            risk_band,
+            "risk_label":           score_obj.three_band_label,
+            "confidence_interval":  score_obj.confidence_interval,
+            "main_risk_driver":     score_obj.main_risk_driver,
             "shap_values":          shap_dict,
             "flood_contribution":   round(flood_shap, 4),
             "heat_contribution":    round(heat_shap, 4),

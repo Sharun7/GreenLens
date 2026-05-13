@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% block title %}Risk & Failure Management — GreenLens{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="background:#0d1117; min-height:100vh;">
+
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h2 style="color:#c9d1d9;">⚠️ Risk & Failure Management</h2>
+      <p style="color:#8b949e;">
+        System failure scenarios, model drift detection, classification errors, and legal risk tracking.
+      </p>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4" id="summary-cards">
+    <div class="col-md-3">
+      <div class="risk-card">
+        <div style="font-size:0.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;">OPEN INCIDENTS</div>
+        <div class="risk-number text-danger" id="open-incidents">—</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="risk-card">
+        <div style="font-size:0.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;">UNRESOLVED ERRORS</div>
+        <div class="risk-number text-warning" id="unresolved-errors">—</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="risk-card">
+        <div style="font-size:0.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;">DRIFT ALERTS</div>
+        <div class="risk-number text-warning" id="drift-alerts">—</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="risk-card">
+        <div style="font-size:0.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;">CRITICAL LEGAL RISKS</div>
+        <div class="risk-number text-danger" id="critical-legal">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Failure Scenarios -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="risk-section">
+        <h5 style="color:#c9d1d9;" class="mb-3">🔴 System Failure Scenarios (5 Known)</h5>
+        <div class="table-responsive">
+          <table class="table table-dark table-hover" id="scenarios-table">
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Type</th>
+                <th>Probability</th>
+                <th>Severity</th>
+                <th>Fallback</th>
+                <th>Status</th>
+                <th>Recovery</th>
+              </tr>
+            </thead>
+            <tbody><tr><td colspan="7" class="text-center text-muted">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legal Risks -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="risk-section">
+        <h5 style="color:#c9d1d9;" class="mb-3">⚖️ Legal Risk Register (3 Known)</h5>
+        <div class="table-responsive">
+          <table class="table table-dark table-hover" id="legal-table">
+            <thead>
+              <tr>
+                <th>Risk Type</th>
+                <th>Severity</th>
+                <th>Status</th>
+                <th>Legal Review</th>
+                <th>Description</th>
+                <th>Mitigation</th>
+              </tr>
+            </thead>
+            <tbody><tr><td colspan="6" class="text-center text-muted">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Classification Error Types -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="risk-section">
+        <h5 style="color:#c9d1d9;" class="mb-3">🔍 Classification Error Types</h5>
+        <div class="error-type-card mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <strong style="color:#f85149;">Type 1 — PCRS Score Wrong</strong>
+            <span class="badge-severity high">HIGH</span>
+          </div>
+          <p style="color:#8b949e;font-size:.85rem;margin:.5rem 0 0;">
+            Bond assigned low PCRS but actual project is in severe flood zone.
+            Caused by country-level geocoding fallback.
+          </p>
+          <div style="color:#3fb950;font-size:.8rem;margin-top:.5rem;">
+            ✓ Mitigation: Location confidence indicator + "Country-level estimate" tag
+          </div>
+        </div>
+        <div class="error-type-card mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <strong style="color:#f85149;">Type 2 — Greenwash False Positive</strong>
+            <span class="badge-severity critical">CRITICAL</span>
+          </div>
+          <p style="color:#8b949e;font-size:.85rem;margin:.5rem 0 0;">
+            Legitimate reforestation bond flagged as inconsistent due to cloud cover.
+            Issuer reputation damage. Legal action possible.
+          </p>
+          <div style="color:#3fb950;font-size:.8rem;margin-top:.5rem;">
+            ✓ Mitigation: "Potential inconsistency" — never "Confirmed Greenwash". 4-tier system.
+          </div>
+        </div>
+        <div class="error-type-card">
+          <div class="d-flex justify-content-between align-items-center">
+            <strong style="color:#e3b341;">Type 3 — Pricing Gap Wrong</strong>
+            <span class="badge-severity medium">MEDIUM</span>
+          </div>
+          <p style="color:#8b949e;font-size:.85rem;margin:.5rem 0 0;">
+            Bond flagged as mispriced. Trader takes short position. Actually fairly priced. Loss occurs.
+          </p>
+          <div style="color:#3fb950;font-size:.8rem;margin-top:.5rem;">
+            ✓ Mitigation: "Research indicator only" disclaimer. Confidence interval shown.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Greenwash Classification System -->
+    <div class="col-md-6">
+      <div class="risk-section">
+        <h5 style="color:#c9d1d9;" class="mb-3">🛰️ Greenwash Classification System</h5>
+        <div class="gw-tier mb-2" style="border-left:4px solid #3fb950;">
+          <strong style="color:#3fb950;">🟢 GREEN — Verified Consistent</strong>
+          <p style="color:#8b949e;font-size:.85rem;margin:.25rem 0 0;">
+            Confidence &gt; 85%. Satellite evidence matches issuer claim.
+          </p>
+        </div>
+        <div class="gw-tier mb-2" style="border-left:4px solid #e3b341;">
+          <strong style="color:#e3b341;">🟡 YELLOW — Needs Review</strong>
+          <p style="color:#8b949e;font-size:.85rem;margin:.25rem 0 0;">
+            Confidence 50–85%. Human review recommended.
+          </p>
+        </div>
+        <div class="gw-tier mb-2" style="border-left:4px solid #f85149;">
+          <strong style="color:#f85149;">🔴 RED — High Inconsistency</strong>
+          <p style="color:#8b949e;font-size:.85rem;margin:.25rem 0 0;">
+            Confidence &gt; 85% inconsistency. Independent verification required.
+          </p>
+        </div>
+        <div class="gw-tier mb-3" style="border-left:4px solid #8b949e;">
+          <strong style="color:#8b949e;">⬜ GREY — Insufficient Data</strong>
+          <p style="color:#8b949e;font-size:.85rem;margin:.25rem 0 0;">
+            Pre-2015 bond or excessive cloud cover. Cannot verify.
+          </p>
+        </div>
+        <div style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:1rem;">
+          <strong style="color:#e3b341;">⚠️ Important:</strong>
+          <p style="color:#8b949e;font-size:.85rem;margin:.5rem 0 0;">
+            "Confirmed Greenwash" — <strong style="color:#f85149;">NEVER automatic.</strong><br>
+            Always: <em>"Potential inconsistency — recommend independent verification"</em>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk Shield Summary -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="risk-section">
+        <h5 style="color:#c9d1d9;" class="mb-3">🛡️ GreenLens Risk Shield</h5>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:1rem;">
+              <h6 style="color:#3fb950;">Technical Risks</h6>
+              <ul style="color:#8b949e;font-size:.85rem;padding-left:1.2rem;">
+                <li>✓ Multi-API fallback (GEE → Copernicus → Cache)</li>
+                <li>✓ Drift detection alerts (monthly)</li>
+                <li>✓ Confidence intervals on all scores</li>
+                <li>✓ Data source transparency</li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:1rem;">
+              <h6 style="color:#e3b341;">Classification Risks</h6>
+              <ul style="color:#8b949e;font-size:.85rem;padding-left:1.2rem;">
+                <li>✓ 4-tier greenwash flag system</li>
+                <li>✓ Never "confirmed" — always "potential"</li>
+                <li>✓ Human review recommended</li>
+                <li>✓ Appeal process for issuers</li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:1rem;">
+              <h6 style="color:#f85149;">Legal Risks</h6>
+              <ul style="color:#8b949e;font-size:.85rem;padding-left:1.2rem;">
+                <li>✓ Investment disclaimer on every page</li>
+                <li>✓ Research tool positioning</li>
+                <li>✓ Methodology transparency</li>
+                <li>✓ GDPR anonymous usage</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.risk-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+.risk-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-top: .25rem;
+}
+.risk-section {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+.error-type-card {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 1rem;
+}
+.gw-tier {
+  background: #0d1117;
+  border-radius: 0 6px 6px 0;
+  padding: .75rem 1rem;
+}
+.table-dark th {
+  background: #161b22;
+  border-color: #30363d;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #8b949e;
+}
+.table-dark td { border-color: #21262d; color: #c9d1d9; font-size:.85rem; }
+.badge-severity {
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: .75rem;
+  font-weight: 600;
+  color: white;
+}
+.badge-severity.low      { background: #3fb950; }
+.badge-severity.medium   { background: #e3b341; color:#0d1117; }
+.badge-severity.high     { background: #f0883e; }
+.badge-severity.critical { background: #f85149; }
+</style>
+
+<script>
+const SEVERITY_COLORS = {
+  low: '#3fb950', medium: '#e3b341', high: '#f0883e', critical: '#f85149'
+};
+const STATUS_COLORS = {
+  identified: '#f85149', mitigating: '#e3b341', mitigated: '#3fb950',
+  monitoring: '#58a6ff', resolved: '#3fb950'
+};
+
+function badge(text, color, textColor='white') {
+  return `<span style="background:${color};color:${textColor};padding:2px 8px;border-radius:3px;font-size:.75rem;font-weight:600;">${text}</span>`;
+}
+
+// Load summary
+fetch('/api/risk-management/dashboard/')
+  .then(r => r.json())
+  .then(data => {
+    const s = data.summary;
+    document.getElementById('open-incidents').textContent   = s.open_incidents;
+    document.getElementById('unresolved-errors').textContent = s.unresolved_errors;
+    document.getElementById('drift-alerts').textContent     = s.active_drift_alerts;
+    document.getElementById('critical-legal').textContent   = s.critical_legal_risks;
+  })
+  .catch(() => {});
+
+// Load failure scenarios
+fetch('/api/risk-management/scenarios/')
+  .then(r => r.json())
+  .then(data => {
+    const tbody = document.querySelector('#scenarios-table tbody');
+    tbody.innerHTML = '';
+    data.scenarios.forEach(s => {
+      const row = tbody.insertRow();
+      row.innerHTML = `
+        <td><strong>${s.name}</strong></td>
+        <td>${badge(s.scenario_type.replace('_',' '), '#534AB7')}</td>
+        <td>${badge(s.probability, SEVERITY_COLORS[s.probability] || '#8b949e', s.probability==='medium'?'#0d1117':'white')}</td>
+        <td>${badge(s.severity, SEVERITY_COLORS[s.severity] || '#8b949e', s.severity==='medium'?'#0d1117':'white')}</td>
+        <td>${s.has_fallback ? '<span style="color:#3fb950;">✓ Yes</span>' : '<span style="color:#f85149;">✗ No</span>'}</td>
+        <td>${badge(s.mitigation_status.replace('_',' '), STATUS_COLORS[s.mitigation_status] || '#8b949e')}</td>
+        <td>${s.recovery_time_minutes ? s.recovery_time_minutes + ' min' : '—'}</td>
+      `;
+    });
+  })
+  .catch(() => {});
+
+// Load legal risks
+fetch('/api/risk-management/legal/')
+  .then(r => r.json())
+  .then(data => {
+    const tbody = document.querySelector('#legal-table tbody');
+    tbody.innerHTML = '';
+    data.legal_risks.forEach(r => {
+      const row = tbody.insertRow();
+      row.innerHTML = `
+        <td><strong>${r.risk_type.replace(/_/g,' ')}</strong></td>
+        <td>${badge(r.severity, SEVERITY_COLORS[r.severity] || '#8b949e', r.severity==='medium'?'#0d1117':'white')}</td>
+        <td>${badge(r.mitigation_status.replace('_',' '), STATUS_COLORS[r.mitigation_status] || '#8b949e')}</td>
+        <td>${r.legal_review_required ? '<span style="color:#f85149;">⚠ Required</span>' : '<span style="color:#3fb950;">✓ No</span>'}</td>
+        <td style="max-width:250px;font-size:.8rem;">${r.description.substring(0,120)}...</td>
+        <td style="max-width:250px;font-size:.8rem;">${r.mitigation_action.substring(0,120)}...</td>
+      `;
+    });
+  })
+  .catch(() => {});
+</script>
+{% endblock %}

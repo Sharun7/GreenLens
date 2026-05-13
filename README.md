@@ -1,78 +1,38 @@
-# 🌍 GreenLens: Satellite-Verified Climate Risk Scoring System
+# 🌿 GreenLens
 
-**A geospatial Machine Learning platform that brings empirical transparency to the global Green Bond market by verifying "green" claims using satellite imagery and quantifying unpriced climate risks.**
+### Satellite-Verified Climate Risk Scoring for Green Bonds
 
-[![Live Demo](https://img.shields.io/badge/Demo-Live_Deployment-success?style=for-the-badge)](https://greenlens-demo.example.com)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11-green.svg)](https://python.org)
+[![Django](https://img.shields.io/badge/Django-5.0-green.svg)](https://djangoproject.com)
 
-![GreenLens Dashboard Screenshot](https://via.placeholder.com/1200x600.png?text=GreenLens+Dashboard+Screenshot)
+GreenLens is an AI-powered climate intelligence platform that independently verifies green bond claims using satellite imagery, machine learning, and live financial data.
 
-## 📖 Problem Statement
+## 🔍 What It Does
 
-The $3 Trillion Green Bond market suffers from an "information asymmetry" problem where ESG scores rely heavily on self-reported corporate disclosures, creating a ripe environment for **greenwashing**. Furthermore, the physical climate risks (e.g., severe droughts, floods, extreme heat) that threaten the long-term viability of the underlying green infrastructure are rarely priced into the bond's yield spread accurately. **GreenLens solves this by relying exclusively on physics, geospatial satellite pixels, and objective machine learning models.**
-
-## ⚙️ How It Works
-
-* **Geospatial Processing:** Geocodes bonds globally and tracks the exact 5km radius of the funded infrastructure project.
-* **Physical Climate Risk Scoring (PCRS):** An XGBoost model calculates a proprietary 1-100 risk score using high-resolution drought, flood, and heat data.
-* **Satellite Greenwash Verification:** Uses Google Earth Engine (Sentintel-2) and a CNN to compare pre- and post-project vegetation indexes (NDVI), flagging bonds where satellite reality contradicts the issuer's claims (e.g., claimed "reforestation" showing vegetation loss).
-* **Pricing Gap Analysis:** Compares the actual market yield spread with the ML-predicted "fair value" spread to identify mispriced greeniums.
+- Scores 1,345+ green bonds with Physical Climate Risk Score (PCRS)
+- Detects greenwashing using Google Earth Engine satellite imagery
+- Identifies mispriced bonds by comparing actual vs predicted yield spreads
+- Provides SHAP explainability for every risk score
 
 ## 🛠️ Tech Stack
 
-![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
-![Django](https://img.shields.io/badge/Django-5.0-092E20?style=flat-square&logo=django&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL_PostGIS-316192?style=flat-square&logo=postgresql&logoColor=white)
-![XGBoost](https://img.shields.io/badge/XGBoost-Models-orange?style=flat-square)
-![Leaflet.js](https://img.shields.io/badge/Leaflet-Maps-199900?style=flat-square&logo=leaflet&logoColor=white)
-![Google Earth Engine](https://img.shields.io/badge/Google_Earth_Engine-Satellite-4285F4?style=flat-square&logo=google&logoColor=white)
+Django 5 · PostgreSQL + PostGIS · XGBoost · PyTorch  
+Google Earth Engine · World Bank API · Yahoo Finance · Leaflet.js
 
-## 🚀 Installation & Setup
+## ⚠️ License
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/greenlens.git
-   cd greenlens
-   ```
+This project is licensed under BUSL-1.1.  
+Commercial use requires written permission from the author.  
+Contact: sharuntomy7@gmail.com
 
-2. **Set up the virtual environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Or `venv\Scripts\activate` on Windows
-   pip install -r requirements.txt
-   ```
+## 👤 Author
 
-3. **Configure the Database & Environment:**
-   - Install PostgreSQL 14+ and the PostGIS extension.
-   - Copy `.env.example` to `.env` and fill in your DB credentials and `EE_SERVICE_ACCOUNT`.
+**Sharun Tomy**  
+MSc Data Analytics, Mahatma Gandhi University  
+[LinkedIn](https://www.linkedin.com/in/sharun-tomy-5ba872271)
 
-4. **Run Migrations and Server:**
-   ```bash
-   python manage.py migrate
-   python manage.py runserver
-   ```
+## ⚠️ Disclaimer
 
-## 🔌 API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/bonds/` | GET | List and filter all geocoded green bonds. |
-| `/api/bonds/{id}/` | GET | Retrieve detailed metadata for a specific bond. |
-| `/api/risk/scores/` | GET | Retrieve all PCRS computations. |
-| `/api/pricing/gaps/` | GET | Retrieve spread mismatch predictions. |
-| `/api/greenwash/flags/`| GET | List satellite-verified greenwash consistency flags. |
-| `/api/docs/` | GET | Interactive Swagger UI API documentation. |
-
-## 📊 Data Sources
-
-* **Sovereign Bond Frameworks:** Climate Bonds Initiative (CBI), IMF, Refinitiv.
-* **Climate Hazard Data:** World Bank Climate Change Knowledge Portal (CCKP).
-* **Satellite Imagery:** Google Earth Engine (Copernicus Sentinel-2 SR Harmonized).
-## 🌍 Sustainable Development Goals (SDG) Alignment
-
-GreenLens actively supports the UN SDGs by bringing transparency to climate finance:
-* **SDG 13 (Climate Action):** Quantifying physical climate risks to infrastructure.
-* **SDG 7 (Affordable and Clean Energy):** Verifying the deployment of renewable energy plants.
-* **SDG 17 (Partnerships for the Goals):** Bridging data gaps between institutional investment and earth observation sciences.
-
----
-**Author:** Sharun Tomy, MSc Data Analytics, Mahatma Gandhi University
+GreenLens is a research prototype.  
+Not financial advice. Not a certified ESG rating.

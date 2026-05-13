@@ -1,0 +1,258 @@
+# Docker Compose configuration for scaling GreenLens to 1 lakh bonds
+# Architecture: Load Balancer + Multiple Web Workers + Distributed Celery Workers
+
+version: '3.8'
+
+services:
+  # ── Nginx Load Balancer ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+      - nginx_cache:/var/cache/nginx
+    depends_on:
+      - web1
+      - web2
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # ── Django Web Workers ───────────────────────────────────────────────────────
+  web1:
+    build: ..
+    command: gunicorn greenlens.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 60
+    volumes:
+      - ..:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    env_file:
+      - ../.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=greenlens.settings_production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/2
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  web2:
+    build: ..
+    command: gunicorn greenlens.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 60
+    volumes:
+      - ..:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    env_file:
+      - ../.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=greenlens.settings_production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/2
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # ── PostgreSQL Database ──────────────────────────────────────────────────────
+  db:
+    image: postgis/postgis:15-3.3-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=greenlens
+      - POSTGRES_USER=greenlens
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_worker_processes=4
+      -c max_parallel_workers_per_gather=2
+      -c max_parallel_workers=4
+
+  # ── Redis Cache & Queue ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # ── Celery Workers (Distributed) ─────────────────────────────────────────────
+  
+  # Worker 1: Europe bonds
+  celery_worker_europe:
+    build: ..
+    command: celery -A greenlens worker -Q europe -l info --concurrency=6
+    volumes:
+      - ..:/app
+    env_file:
+      - ../.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=greenlens.settings_production
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # Worker 2: Asia bonds
+  celery_worker_asia:
+    build: ..
+    command: celery -A greenlens worker -Q asia -l info --concurrency=6
+    volumes:
+      - ..:/app
+    env_file:
+      - ../.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=greenlens.settings_production
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # Worker 3: Africa bonds
+  celery_worker_africa:
+    build: ..
+    command: celery -A greenlens worker -Q africa -l info --concurrency=6
+    volumes:
+      - ..:/app
+    env_file:
+      - ../.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=greenlens.settings_production
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # Worker 4: Americas bonds
+  celery_worker_americas:
+    build: ..
+    command: celery -A greenlens worker -Q americas -l info --concurrency=6
+    volumes:
+      - ..:/app
+    env_file:
+      - ../.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=greenlens.settings_production
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # Worker 5: Default queue (pricing, scoring)
+  celery_worker_default:
+    build: ..
+    command: celery -A greenlens worker -Q default -l info --concurrency=8
+    volumes:
+      - ..:/app
+    env_file:
+      - ../.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=greenlens.settings_production
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # ── Celery Beat (Scheduler) ──────────────────────────────────────────────────
+  celery_beat:
+    build: ..
+    command: celery -A greenlens beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - ..:/app
+    env_file:
+      - ../.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=greenlens.settings_production
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+  # ── Flower (Celery Monitoring) ───────────────────────────────────────────────
+  flower:
+    build: ..
+    command: celery -A greenlens flower --port=5555
+    ports:
+      - "5555:5555"
+    env_file:
+      - ../.env
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - greenlens_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+  nginx_cache:
+
+networks:
+  greenlens_network:
+    driver: bridge

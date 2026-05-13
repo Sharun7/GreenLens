@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+{% block title %}Future Innovations | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+.fi-hero {
+    background: linear-gradient(135deg, #0a0f1e 0%, #0d1b2a 50%, #0f2d1e 100%);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+.fi-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(29,158,117,0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+.fi-hero h1 { font-size: 2.2rem; font-weight: 700; color: #e6edf3; margin-bottom: .75rem; }
+.fi-hero p { color: #8b949e; max-width: 600px; margin: 0 auto; font-size: 1rem; }
+.phase-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: .5rem;
+}
+.phase-q3  { background: rgba(29,158,117,0.2); color: #3fb950; border: 1px solid #1D9E75; }
+.phase-q4  { background: rgba(83,74,183,0.2); color: #a5b4fc; border: 1px solid #534AB7; }
+.phase-q1  { background: rgba(239,159,39,0.2); color: #f0a030; border: 1px solid #EF9F27; }
+.phase-q2  { background: rgba(226,75,74,0.2); color: #f85149; border: 1px solid #E24B4A; }
+.feat-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 1.5rem;
+    height: 100%;
+    transition: border-color .2s, transform .2s;
+}
+.feat-card:hover { border-color: #1D9E75; transform: translateY(-2px); }
+.feat-card h4 { color: #e6edf3; font-size: 1rem; font-weight: 600; margin: .75rem 0 .5rem; }
+.feat-card p { color: #8b949e; font-size: .82rem; line-height: 1.6; margin: 0; }
+.alert-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-left: 4px solid;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: .78rem;
+    color: #c9d1d9;
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+.alert-card.flood  { border-left-color: #E24B4A; }
+.alert-card.sat    { border-left-color: #a5b4fc; }
+.alert-card.price  { border-left-color: #EF9F27; }
+.alert-card.reg    { border-left-color: #3fb950; }
+.alert-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: .75rem; }
+.roadmap-item {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: flex-start;
+}
+.roadmap-dot {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem; flex-shrink: 0;
+    margin-top: 2px;
+}
+.roadmap-line {
+    width: 2px; height: 40px; background: #30363d;
+    margin: 0 auto 0 17px;
+}
+.tech-table th { color: #8b949e; font-size: .75rem; text-transform: uppercase; border-color: #30363d; padding: .6rem 1rem; }
+.tech-table td { color: #c9d1d9; font-size: .82rem; border-color: #21262d; padding: .6rem 1rem; }
+.tech-table tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+.portfolio-box {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: .75rem;
+    color: #c9d1d9;
+    line-height: 1.8;
+    margin-bottom: 1rem;
+    white-space: pre-wrap;
+}
+.sell-item { color: #f85149; }
+.buy-item  { color: #3fb950; }
+.section-header {
+    color: #e6edf3;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.content-block {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 1.75rem;
+    margin-bottom: 1.75rem;
+}
+.level-badge {
+    background: rgba(29,158,117,0.15);
+    border: 1px solid rgba(29,158,117,0.4);
+    border-radius: 6px;
+    padding: .4rem .8rem;
+    font-size: .72rem;
+    font-weight: 700;
+    color: #3fb950;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: .75rem;
+    display: inline-block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding:1.5rem; max-width:1400px; margin:0 auto;">
+
+  <!-- Hero -->
+  <div class="fi-hero">
+    <div style="font-size:2.5rem; margin-bottom:.5rem;">🚀</div>
+    <h1>Future Innovations Roadmap</h1>
+    <p>Category 15 — AI Prediction, Automated Alerts &amp; Portfolio Optimization. Built from Phase 2 research plans.</p>
+    <div style="margin-top:1.5rem; display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap;">
+      <span class="phase-badge phase-q3">2026 Q3 — Alerts</span>
+      <span class="phase-badge phase-q4">2026 Q4 — AI Prediction</span>
+      <span class="phase-badge phase-q1">2027 Q1 — Portfolio Optimizer</span>
+      <span class="phase-badge phase-q2">2027 Q2 — NLP Regulatory</span>
+    </div>
+    <div style="margin-top:1.5rem; display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap;">
+      <a href="/ai/predictions/" class="btn btn-success btn-sm">Open AI Predictions</a>
+      <a href="/ai/alerts/" class="btn btn-outline-light btn-sm">Open Alerts Feed</a>
+      <a href="/ai/portfolio/" class="btn btn-outline-light btn-sm">Open Portfolio Optimizer</a>
+      <a href="/ai/regulatory/" class="btn btn-outline-light btn-sm">Open Regulatory Monitor</a>
+    </div>
+  </div>
+
+  <!-- ── SECTION 1: AI PREDICTION ── -->
+  <div class="content-block">
+    <div class="section-header">🧠 AI Prediction Engine — 3 Levels</div>
+    <p style="color:#8b949e; font-size:.85rem; margin-bottom:1.5rem;">
+      GreenLens currently scores <em>present</em> climate risk. The next evolution predicts <em>future</em> risk trajectories using IPCC SSP climate scenarios and LSTM time-series models.
+    </p>
+
+    <div class="row g-3">
+      <!-- Level 1 -->
+      <div class="col-lg-4">
+        <div class="feat-card">
+          <span class="level-badge">Level 1 · Bond Prediction · 6 months</span>
+          <h4>📈 Per-Bond Risk Trajectory</h4>
+          <p>Predict PCRS score up to bond maturity date using CMIP6 climate projections and LSTM time-series. Example output:</p>
+          <div class="portfolio-box" style="margin-top:.75rem; font-size:.72rem;">Bond: DEU_Solar_2024
+Current PCRS: 34 (Low Risk)
+<span style="color:#EF9F27;">Predicted 2030: 52 (Medium)</span>
+<span style="color:#f85149;">Predicted 2035: 67 (High)</span>
+
+Driver: Sea-level rise +0.3m
+         affecting coastal site by 2032
+Confidence: 73%
+Scenario: IPCC SSP2-4.5</div>
+          <p style="margin-top:.5rem;"><strong style="color:#a5b4fc;">Why it matters:</strong> A 20-year bond low-risk today can become high-risk by maturity. Investor sees this today — not in 2040.</p>
+        </div>
+      </div>
+
+      <!-- Level 2 -->
+      <div class="col-lg-4">
+        <div class="feat-card">
+          <span class="level-badge" style="background:rgba(83,74,183,.15);border-color:rgba(83,74,183,.4);color:#a5b4fc;">Level 2 · Market Prediction · 12 months</span>
+          <h4>📊 Regional Yield Repricing Signals</h4>
+          <p>Forecast how climate materialisation will reprice bond yields across regions before the market adjusts.</p>
+          <div class="portfolio-box" style="margin-top:.75rem; font-size:.72rem;">Region: Southeast Asia (Vietnam, Thailand)
+
+<span style="color:#EF9F27;">Prediction: Green bond yields will
+reprice upward +15 to +25 bps
+within 18 months as flood risk
+materialises in Mekong delta.</span>
+
+Signal: PCRS cluster deterioration
+        exceeds 10-pt threshold in
+        62% of regional bonds.
+Recommended: Reduce exposure now.</div>
+        </div>
+      </div>
+
+      <!-- Level 3 -->
+      <div class="col-lg-4">
+        <div class="feat-card">
+          <span class="level-badge" style="background:rgba(226,75,74,.15);border-color:rgba(226,75,74,.4);color:#f85149;">Level 3 · Systemic Risk · 24 months</span>
+          <h4>🌍 Climate Stress Test Engine</h4>
+          <p>Run SFDR-aligned scenario analysis against the entire 1,345-bond universe under IPCC warming scenarios.</p>
+          <div class="portfolio-box" style="margin-top:.75rem; font-size:.72rem;">Scenario: 2°C warming by 2035
+
+<span style="color:#f85149;">• 23% of green bond universe
+  becomes physically unviable
+• €180B potential stranded assets
+• Highest risk: Bangladesh coastal,
+  Vietnam delta, Pakistan lowlands</span>
+
+Use case: SFDR Article 9 mandatory
+scenario analysis for fund managers.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div style="margin-top:1.5rem;">
+      <div style="color:#8b949e; font-size:.8rem; font-weight:600; margin-bottom:.5rem; text-transform:uppercase; letter-spacing:.5px;">Technical Implementation</div>
+      <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+        <span style="background:#0d1117; border:1px solid #30363d; color:#a5b4fc; padding:3px 10px; border-radius:4px; font-size:.75rem;">LSTM Time-Series Model</span>
+        <span style="background:#0d1117; border:1px solid #30363d; color:#a5b4fc; padding:3px 10px; border-radius:4px; font-size:.75rem;">IPCC SSP2-4.5 Scenarios</span>
+        <span style="background:#0d1117; border:1px solid #30363d; color:#a5b4fc; padding:3px 10px; border-radius:4px; font-size:.75rem;">CMIP6 Climate Projections</span>
+        <span style="background:#0d1117; border:1px solid #30363d; color:#a5b4fc; padding:3px 10px; border-radius:4px; font-size:.75rem;">5-Year PCRS Trajectory</span>
+        <span style="background:#0d1117; border:1px solid #30363d; color:#a5b4fc; padding:3px 10px; border-radius:4px; font-size:.75rem;">Confidence Intervals</span>
+        <span style="background:#0d1117; border:1px solid #30363d; color:#a5b4fc; padding:3px 10px; border-radius:4px; font-size:.75rem;">Bond Maturity Alignment</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 2: AUTOMATED ALERTS ── -->
+  <div class="content-block">
+    <div class="section-header">🚨 Automated Alert System — 4 Types</div>
+    <p style="color:#8b949e; font-size:.85rem; margin-bottom:1.5rem;">
+      Real-time intelligence delivered in &lt;2 hours after triggering events. Alerts cross-reference live event data with bond GPS coordinates automatically.
+    </p>
+
+    <div class="row g-4">
+      <!-- Alert Type 1 -->
+      <div class="col-lg-6">
+        <div style="color:#f85149; font-weight:700; font-size:.8rem; margin-bottom:.5rem;">⚠️ Alert Type 1 — Climate Event</div>
+        <div style="color:#8b949e; font-size:.78rem; margin-bottom:.5rem;">Trigger: NOAA/IMD extreme weather declaration</div>
+        <div class="alert-card flood">⚠️ CLIMATE ALERT — Bangladesh Floods 2026
+
+3 bonds in your watchlist affected:
+→ BGD_Solar_2022  PCRS: 45 → 72 (+27)
+→ BGD_Water_2021  PCRS: 38 → 65 (+27)
+→ WLD_Green_2023  PCRS: 52 → 71 (+19)
+
+Recommended: Portfolio review required
+Response time: &lt;2 hrs after event declared
+Full analysis: [view dashboard]</div>
+        <div style="color:#8b949e; font-size:.75rem;">Steps: Geocode event → Spatial query DB → Identify bonds → Recalculate PCRS → Send alert</div>
+      </div>
+
+      <!-- Alert Type 2 -->
+      <div class="col-lg-6">
+        <div style="color:#a5b4fc; font-weight:700; font-size:.8rem; margin-bottom:.5rem;">🛰️ Alert Type 2 — Greenwash Detection</div>
+        <div style="color:#8b949e; font-size:.78rem; margin-bottom:.5rem;">Trigger: Monthly Sentinel-2 satellite scan complete</div>
+        <div class="alert-card sat">🛰️ SATELLITE ALERT — Vegetation Change Detected
+
+Bond: BRA_Reforestation_2023
+Location: Pará, Brazil (satellite verified)
+
+Evidence (March 2026 scan):
+→ NDVI change: -0.31 (significant decrease)
+→ Land cover: Forest → Bare soil detected
+→ Claimed: Active reforestation project
+
+Inconsistency flagged. Confidence: 84%
+View satellite imagery: [evidence link]
+⚠️ For investigation only — not confirmed fraud</div>
+        <div style="color:#8b949e; font-size:.75rem;">Steps: NDVI compare → Vegetation loss detect → Cross-check claims → Inconsistency → Alert</div>
+      </div>
+
+      <!-- Alert Type 3 -->
+      <div class="col-lg-6">
+        <div style="color:#EF9F27; font-weight:700; font-size:.8rem; margin-bottom:.5rem;">📊 Alert Type 3 — Pricing Anomaly</div>
+        <div style="color:#8b949e; font-size:.78rem; margin-bottom:.5rem;">Trigger: Daily yield spread monitoring exceeds threshold</div>
+        <div class="alert-card price">📊 PRICING ALERT — Significant Gap Detected
+
+Bond: DEU_Wind_2022 (KfW Germany)
+Current market spread : 45 bps
+PCRS model predicted  : 28 bps
+Gap                   : +17 bps
+
+Interpretation: Market may be
+overestimating risk on this bond.
+Potential opportunity for fixed income traders.
+
+⚠️ Research signal only — not financial advice</div>
+        <div style="color:#8b949e; font-size:.75rem;">Steps: Pull live spreads → Compare PCRS predicted → Detect threshold breach → Trading alert</div>
+      </div>
+
+      <!-- Alert Type 4 -->
+      <div class="col-lg-6">
+        <div style="color:#3fb950; font-weight:700; font-size:.8rem; margin-bottom:.5rem;">📋 Alert Type 4 — Regulatory Change</div>
+        <div style="color:#8b949e; font-size:.78rem; margin-bottom:.5rem;">Trigger: NLP scan of EU Official Journal + SEBI circulars</div>
+        <div class="alert-card reg">📋 REGULATORY ALERT — EU Green Bond Standard Update
+
+New requirement (effective June 2026):
+Project-level GPS disclosure mandatory
+for all EU-issued green bonds.
+
+Portfolio impact assessment:
+→ 12 bonds currently lack coordinates
+→ PCRS confidence improves post-disclosure
+→ Action required: Update bond registry
+
+Source: EU Official Journal 2026/C-142
+Compliance deadline: June 30, 2026</div>
+        <div style="color:#8b949e; font-size:.75rem;">Steps: Scan EU Journal/SEBI → Detect changes → Assess portfolio impact → Compliance alert</div>
+      </div>
+    </div>
+
+    <!-- Delivery specs -->
+    <div style="margin-top:1.25rem; display:flex; gap:1rem; flex-wrap:wrap;">
+      <span style="background:#0d1117; border:1px solid #30363d; color:#c9d1d9; padding:4px 12px; border-radius:20px; font-size:.75rem;">✓ Email (SendGrid)</span>
+      <span style="background:#0d1117; border:1px solid #30363d; color:#c9d1d9; padding:4px 12px; border-radius:20px; font-size:.75rem;">✓ Dashboard Notification</span>
+      <span style="background:#0d1117; border:1px solid #30363d; color:#c9d1d9; padding:4px 12px; border-radius:20px; font-size:.75rem;">✓ Twilio SMS (critical)</span>
+      <span style="background:#0d1117; border:1px solid #30363d; color:#c9d1d9; padding:4px 12px; border-radius:20px; font-size:.75rem;">✓ Response < 2 hours</span>
+      <span style="background:#0d1117; border:1px solid #30363d; color:#c9d1d9; padding:4px 12px; border-radius:20px; font-size:.75rem;">✓ Spatial Bond Matching</span>
+    </div>
+  </div>
+
+  <!-- ── SECTION 3: PORTFOLIO OPTIMIZATION ── -->
+  <div class="content-block">
+    <div class="section-header">💼 Portfolio Optimization — Full System</div>
+    <p style="color:#8b949e; font-size:.85rem; margin-bottom:1.5rem;">
+      Enterprise-grade portfolio climate risk optimization using Modified Markowitz framework — PCRS substituted as the risk measure alongside financial yield.
+    </p>
+
+    <div class="row g-4">
+      <!-- Steps 1-2 -->
+      <div class="col-lg-6">
+        <div style="color:#8b949e; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:.5rem;">Step 1 — Portfolio Upload</div>
+        <p style="color:#c9d1d9; font-size:.82rem;">Fund manager uploads Bond ISINs, holdings (€ amount), and sets constraints: minimum return target, max single-bond allocation, geographic diversification requirements.</p>
+
+        <div style="color:#8b949e; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:.5rem; margin-top:1rem;">Step 2 — Portfolio Climate Dashboard</div>
+        <div class="portfolio-box">┌─────────────────────────────────────┐
+│    PORTFOLIO CLIMATE DASHBOARD       │
+├─────────────────────────────────────┤
+│ Total bonds        : 47             │
+│ Total AUM          : €250M          │
+│                                     │
+│ Weighted avg PCRS  : 52.3 (Medium)  │
+│                                     │
+│ Risk concentration:                 │
+│ ██████████ Southeast Asia : 34%     │
+│ ██████     Europe         : 21%     │
+│ ████       South Asia     : 16%     │
+│                                     │
+│ Greenwash exposure : 8 bonds (17%)  │
+│ Mispriced bonds    : 12 bonds (25%) │
+│                                     │
+│ SFDR Article 9 compliance: ⚠️ 73%  │
+└─────────────────────────────────────┘</div>
+      </div>
+
+      <!-- Steps 3-4 -->
+      <div class="col-lg-6">
+        <div style="color:#8b949e; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:.5rem;">Step 3 — AI Optimization Algorithm</div>
+        <div class="portfolio-box" style="font-size:.72rem;">def optimize_portfolio(holdings, constraints):
+    """
+    Objective  : Minimize portfolio PCRS
+    Constraints: Min return 4.2% (fund mandate)
+                 Max single bond: 5% allocation
+                 Geographic diversification
+                 ESG classification maintained
+    Method     : Modified Markowitz
+                 PCRS as climate risk measure
+    """
+    frontier = climate_efficient_frontier(
+        bonds=universe_of_1345_bonds,
+        risk_measure='pcrs_score',
+        return_measure='yield_spread'
+    )
+    return rebalancing_recommendations(
+        current=holdings,
+        optimal=find_optimal_point(frontier)
+    )</div>
+
+        <div style="color:#8b949e; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:.5rem; margin-top:1rem;">Step 4 — AI Rebalancing Report</div>
+        <div class="portfolio-box" style="font-size:.72rem;">Current PCRS  : 52.3  →  Optimized: 38.7
+PCRS reduction: -13.6 points (-26%)
+
+<span class="sell-item">SELL (reduce climate risk):
+✗ BGD_Solar_2022  PCRS 78  sell €2.0M
+✗ VNM_Water_2021  PCRS 71  sell €1.5M
+✗ PHL_Green_2023  PCRS 69  sell €3.0M</span>
+
+<span class="buy-item">BUY (climate resilient):
+✓ DEU_Wind_2022   PCRS 22  buy  €3.0M
+✓ NOR_Hydro_2023  PCRS 18  buy  €2.5M
+✓ DNK_Solar_2022  PCRS 25  buy  €1.0M</span>
+
+Yield impact   : -0.3% (within mandate)
+SFDR compliance: 73%  →  94%
+Greenwash exp  : 17%  →  4%
+
+⚠️ Consult your investment advisor
+   before executing these trades.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 4: IMPLEMENTATION ROADMAP ── -->
+  <div class="content-block">
+    <div class="section-header">🗓️ Implementation Roadmap</div>
+
+    <div class="row g-4">
+      <div class="col-lg-3">
+        <div style="background:#0d1117; border:1px solid #1D9E75; border-radius:8px; padding:1.25rem;">
+          <span class="phase-badge phase-q3" style="margin-bottom:.75rem; display:block; text-align:center;">2026 Q3</span>
+          <div style="font-size:.9rem; font-weight:700; color:#3fb950; margin-bottom:.75rem;">Automated Climate Alerts</div>
+          <ul style="color:#8b949e; font-size:.78rem; line-height:2; padding-left:1rem; margin:0;">
+            <li>NOAA/IMD API integration</li>
+            <li>Spatial query engine</li>
+            <li>Email notification system</li>
+            <li>Dashboard notification feed</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-lg-3">
+        <div style="background:#0d1117; border:1px solid #534AB7; border-radius:8px; padding:1.25rem;">
+          <span class="phase-badge phase-q4" style="margin-bottom:.75rem; display:block; text-align:center;">2026 Q4</span>
+          <div style="font-size:.9rem; font-weight:700; color:#a5b4fc; margin-bottom:.75rem;">AI Prediction Engine</div>
+          <ul style="color:#8b949e; font-size:.78rem; line-height:2; padding-left:1rem; margin:0;">
+            <li>LSTM time series model</li>
+            <li>IPCC SSP scenario integration</li>
+            <li>5-year PCRS trajectory</li>
+            <li>Confidence intervals</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-lg-3">
+        <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem;">
+          <span class="phase-badge phase-q1" style="margin-bottom:.75rem; display:block; text-align:center;">2027 Q1</span>
+          <div style="font-size:.9rem; font-weight:700; color:#f0a030; margin-bottom:.75rem;">Portfolio Optimization</div>
+          <ul style="color:#8b949e; font-size:.78rem; line-height:2; padding-left:1rem; margin:0;">
+            <li>Portfolio upload UI</li>
+            <li>Climate efficient frontier</li>
+            <li>Rebalancing engine</li>
+            <li>SFDR compliance checker</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-lg-3">
+        <div style="background:#0d1117; border:1px solid #E24B4A; border-radius:8px; padding:1.25rem;">
+          <span class="phase-badge phase-q2" style="margin-bottom:.75rem; display:block; text-align:center;">2027 Q2</span>
+          <div style="font-size:.9rem; font-weight:700; color:#f85149; margin-bottom:.75rem;">NLP Regulatory Monitor</div>
+          <ul style="color:#8b949e; font-size:.78rem; line-height:2; padding-left:1rem; margin:0;">
+            <li>EU Official Journal scraper</li>
+            <li>SEBI circular monitor</li>
+            <li>Regulatory impact analyzer</li>
+            <li>Compliance alert system</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SECTION 5: TECH STACK TABLE ── -->
+  <div class="content-block">
+    <div class="section-header">⚙️ Future Technical Stack</div>
+    <div class="table-responsive">
+      <table class="table tech-table" style="background:transparent;">
+        <thead style="background:#0d1117;">
+          <tr>
+            <th>Feature</th>
+            <th>Technology</th>
+            <th>Phase</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Climate Prediction</td>
+            <td>LSTM + CMIP6 data</td>
+            <td><span class="phase-badge phase-q4">2026 Q4</span></td>
+            <td><span style="color:#EF9F27;">🔬 Research</span></td>
+          </tr>
+          <tr>
+            <td>Real-time Alerts</td>
+            <td>Celery Beat + WebSockets</td>
+            <td><span class="phase-badge phase-q3">2026 Q3</span></td>
+            <td><span style="color:#3fb950;">✅ Prototype Built</span></td>
+          </tr>
+          <tr>
+            <td>Portfolio Optimization</td>
+            <td>scipy.optimize + cvxpy</td>
+            <td><span class="phase-badge phase-q1">2027 Q1</span></td>
+            <td><span style="color:#3fb950;">✅ Prototype Built</span></td>
+          </tr>
+          <tr>
+            <td>Regulatory NLP</td>
+            <td>spaCy + transformer model</td>
+            <td><span class="phase-badge phase-q2">2027 Q2</span></td>
+            <td><span style="color:#EF9F27;">🔬 Research</span></td>
+          </tr>
+          <tr>
+            <td>Alert Delivery</td>
+            <td>SendGrid Email + Twilio SMS</td>
+            <td><span class="phase-badge phase-q3">2026 Q3</span></td>
+            <td><span style="color:#EF9F27;">⏳ Planned</span></td>
+          </tr>
+          <tr>
+            <td>Real-time Dashboard</td>
+            <td>Django Channels WebSocket</td>
+            <td><span class="phase-badge phase-q3">2026 Q3</span></td>
+            <td><span style="color:#EF9F27;">⏳ Planned</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:1rem; padding:1rem; background:#0d1117; border-radius:6px; border:1px solid #30363d;">
+      <p style="color:#8b949e; font-size:.8rem; margin:0;">
+        ⚠️ <strong style="color:#c9d1d9;">Current Status:</strong> Portfolio Optimization and Automated Alerts are prototyped in this platform. LSTM prediction engine, NOAA API integration, and NLP regulatory monitoring are research-phase features planned for 2026–2027 commercial development.
+      </p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

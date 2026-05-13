@@ -1,0 +1,42 @@
+# Environment variables — NEVER push these
+.env
+.env.local
+.env.production
+
+# Database
+*.sqlite3
+db.sqlite3
+
+# Trained ML models (large files)
+models/*.pkl
+models/*.pt
+ai_features/trained_mlp_model.pkl
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Satellite data cache
+greenlens/data/*.json
+data/cache/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Static files (generated)
+staticfiles/

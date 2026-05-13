@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Decision Impact | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+.impact-shell { max-width: 1380px; margin: 0 auto; padding: 1.5rem; }
+.impact-hero, .impact-card, .spotlight-card, .layer-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+}
+.impact-hero {
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #161b22 0%, #10201b 100%);
+}
+.impact-card, .spotlight-card, .layer-card { padding: 1.25rem 1.4rem; height: 100%; }
+.eyebrow {
+    color: #8b949e;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: .45rem;
+}
+.metric-value { font-size: 2rem; font-weight: 700; color: #e6edf3; line-height: 1.05; }
+.metric-sub { color: #8b949e; font-size: .82rem; margin-top: .35rem; }
+.section-title { color: #e6edf3; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; }
+.status-pill {
+    display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .74rem;
+    border: 1px solid rgba(29,158,117,.45); color: #3fb950; background: rgba(29,158,117,.14);
+}
+.list-tight { margin: 0; padding-left: 1rem; color: #c9d1d9; font-size: .84rem; }
+.list-tight li { margin-bottom: .45rem; }
+.empty-state {
+    background: #0d1117; border: 1px dashed #30363d; border-radius: 8px; padding: 1rem;
+    color: #8b949e; font-size: .84rem;
+}
+.review-row {
+    padding: .8rem 0;
+    border-bottom: 1px solid #21262d;
+}
+.review-row:last-child { border-bottom: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="impact-shell">
+    <div class="impact-hero">
+        <div class="eyebrow">Category 16</div>
+        <h1 style="margin:0 0 .6rem 0; color:#e6edf3; font-size:2rem;">Real Decision Impact</h1>
+        <p style="margin:0; color:#c9d1d9; max-width:900px;">
+            This page answers two hard questions honestly: whether GreenLens has already changed a real investor
+            decision, and how the system handles false positives when a wrong score could cause loss.
+        </p>
+        <div style="margin-top:1rem;">
+            <span class="status-pill">{{ prototype_status.status }}</span>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="impact-card">
+                <div class="eyebrow">Deployment Status</div>
+                <div class="section-title" style="margin-bottom:.5rem;">{{ prototype_status.headline }}</div>
+                <div class="metric-sub" style="font-size:.9rem;">{{ prototype_status.detail }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="impact-card">
+                <div class="eyebrow">Feedback Events</div>
+                <div class="metric-value">{{ feedback_summary.total }}</div>
+                <div class="metric-sub">Recorded model feedback cases</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="impact-card">
+                <div class="eyebrow">Adverse Cases</div>
+                <div class="metric-value" style="color:#f0a030;">{{ feedback_summary.adverse }}</div>
+                <div class="metric-sub">Loss, default, or model-error outcomes</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="impact-card">
+                <div class="eyebrow">Review Queue</div>
+                <div class="metric-value" style="color:#f85149;">{{ feedback_summary.review_queue }}</div>
+                <div class="metric-sub">Target review window: {{ review_target_hours }} hours</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="spotlight-card">
+                <div class="section-title">Mispricing Spotlight</div>
+                {% if mispricing_spotlight %}
+                <div style="color:#e6edf3; font-weight:600;">{{ mispricing_spotlight.bond_id }}</div>
+                <div class="metric-sub">{{ mispricing_spotlight.issuer }} · {{ mispricing_spotlight.country }}</div>
+                <div class="metric-sub" style="margin-top:.75rem;">Actual spread: {{ mispricing_spotlight.actual_spread_bps }} bps</div>
+                <div class="metric-sub">Predicted spread: {{ mispricing_spotlight.predicted_spread_bps }} bps</div>
+                <div class="metric-sub">Gap: {{ mispricing_spotlight.gap_bps }} bps</div>
+                {% if mispricing_spotlight.pcr_score %}
+                <div class="metric-sub">PCRS: {{ mispricing_spotlight.pcr_score }}</div>
+                {% endif %}
+                <p style="margin:.9rem 0 0 0; color:#c9d1d9; font-size:.84rem;">{{ mispricing_spotlight.takeaway }}</p>
+                {% else %}
+                <div class="empty-state">No mispriced bond examples are available in the current database snapshot yet.</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="spotlight-card">
+                <div class="section-title">Satellite Verification Spotlight</div>
+                {% if greenwash_spotlight %}
+                <div style="color:#e6edf3; font-weight:600;">{{ greenwash_spotlight.bond_id }}</div>
+                <div class="metric-sub">{{ greenwash_spotlight.issuer }} · {{ greenwash_spotlight.country }}</div>
+                <div class="metric-sub" style="margin-top:.75rem;">Claimed: {{ greenwash_spotlight.claimed_project_type }}</div>
+                <div class="metric-sub">Observed: {{ greenwash_spotlight.satellite_land_use }}</div>
+                <div class="metric-sub">NDVI change: {{ greenwash_spotlight.ndvi_change }}</div>
+                <div class="metric-sub">Confidence: {{ greenwash_spotlight.confidence_pct }}%</div>
+                <p style="margin:.9rem 0 0 0; color:#c9d1d9; font-size:.84rem;">{{ greenwash_spotlight.takeaway }}</p>
+                {% else %}
+                <div class="empty-state">No inconsistency examples are available in the current database snapshot yet.</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="spotlight-card">
+                <div class="section-title">Geographic Concentration</div>
+                {% if concentration_rows %}
+                {% for row in concentration_rows %}
+                <div class="review-row">
+                    <div style="display:flex; justify-content:space-between; gap:1rem;">
+                        <div>
+                            <div style="color:#e6edf3; font-weight:600;">{{ row.region }}</div>
+                            <div class="metric-sub">{{ row.bond_count }} scored bonds · {{ row.high_risk_count }} high-risk</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:#e6edf3; font-weight:700;">{{ row.avg_pcr_score }}</div>
+                            <div class="metric-sub">Avg PCRS</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">Load scored bonds to surface real regional risk concentration patterns here.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">False Positive Handling</div>
+    <div class="row g-3 mb-4">
+        {% for layer in protection_layers %}
+        <div class="col-lg-3 col-md-6">
+            <div class="layer-card">
+                <div style="display:flex; justify-content:space-between; gap:.75rem; align-items:flex-start;">
+                    <div class="section-title" style="font-size:1rem; margin-bottom:.75rem;">{{ layer.title }}</div>
+                    <span class="status-pill">{{ layer.status }}</span>
+                </div>
+                <ul class="list-tight">
+                    {% for point in layer.points %}
+                    <li>{{ point }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="impact-card">
+                <div class="section-title">Public Review Log</div>
+                {% if review_log %}
+                    {% for item in review_log %}
+                    <div class="review-row">
+                        <div style="display:flex; justify-content:space-between; gap:1rem;">
+                            <div>
+                                <div style="color:#e6edf3; font-weight:600;">{{ item.bond.bond_id }} · {{ item.get_outcome_display }}</div>
+                                <div class="metric-sub">Decision: {{ item.get_decision_display }} · Priority: {{ item.review_priority|title }}</div>
+                                {% if item.notes %}
+                                <div class="metric-sub">{{ item.notes|truncatechars:140 }}</div>
+                                {% endif %}
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="color:#e6edf3; font-weight:700;">{% if item.realized_loss_bps %}{{ item.realized_loss_bps }} bps{% else %}-{% endif %}</div>
+                                <div class="metric-sub">{{ item.created_at|date:"M d, Y" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    No public adverse-case log exists yet because no model-error or loss feedback has been recorded in this environment.
+                    Bond detail pages already allow direct feedback submission into the review queue.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="impact-card">
+                <div class="section-title">Investor Protection Summary</div>
+                <ul class="list-tight">
+                    <li>PCRS outputs show uncertainty ranges instead of false precision.</li>
+                    <li>Location confidence and data reliability are exposed alongside each bond.</li>
+                    <li>Satellite inconsistencies are framed as investigation alerts, not fraud verdicts.</li>
+                    <li>Terms page clearly limits liability and positions GreenLens as a research tool.</li>
+                    <li>Adverse outcomes can be reported back into the model review queue for retraining.</li>
+                </ul>
+                <div style="margin-top:1rem; display:flex; gap:.6rem; flex-wrap:wrap;">
+                    <a href="{% url 'dashboard:terms' %}" class="btn btn-outline-light btn-sm">Open Terms</a>
+                    <a href="{% url 'dashboard:risk_management' %}" class="btn btn-outline-light btn-sm">Open Risk Management</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

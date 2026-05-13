@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Data Pipeline Reality | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+.pipeline-shell { max-width: 1380px; margin: 0 auto; padding: 1.5rem; }
+.pipeline-hero, .pipeline-card, .pipeline-panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+}
+.pipeline-hero {
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #161b22 0%, #132320 100%);
+}
+.pipeline-card, .pipeline-panel { padding: 1.25rem 1.4rem; height: 100%; }
+.eyebrow {
+    color: #8b949e;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: .45rem;
+}
+.section-title { color: #e6edf3; font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem; }
+.metric-big { font-size: 2rem; font-weight: 700; color: #e6edf3; line-height: 1.05; }
+.metric-sub { color: #8b949e; font-size: .82rem; margin-top: .35rem; }
+.status-pill {
+    display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .74rem;
+    border: 1px solid rgba(29,158,117,.45); color: #3fb950; background: rgba(29,158,117,.14);
+}
+.status-pill.warn {
+    border-color: rgba(239,159,39,.4);
+    color: #f0a030;
+    background: rgba(239,159,39,.12);
+}
+.fact-row { padding: .8rem 0; border-bottom: 1px solid #21262d; }
+.fact-row:last-child { border-bottom: none; }
+.list-tight { margin: 0; padding-left: 1rem; color: #c9d1d9; font-size: .84rem; }
+.list-tight li { margin-bottom: .45rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pipeline-shell">
+    <div class="pipeline-hero">
+        <div class="eyebrow">Category 18</div>
+        <h1 style="margin:0 0 .6rem 0; color:#e6edf3; font-size:2rem;">Data Pipeline Reality</h1>
+        <p style="margin:0; color:#c9d1d9; max-width:980px;">
+            This page shows what GreenLens really automates today, where manual steps still exist,
+            and how the system behaves when important data is missing.
+        </p>
+        <div style="margin-top:1rem; display:flex; gap:.65rem; flex-wrap:wrap;">
+            <span class="status-pill">Celery scheduled</span>
+            <span class="status-pill">Fallback-aware</span>
+            <span class="status-pill {% if not has_configured_csv_sync %}warn{% endif %}">
+                {% if has_configured_csv_sync %}CSV sync configured{% else %}Registry import still manual{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        {% for row in quality_rows %}
+        <div class="col-lg col-md-6">
+            <div class="pipeline-card">
+                <div class="eyebrow">{{ row.label }}</div>
+                <div class="metric-big">{{ row.value }}</div>
+                <div class="metric-sub">{{ row.detail }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-7">
+            <div class="pipeline-panel">
+                <div class="section-title">Automation Status</div>
+                {% for row in automation_rows %}
+                <div class="fact-row">
+                    <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
+                        <div>
+                            <div style="color:#e6edf3; font-weight:600;">{{ row.stage }}</div>
+                            <div class="metric-sub">{{ row.frequency }}</div>
+                            <div style="margin-top:.45rem; color:#c9d1d9; font-size:.84rem;">{{ row.detail }}</div>
+                        </div>
+                        <span class="status-pill {% if row.status == 'Semi-automated' %}warn{% endif %}">{{ row.status }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="pipeline-panel">
+                <div class="section-title">Source Trust Hierarchy</div>
+                {% for row in source_trust_rows %}
+                <div class="fact-row">
+                    <div style="display:flex; justify-content:space-between; gap:1rem;">
+                        <div>
+                            <div style="color:#e6edf3; font-weight:600;">{{ row.name }}</div>
+                            <div class="metric-sub">{{ row.sources }}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="color:#e6edf3; font-weight:700;">{{ row.trust_score }}/10</div>
+                            <div class="metric-sub">{{ row.trust_label }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="pipeline-panel">
+                <div class="section-title">Missing Data Handling</div>
+                {% for row in missing_data_rows %}
+                <div class="fact-row">
+                    <div style="color:#e6edf3; font-weight:600;">{{ row.type }}</div>
+                    <div style="margin-top:.45rem; color:#c9d1d9; font-size:.84rem;">{{ row.current_behavior }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="pipeline-panel">
+                <div class="section-title">Operational Reality</div>
+                <ul class="list-tight">
+                    <li>Climate hazards, pricing, greenwash scans, and rescoring all have real Celery tasks in the codebase.</li>
+                    <li>Registry ingestion is still semi-automated because the platform needs a supplied source file instead of a live bond-registry API.</li>
+                    <li>Quarterly PCRS retraining is now part of the beat schedule, matching the stated operating model more closely.</li>
+                    <li>Reliability reports already expose missing inputs and downgrade trust when data comes from fallbacks or estimates.</li>
+                </ul>
+                <div style="margin-top:1rem; display:flex; gap:.6rem; flex-wrap:wrap;">
+                    <a href="/api/data-reliability/" class="btn btn-outline-light btn-sm">Open Reliability API</a>
+                    <a href="{% url 'dashboard:about' %}" class="btn btn-outline-light btn-sm">Open Methodology</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

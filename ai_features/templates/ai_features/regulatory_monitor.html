@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Regulatory Monitor | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+.reg-card { background:white; border-radius:8px; padding:1.25rem; margin-bottom:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.1); border-left:4px solid #534AB7; }
+.reg-type-badge { display:inline-block; padding:3px 10px; border-radius:4px; font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.5rem; }
+.badge-eu { background:#e0e7ff; color:#534AB7; }
+.badge-sebi { background:#d1fae5; color:#059669; }
+.badge-rbi { background:#fef3c7; color:#d97706; }
+.timeline-dot { width:12px; height:12px; border-radius:50%; background:#534AB7; position:relative; }
+.timeline-line { width:2px; background:#e5e7eb; position:absolute; top:12px; bottom:-1rem; left:5px; }
+.compliance-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.75rem; }
+.compliance-yes { background:#fee2e2; color:#dc2626; }
+.compliance-no { background:#d1fae5; color:#059669; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Regulatory Monitor</h2>
+        <div>
+            {% if data_status == 'fresh' %}
+                <span class="badge bg-success me-2">{{ data_label }}</span>
+            {% elif data_status == 'stale' %}
+                <span class="badge bg-warning me-2">{{ data_label }}</span>
+            {% else %}
+                <span class="badge bg-secondary me-2">{{ data_label }}</span>
+            {% endif %}
+            <span class="badge bg-purple" style="background:#534AB7;">Real Data</span>
+        </div>
+    </div>
+    
+    <div class="alert alert-info mb-4">
+        <strong>📡 Real Regulatory Data</strong><br>
+        This dashboard fetches live regulatory updates from:
+        <ul class="mb-0 mt-2">
+            <li><strong>EU SFDR:</strong> ESMA press news (https://www.esma.europa.eu/press-news/esma-news)</li>
+            <li><strong>SEBI:</strong> Green bond circulars (https://www.sebi.gov.in)</li>
+        </ul>
+        Data is refreshed daily at 6 AM UTC and cached in Redis for 24 hours.
+    </div>
+
+    <!-- Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3"><div class="card text-center p-3">
+            <div class="h4 mb-1">{{ stats.total }}</div><div class="text-muted small">Regulations Tracked</div>
+        </div></div>
+        <div class="col-md-3"><div class="card text-center p-3 border-danger">
+            <div class="h4 mb-1 text-danger">{{ stats.compliance_required }}</div><div class="text-muted small">Compliance Required</div>
+        </div></div>
+        <div class="col-md-3"><div class="card text-center p-3 border-warning">
+            <div class="h4 mb-1 text-warning">{{ stats.upcoming }}</div><div class="text-muted small">Upcoming Effective</div>
+        </div></div>
+        <div class="col-md-3"><div class="card text-center p-3 border-primary">
+            <div class="h4 mb-1 text-primary">{{ stats.affected_bonds|floatformat:0 }}</div><div class="text-muted small">Avg Affected Bonds</div>
+        </div></div>
+    </div>
+
+    <!-- Regulation List -->
+    <div class="row">
+        <div class="col-lg-8">
+            <h5 class="mb-3">Active Regulations</h5>
+            {% for reg in regulations %}
+            <div class="reg-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="reg-type-badge badge-{{ reg.regulation_type|slice:':3'|lower }}">{{ reg.get_regulation_type_display }}</span>
+                        <h6 class="mb-1">{{ reg.title }}</h6>
+                        <p class="text-muted small mb-2">{{ reg.description|truncatechars:200 }}</p>
+                    </div>
+                    <div class="text-end">
+                        {% if reg.compliance_required %}
+                        <span class="compliance-tag compliance-yes">Action Required</span>
+                        {% else %}
+                        <span class="compliance-tag compliance-no">Informational</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                    <div>
+                        <small class="text-muted me-3">📅 Announced: {{ reg.announcement_date|date:"M d, Y" }}</small>
+                        <small class="text-muted">⏰ Effective: {{ reg.effective_date|date:"M d, Y" }}</small>
+                    </div>
+                    {% if reg.affected_bonds_count %}
+                    <span class="badge bg-secondary">{{ reg.affected_bonds_count }} bonds affected</span>
+                    {% endif %}
+                </div>
+                {% if reg.action_required %}
+                <div class="mt-2 alert alert-light mb-0 py-2">
+                    <small><strong>Required Action:</strong> {{ reg.action_required }}</small>
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="text-center py-5">
+                <div class="display-1 text-muted">📋</div>
+                <p class="text-muted mt-3">No regulations tracked yet.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Sidebar: Compliance Calendar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">Compliance Calendar</div>
+                <div class="card-body">
+                    {% for reg in regulations|slice:":5" %}
+                    <div class="d-flex mb-3">
+                        <div class="me-3 text-center" style="min-width:50px;">
+                            <div class="fw-bold">{{ reg.effective_date|date:"M" }}</div>
+                            <div class="display-6">{{ reg.effective_date|date:"d" }}</div>
+                        </div>
+                        <div>
+                            <div class="fw-bold small">{{ reg.title|truncatechars:40 }}</div>
+                            <div class="text-muted small">{{ reg.get_regulation_type_display }}</div>
+                            {% if reg.compliance_required %}
+                            <span class="compliance-tag compliance-yes">Action Required</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">Supported Frameworks</div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-primary me-2">EU</span>
+                        <small>SFDR Article 9, EU Green Bond Standard, EU Taxonomy</small>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-success me-2">IN</span>
+                        <small>SEBI BRSR Core, RBI Climate Risk Framework</small>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge bg-warning text-dark me-2">US</span>
+                        <small>SEC Climate Disclosure Rule, TCFD</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

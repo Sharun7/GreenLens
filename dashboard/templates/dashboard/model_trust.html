@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Model Trust & Explainability | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+.trust-shell { max-width: 1380px; margin: 0 auto; padding: 1.5rem; }
+.trust-hero, .trust-card, .trust-panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+}
+.trust-hero {
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #161b22 0%, #121a2c 100%);
+}
+.trust-card, .trust-panel { padding: 1.25rem 1.4rem; height: 100%; }
+.eyebrow {
+    color: #8b949e;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: .45rem;
+}
+.section-title { color: #e6edf3; font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem; }
+.metric-big { font-size: 2rem; font-weight: 700; color: #e6edf3; line-height: 1.05; }
+.metric-sub { color: #8b949e; font-size: .82rem; margin-top: .35rem; }
+.status-pill {
+    display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .74rem;
+    border: 1px solid rgba(29,158,117,.45); color: #3fb950; background: rgba(29,158,117,.14);
+}
+.list-tight { margin: 0; padding-left: 1rem; color: #c9d1d9; font-size: .84rem; }
+.list-tight li { margin-bottom: .45rem; }
+.table-dark-lite th { color: #8b949e; font-size: .78rem; text-transform: uppercase; border-color: #30363d; }
+.table-dark-lite td { color: #c9d1d9; border-color: #21262d; font-size: .84rem; }
+.trace-box {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 1rem; font-family: Consolas, monospace; font-size: .78rem; color: #c9d1d9;
+    white-space: pre-wrap; line-height: 1.55;
+}
+.factor-row { padding: .7rem 0; border-bottom: 1px solid #21262d; }
+.factor-row:last-child { border-bottom: none; }
+.empty-state {
+    background: #0d1117; border: 1px dashed #30363d; border-radius: 8px;
+    padding: 1rem; color: #8b949e; font-size: .84rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="trust-shell">
+    <div class="trust-hero">
+        <div class="eyebrow">Category 17</div>
+        <h1 style="margin:0 0 .6rem 0; color:#e6edf3; font-size:2rem;">Model Trust & Explainability</h1>
+        <p style="margin:0; color:#c9d1d9; max-width:950px;">
+            GreenLens should not replace every other ESG product. It should answer a different question:
+            not only what the issuer says, but what the project site physically looks like and how climate
+            risk contributes to the score.
+        </p>
+        <div style="margin-top:1rem; display:flex; gap:.65rem; flex-wrap:wrap;">
+            <span class="status-pill">Research tool</span>
+            <span class="status-pill">SHAP explainable</span>
+            <span class="status-pill">Project-level view</span>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-7">
+            <div class="trust-panel">
+                <div class="section-title">GreenLens vs MSCI-Style ESG Ratings</div>
+                <div class="table-responsive">
+                    <table class="table table-dark-lite align-middle">
+                        <thead>
+                            <tr>
+                                <th>Dimension</th>
+                                <th>Traditional ESG Rating</th>
+                                <th>GreenLens</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in comparison_rows %}
+                            <tr>
+                                <td><strong>{{ row.dimension }}</strong></td>
+                                <td>{{ row.msci }}</td>
+                                <td>{{ row.greenlens }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="metric-sub" style="margin-top:.75rem;">
+                    Honest framing: both can be useful. Traditional ESG ratings help with governance and disclosure questions.
+                    GreenLens is stronger when the question is physical project verification, climate hazard exposure, or satellite-based greenwash review.
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="trust-panel">
+                <div class="section-title">Why Trust GreenLens</div>
+                <ul class="list-tight">
+                    {% for reason in trust_reasons %}
+                    <li><strong>{{ reason.title }}:</strong> {{ reason.detail }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">How The Score Is Explained</div>
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="trust-card">
+                <div class="eyebrow">User 1</div>
+                <div class="section-title">Fund Manager</div>
+                {% if sample_bond and sample_explanation %}
+                <div class="metric-big">{{ sample_pcr.score|floatformat:1 }}</div>
+                <div class="metric-sub">{{ sample_pcr.three_band_label }} · {{ sample_bond.bond_id }}</div>
+                <p style="margin-top:1rem; color:#c9d1d9; font-size:.84rem;">{{ sample_explanation.detail_summary }}</p>
+                {% else %}
+                <div class="empty-state">Once scored bonds are loaded, this section will show the plain-English 5-second explanation for a live bond.</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="trust-card">
+                <div class="eyebrow">User 2</div>
+                <div class="section-title">ESG Analyst</div>
+                {% if sample_bond and shap_rows %}
+                    {% for row in shap_rows %}
+                    <div class="factor-row">
+                        <div style="display:flex; justify-content:space-between; gap:1rem;">
+                            <div>
+                                <div style="color:#e6edf3; font-weight:600;">{{ row.label }}</div>
+                                <div class="metric-sub">{{ row.direction }}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="color:#e6edf3; font-weight:700;">{{ row.contribution }}</div>
+                                <div class="metric-sub">{{ row.share_pct }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div class="metric-sub" style="margin-top:.75rem;">
+                        Confidence range: {{ sample_pcr.confidence_lower|floatformat:1 }} to {{ sample_pcr.confidence_upper|floatformat:1 }} ·
+                        Model {{ sample_pcr.model_version }}
+                    </div>
+                {% else %}
+                <div class="empty-state">This layer becomes active when a bond has SHAP-backed PCRS output in the database.</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="trust-card">
+                <div class="eyebrow">User 3</div>
+                <div class="section-title">Technical Researcher</div>
+                {% if technical_trace %}
+                <div class="trace-box">input_features = {{ technical_trace.input_features }}
+
+derived_features = {{ technical_trace.derived_features }}
+
+model_output = {{ technical_trace.model_output }}</div>
+                {% else %}
+                <div class="empty-state">Load hazard data plus scored bonds to expose the reproducible feature trace for a real bond.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="trust-panel">
+                <div class="section-title">Explainability Pyramid</div>
+                <div class="trace-box">Score
+  -> Risk band and main driver
+    -> Top SHAP contributors and confidence range
+      -> Raw hazard inputs and engineered features
+        -> Model version and methodology</div>
+                <div style="margin-top:1rem; display:flex; gap:.6rem; flex-wrap:wrap;">
+                    <a href="/api/model-depth/" class="btn btn-outline-light btn-sm">Open Model Depth API</a>
+                    {% if sample_bond %}
+                    <a href="{% url 'dashboard:bond_detail' sample_bond.bond_id %}" class="btn btn-outline-light btn-sm">Open Live Bond Detail</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="trust-panel">
+                <div class="section-title">Trust Boundary</div>
+                <ul class="list-tight">
+                    <li>GreenLens is strongest when the question is physical verification, climate hazard, or pricing-vs-risk mismatch.</li>
+                    <li>It is not a replacement for governance, labor, or broader company-behavior analysis.</li>
+                    <li>The platform shows confidence ranges and keeps the research-only disclaimer visible.</li>
+                    <li>Every score should be understood as explainable and auditable, not as a claim of perfect certainty.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

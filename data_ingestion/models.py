@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """
 data_ingestion/models.py — GreenBond and ClimateHazardData models.
 """
@@ -73,6 +77,33 @@ class GreenBond(models.Model):
         choices=LocationConfidence.choices,
         default=LocationConfidence.COUNTRY,
         help_text="Geocoding precision level for this bond's project coordinates",
+    )
+
+    # Regulatory Framework (Category 19 — Global vs India Context)
+    class RegulatoryFramework(models.TextChoices):
+        EU_GBS = "EU_GBS", "EU Green Bond Standard"
+        SEBI = "SEBI", "SEBI Green Bond Framework"
+        CBI = "CBI", "Climate Bonds Standard"
+        ICMA = "ICMA", "ICMA Green Bond Principles"
+        OTHER = "OTHER", "Other/Self-labeled"
+
+    regulatory_framework = models.CharField(
+        max_length=10,
+        choices=RegulatoryFramework.choices,
+        default=RegulatoryFramework.OTHER,
+        help_text="Regulatory framework under which the bond is issued",
+    )
+
+    class DisclosureQuality(models.TextChoices):
+        HIGH = "HIGH", "GPS + verified"
+        MEDIUM = "MEDIUM", "City level + audited"
+        LOW = "LOW", "State/country + self-reported"
+
+    disclosure_quality = models.CharField(
+        max_length=10,
+        choices=DisclosureQuality.choices,
+        default=DisclosureQuality.LOW,
+        help_text="Quality level of location and verification disclosure",
     )
 
     # Data provenance
@@ -152,6 +183,23 @@ class ClimateHazardData(models.Model):
         null=True, blank=True,
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         help_text="Transition risk score (0=low, 1=high) — based on country NDC ambition and fossil fuel dependency",
+    )
+
+    # India-Specific Climate Risks (Category 19 — Global vs India Context)
+    monsoon_risk_index = models.FloatField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="India monsoon risk score (0=no risk, 1=extreme risk) — IMD seasonal forecast + ENSO",
+    )
+    cyclone_risk_index = models.FloatField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="India cyclone risk score (0=no risk, 1=extreme risk) — IMD historical cyclone tracks",
+    )
+    heat_wave_risk_index = models.FloatField(
+        null=True, blank=True,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text="India heat wave risk using WBGT (0=low, 1=extreme) — IMD heat wave frequency",
     )
 
     # Provenance

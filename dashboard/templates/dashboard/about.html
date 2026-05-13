@@ -1103,6 +1103,43 @@
         </div>
     </div>
 
+    <!-- Future Innovations Roadmap Section -->
+    <div class="content-section">
+        <h2>🚀 Future Innovations — Category 15</h2>
+        <p>GreenLens is designed as a living platform. The roadmap below outlines planned AI features for commercial development.</p>
+
+        <h3>🧠 AI Prediction (2026 Q4)</h3>
+        <p><strong>Level 1 — Bond Risk Trajectory:</strong> LSTM model trained on CMIP6 climate projections will predict PCRS scores forward to bond maturity using IPCC SSP2-4.5 scenarios. A bond scoring 34 today may be predicted to reach 67 by 2035 — making the risk visible <em>before</em> the investor is locked in.</p>
+        <p><strong>Level 2 — Regional Yield Repricing:</strong> Aggregate prediction on how climate risk materialisation will force market yield repricing across regions (e.g., Southeast Asia +15–25 bps within 18 months).</p>
+        <p><strong>Level 3 — Systemic Stress Test:</strong> Under 2°C warming by 2035, estimate 23% of green bond universe becomes physically unviable — €180B potential stranded assets. Directly serves SFDR scenario analysis requirements.</p>
+
+        <h3>🚨 Automated Alert System (2026 Q3)</h3>
+        <ul>
+            <li><strong>Alert Type 1 — Climate Event:</strong> NOAA/IMD API → geocode event → spatial bond query → recalculate PCRS → email alert in &lt;2 hours.</li>
+            <li><strong>Alert Type 2 — Greenwash Detection:</strong> Monthly Sentinel-2 scan → NDVI comparison → vegetation loss flagging → inconsistency alert with evidence link.</li>
+            <li><strong>Alert Type 3 — Pricing Anomaly:</strong> Daily spread monitoring → PCRS model comparison → threshold breach → trading signal (research only).</li>
+            <li><strong>Alert Type 4 — Regulatory Change:</strong> NLP scan of EU Official Journal + SEBI circulars → portfolio impact assessment → compliance deadline alert.</li>
+        </ul>
+        <p>Delivery: SendGrid email + Django Channels WebSocket dashboard feed + Twilio SMS for critical events.</p>
+
+        <h3>💼 Portfolio Optimization (2027 Q1)</h3>
+        <p>Modified Markowitz optimization using PCRS as the climate risk measure alongside financial yield. Fund manager uploads ISINs and holdings → system calculates weighted PCRS, concentration risk, SFDR compliance → AI generates SELL/BUY rebalancing recommendations with expected PCRS reduction and yield impact.</p>
+
+        <h3>📋 Implementation Roadmap</h3>
+        <div class="table-responsive">
+            <table class="table table-dark" style="font-size:.85rem;">
+                <thead><tr><th>Phase</th><th>Feature</th><th>Technology</th><th>Timeline</th></tr></thead>
+                <tbody>
+                    <tr><td>1</td><td>Automated Climate Alerts (4 types)</td><td>Celery Beat + WebSockets + SendGrid</td><td>2026 Q3</td></tr>
+                    <tr><td>2</td><td>AI Prediction Engine (LSTM)</td><td>LSTM + CMIP6 + IPCC SSP scenarios</td><td>2026 Q4</td></tr>
+                    <tr><td>3</td><td>Portfolio Optimization</td><td>scipy.optimize + cvxpy (Markowitz)</td><td>2027 Q1</td></tr>
+                    <tr><td>4</td><td>NLP Regulatory Monitor</td><td>spaCy + transformer model</td><td>2027 Q2</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p><a href="{% url 'dashboard:future_innovations' %}" style="color:var(--primary-green); font-weight:600;">→ View full interactive Future Innovations page</a></p>
+    </div>
+
     <!-- Author -->
     <div class="content-section">
         <h2>👤 About the Author</h2>

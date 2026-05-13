@@ -400,6 +400,26 @@
                             Pricing Analysis
                         </a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if 'ai' in request.path %}active{% endif %}" 
+                           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            AI & Intelligence
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="{% url 'ai_features:predictions_dashboard' %}">Predictions</a></li>
+                            <li><a class="dropdown-item" href="{% url 'ai_features:alerts_feed' %}">Alerts</a></li>
+                            <li><a class="dropdown-item" href="{% url 'ai_features:portfolio_optimizer' %}">Portfolio</a></li>
+                            <li><a class="dropdown-item" href="{% url 'ai_features:regulatory_monitor' %}">Regulatory</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'model-bias' in request.path %}active{% endif %}" 
+                           href="{% url 'dashboard:model_bias' %}">Model Bias</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'risk-management' in request.path %}active{% endif %}" 
+                           href="{% url 'dashboard:risk_management' %}">Risk Shield</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {% if 'about' in request.path %}active{% endif %}" 
                            href="{% url 'dashboard:about' %}" aria-current="{% if 'about' in request.path %}page{% endif %}">

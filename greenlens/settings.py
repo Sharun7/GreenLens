@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Sharun Tomy
+# Licensed under BUSL-1.1. See LICENSE file for details.
+# Commercial use prohibited without written permission.
+
 """
 greenlens/settings.py — Production-ready Django 5 settings for GreenLens.
 """
@@ -45,11 +49,14 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     # GreenLens apps
-    "data_ingestion",
-    "risk_scoring",
-    "pricing_analysis",
-    "greenwash_detector",
-    "dashboard",
+    "data_ingestion.apps.DataIngestionConfig",
+    "risk_scoring.apps.RiskScoringConfig",
+    "pricing_analysis.apps.PricingAnalysisConfig",
+    "greenwash_detector.apps.GreenwashDetectorConfig",
+    "dashboard.apps.DashboardConfig",
+    "business.apps.BusinessConfig",  # Business & Monetization
+    "risk_management.apps.RiskManagementConfig",  # Risk & Failure Management
+    "ai_features.apps.AiFeaturesConfig",  # AI Prediction, Alerts, Portfolio Optimization
 ]
 
 # ── Middleware ─────────────────────────────────────────────────────────────────
@@ -62,6 +69,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Business middleware (rate limiting, usage tracking)
+    "business.middleware.RateLimitMiddleware",
+    "business.middleware.UsageTrackingMiddleware",
+    "business.middleware.FeatureAccessMiddleware",
 ]
 
 ROOT_URLCONF = "greenlens.urls"
@@ -210,6 +221,56 @@ CELERY_BEAT_SCHEDULE = {
     "daily-sync-bond-registry": {
         "task": "data_ingestion.sync_bond_registry",
         "schedule": crontab(hour=0, minute=30),
+        "options": {"expires": 82800},
+    },
+    # Re-train the PCRS model on the 1st day of each quarter at 05:00 UTC
+    "quarterly-retrain-pcrs-model": {
+        "task": "risk_scoring.train_model_task",
+        "schedule": crontab(hour=5, minute=0, day_of_month="1", month_of_year="1,4,7,10"),
+        "options": {"expires": 82800},
+    },
+    # ── NEW: Automatic Risk Management Monitoring ──
+    # Monitor API health every 30 minutes
+    "api-health-monitor": {
+        "task": "risk_management.monitor_api_health",
+        "schedule": 1800.0,  # Every 30 minutes (in seconds)
+        "options": {"expires": 3600},
+    },
+    # Detect model drift weekly on Sundays at 03:00 UTC
+    "weekly-model-drift-detector": {
+        "task": "risk_management.detect_model_drift",
+        "schedule": crontab(hour=3, minute=0, day_of_week="sunday"),
+        "options": {"expires": 82800},
+    },
+    # Check data quality daily at 05:00 UTC
+    "daily-data-quality-checker": {
+        "task": "risk_management.check_data_quality",
+        "schedule": crontab(hour=5, minute=0),
+        "options": {"expires": 82800},
+    },
+    # Scrape regulatory updates weekly on Mondays at 06:00 UTC
+    "weekly-scrape-regulatory-updates": {
+        "task": "risk_management.scrape_regulatory_updates",
+        "schedule": crontab(hour=6, minute=0, day_of_week="monday"),
+        "options": {"expires": 82800},
+    },
+    # ── NEW: AI Features Regulatory Updates ──
+    # Fetch real regulatory updates daily at 06:00 UTC
+    "daily-refresh-regulatory-updates": {
+        "task": "ai_features.refresh_regulatory_updates",
+        "schedule": crontab(hour=6, minute=0),
+        "options": {"expires": 82800},
+    },
+    # Clean up old resolved incidents daily at 07:00 UTC
+    "daily-cleanup-old-incidents": {
+        "task": "risk_management.cleanup_old_incidents",
+        "schedule": crontab(hour=7, minute=0),
+        "options": {"expires": 82800},
+    },
+    # Generate daily monitoring report at 08:00 UTC
+    "daily-monitoring-report": {
+        "task": "risk_management.generate_daily_monitoring_report",
+        "schedule": crontab(hour=8, minute=0),
         "options": {"expires": 82800},
     },
 }

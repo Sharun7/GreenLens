@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio Optimization | GreenLens{% endblock %}
+
+{% block extra_css %}
+<style>
+.portfolio-card { background:white; border-radius:8px; padding:1.5rem; margin-bottom:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+.metric-big { font-size:2.5rem; font-weight:700; }
+.metric-label { font-size:0.8rem; text-transform:uppercase; color:#6b7280; letter-spacing:0.5px; }
+.arrow-down { color:#1D9E75; font-size:1.5rem; }
+.recommendation-card { background:#f8fafc; border-radius:8px; padding:1rem; margin-bottom:0.75rem; border-left:4px solid; }
+.rec-sell { border-left-color:#E24B4A; }
+.rec-buy { border-left-color:#1D9E75; }
+.region-pie { height:250px; }
+.constraint-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.75rem; background:#e0e7ff; color:#534AB7; margin-right:6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Portfolio Optimization</h2>
+        <span class="badge bg-primary">AI-Powered Rebalancing</span>
+    </div>
+
+    <div class="portfolio-card">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+            <div>
+                <h5 class="mb-1">Portfolio Upload</h5>
+                <p class="text-muted small mb-0">Paste bond IDs with holding amounts to generate a portfolio-specific climate optimization report.</p>
+            </div>
+            <span class="badge bg-light text-dark">Format: <code>bond_id, amount</code></span>
+        </div>
+
+        {% if form_message %}
+        <div class="alert alert-success">{{ form_message }}</div>
+        {% endif %}
+        {% if form_error %}
+        <div class="alert alert-danger">{{ form_error }}</div>
+        {% endif %}
+
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+            <div class="col-lg-4">
+                <label class="form-label">Portfolio Name</label>
+                <input type="text" class="form-control" name="portfolio_name" value="Uploaded Portfolio">
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label">Min Return Target (%)</label>
+                <input type="number" class="form-control" step="0.1" min="0" name="min_return_target" value="4.2">
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label">Max Single Bond Allocation (%)</label>
+                <input type="number" class="form-control" step="0.1" min="1" max="100" name="max_single_bond_allocation" value="5.0">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Portfolio Notes</label>
+                <input type="text" class="form-control" name="portfolio_description" value="User-uploaded portfolio optimized against GreenLens climate risk.">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Bond Holdings</label>
+                <textarea class="form-control" name="portfolio_input" rows="6" spellcheck="false">{{ request.POST.portfolio_input|default:sample_portfolio_input }}</textarea>
+                <div class="form-text">One bond per line. Example:<br><code>{{ sample_portfolio_input|linebreaksbr }}</code></div>
+            </div>
+            <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="geographic_diversification_required" id="geoConstraint" checked>
+                    <label class="form-check-label" for="geoConstraint">Require geographic diversification</label>
+                </div>
+                <button type="submit" class="btn btn-success">Generate Rebalancing Report</button>
+            </div>
+        </form>
+    </div>
+
+    {% if latest %}
+    <!-- Portfolio Header Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3"><div class="portfolio-card text-center">
+            <div class="metric-big text-dark">{{ latest.current_pcrs }}</div>
+            <div class="metric-label">Current Avg PCRS</div>
+        </div></div>
+        <div class="col-md-3"><div class="portfolio-card text-center">
+            <div class="metric-big text-success">{{ latest.optimized_pcrs }}</div>
+            <div class="metric-label">Optimized PCRS</div>
+        </div></div>
+        <div class="col-md-3"><div class="portfolio-card text-center">
+            <div class="metric-big text-success">{{ latest.pcrs_improvement|floatformat:1 }}%</div>
+            <div class="metric-label">Improvement</div>
+        </div></div>
+        <div class="col-md-3"><div class="portfolio-card text-center">
+            <div class="metric-big text-primary">{{ latest.current_return }}%</div>
+            <div class="metric-label">Current Return</div>
+        </div></div>
+    </div>
+
+    <!-- Constraints -->
+    <div class="portfolio-card">
+        <h6 class="mb-3">Optimization Constraints</h6>
+        <span class="constraint-tag">Min Return: {{ latest.min_return_target }}%</span>
+        <span class="constraint-tag">Max Allocation: {{ latest.max_single_bond_allocation }}%</span>
+        <span class="constraint-tag">{% if latest.geographic_diversification_required %}Geographic Diversification{% else %}No Geo Constraint{% endif %}</span>
+        <span class="constraint-tag">Status: {{ latest.get_status_display }}</span>
+    </div>
+
+    <div class="row">
+        <!-- Left: Current vs Optimized -->
+        <div class="col-lg-6">
+            <div class="portfolio-card">
+                <h5>Current Portfolio</h5>
+                <p class="text-muted small">{{ latest.current_bonds|length }} bonds | Weighted Avg PCRS: {{ latest.current_pcrs }}</p>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Bond</th><th>Amount (MEUR)</th><th>PCRS</th><th>Country</th></tr></thead>
+                        <tbody>
+                        {% for h in latest.current_bonds|slice:":10" %}
+                        <tr>
+                            <td><small><strong>{{ h.bond_id }}</strong><br>{{ h.issuer|truncatechars:25 }}</small></td>
+                            <td>{{ h.amount_eur }}M</td>
+                            <td><span class="badge {% if h.pcrs <= 33 %}bg-success{% elif h.pcrs <= 66 %}bg-warning{% else %}bg-danger{% endif %}">{{ h.pcrs }}</span></td>
+                            <td><small>{{ h.country }}</small></td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="portfolio-card">
+                <h5>Optimized Portfolio</h5>
+                <p class="text-muted small">{{ latest.optimized_bonds|length }} bonds | Weighted Avg PCRS: {{ latest.optimized_pcrs }}</p>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Bond</th><th>Amount (MEUR)</th><th>PCRS</th><th>Country</th></tr></thead>
+                        <tbody>
+                        {% for h in latest.optimized_bonds|slice:":10" %}
+                        <tr>
+                            <td><small><strong>{{ h.bond_id }}</strong><br>{{ h.issuer|truncatechars:25 }}</small></td>
+                            <td>{{ h.amount_eur }}M</td>
+                            <td><span class="badge {% if h.pcrs <= 33 %}bg-success{% elif h.pcrs <= 66 %}bg-warning{% else %}bg-danger{% endif %}">{{ h.pcrs }}</span></td>
+                            <td><small>{{ h.country }}</small></td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Regional Distribution -->
+    <div class="portfolio-card">
+        <h5>Geographic Distribution</h5>
+        <div class="region-pie"><canvas id="regionChart"></canvas></div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="portfolio-card">
+                <h5 class="text-danger">SELL — Reduce Climate Risk</h5>
+                {% for rec in latest.sell_recommendations %}
+                <div class="recommendation-card rec-sell">
+                    <div class="d-flex justify-content-between">
+                        <div><strong>{{ rec.bond_id }}</strong><br><small class="text-muted">{{ rec.issuer|truncatechars:30 }}</small></div>
+                        <div class="text-end"><span class="badge bg-danger">{{ rec.current_pcrs }}</span><br><small class="text-muted">Sell {{ rec.sell_amount }}M</small></div>
+                    </div>
+                    <small class="text-muted">{{ rec.reason }}</small>
+                </div>
+                {% empty %}<p class="text-muted">No sell recommendations.</p>{% endfor %}
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="portfolio-card">
+                <h5 class="text-success">BUY — Climate Resilient</h5>
+                {% for rec in latest.buy_recommendations %}
+                <div class="recommendation-card rec-buy">
+                    <div class="d-flex justify-content-between">
+                        <div><strong>{{ rec.bond_id }}</strong><br><small class="text-muted">{{ rec.issuer|truncatechars:30 }}</small></div>
+                        <div class="text-end"><span class="badge bg-success">{{ rec.target_pcrs }}</span><br><small class="text-muted">Buy {{ rec.buy_amount }}M</small></div>
+                    </div>
+                    <small class="text-muted">{{ rec.reason }}</small>
+                </div>
+                {% empty %}<p class="text-muted">No buy recommendations.</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="alert alert-warning mt-3">
+        <strong>Disclaimer:</strong> These are research-grade AI recommendations based on PCRS climate risk scores. 
+        Consult your investment advisor before executing trades. Past predictions do not guarantee future performance.
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <div class="display-1 text-muted">📊</div>
+        <p class="text-muted mt-3">No portfolio optimizations available yet. Run <code>python manage.py migrate</code> and refresh.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if latest %}
+<script>
+const regionData = {{ region_chart|safe }};
+new Chart(document.getElementById('regionChart'), {
+    type: 'doughnut',
+    data: {
+        labels: regionData.map(d => d.region),
+        datasets: [{
+            data: regionData.map(d => d.pct),
+            backgroundColor: ['#0F6E56', '#534AB7', '#1D9E75', '#EF9F27', '#E24B4A', '#6B7280', '#3B82F6', '#8B5CF6'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'right' },
+            tooltip: {
+                callbacks: {
+                    label: function(ctx) {
+                        const d = regionData[ctx.dataIndex];
+                        return `${d.region}: ${d.pct}% (EUR ${d.amount}M)`;
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
