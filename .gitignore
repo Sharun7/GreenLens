@@ -21,6 +21,12 @@ __pycache__/
 greenlens/data/*.json
 data/cache/
 
+# Data files (large CSV/JSON files)
+data/*.csv
+data/*.json
+data/*.xlsx
+!data/README.md
+
 # Virtual environment
 venv/
 env/
