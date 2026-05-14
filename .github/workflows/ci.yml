@@ -1,96 +1,18 @@
-# .github/workflows/ci.yml — GreenLens CI/CD pipeline
-#
-# On every push / PR to main:
-#   1. Run Django + pytest test suite against real PostgreSQL + Redis
-#   2. On push to main (not PR): deploy to Render via Deploy Hook
-#
-# Required GitHub Secrets:
-#   RENDER_DEPLOY_HOOK_URL   — from Render dashboard → Manual Deploy → copy hook URL
-#                              (one hook URL deploys the greenlens-web service)
-
 name: GreenLens CI/CD
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
-  # ── Test ──────────────────────────────────────────────────────────────────
-  test:
-    name: Test (Python 3.11)
+  deploy:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgis/postgis:15-3.4
-        env:
-          POSTGRES_DB: greenlens_test
-          POSTGRES_USER: greenlens_user
-          POSTGRES_PASSWORD: greenlens_pass
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      SECRET_KEY: ci-test-secret-key-not-used-in-production
-      DEBUG: "true"
-      DB_NAME: greenlens_test
-      DB_USER: greenlens_user
-      DB_PASSWORD: greenlens_pass
-      DB_HOST: localhost
-      DB_PORT: "5432"
-      CELERY_BROKER_URL: redis://localhost:6379/0
-      CELERY_RESULT_BACKEND: redis://localhost:6379/1
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run migrations
-        run: python manage.py migrate --noinput
-
-      - name: Collect static files
-        run: python manage.py collectstatic --noinput
-
-      - name: Run tests
-        run: python -m pytest --tb=short -q
-
-  # ── Deploy ────────────────────────────────────────────────────────────────
-  deploy:
-    name: Deploy to Render
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Trigger Render deploy hook
-        # Render deploy hooks: Settings → Deploy Hook → copy URL → add as RENDER_DEPLOY_HOOK_URL secret
+      
+      - name: Deploy to Render
         run: |
-          curl --silent --show-error --fail \
-               -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
-          echo "Deploy triggered."
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}

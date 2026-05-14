@@ -177,23 +177,13 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# ── Caching (Redis if available, otherwise LocMem) ────────────────────────────
-# Use Redis if available, otherwise use local memory cache
-REDIS_URL = os.environ.get('REDIS_URL', None)
-
-if REDIS_URL:
-    CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": REDIS_URL,
-        }
+# ── Caching (Local Memory Only - No Redis) ───────────────────────────────────
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "greenlens-cache",
     }
-else:
-    CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        }
-    }
+}
 
 # ── Celery ─────────────────────────────────────────────────────────────────────
 # Use Redis if available, otherwise disable Celery
