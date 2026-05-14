@@ -177,22 +177,37 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# ── Caching (Redis in production, LocMem in dev) ──────────────────────────────
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env("REDIS_URL", default="redis://localhost:6379/2"),
-    } if not DEBUG else {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+# ── Caching (Redis if available, otherwise LocMem) ────────────────────────────
+# Use Redis if available, otherwise use local memory cache
+REDIS_URL = os.environ.get('REDIS_URL', None)
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
 
 # ── Celery ─────────────────────────────────────────────────────────────────────
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/1")
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
+# Use Redis if available, otherwise disable Celery
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL") or os.environ.get("REDIS_URL")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND") or os.environ.get("REDIS_URL")
+
+if CELERY_BROKER_URL:
+    CELERY_ACCEPT_CONTENT = ["json"]
+    CELERY_TASK_SERIALIZER = "json"
+    CELERY_RESULT_SERIALIZER = "json"
+else:
+    # Celery disabled - no Redis available
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
