@@ -5,14 +5,8 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Deploy to Render
-        run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      - name: Code pushed successfully
+        run: echo "Code pushed to main branch successfully"

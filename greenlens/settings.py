@@ -11,6 +11,9 @@ from pathlib import Path
 import environ
 import dj_database_url
 
+# Force local memory cache - no Redis
+os.environ['CACHE_BACKEND'] = 'django.core.cache.backends.locmem.LocMemCache'
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -181,7 +184,7 @@ SPECTACULAR_SETTINGS = {
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "greenlens-cache",
+        "LOCATION": "unique-snowflake",
     }
 }
 
