@@ -22,10 +22,11 @@ greenlens/data/*.json
 data/cache/
 
 # Data files (large CSV/JSON files)
-data/*.csv
+# data/*.csv  ← Commented out to allow green_bonds-21.csv
 data/*.json
 data/*.xlsx
 !data/README.md
+!data/green_bonds-21.csv
 
 # Virtual environment
 venv/
