@@ -59,14 +59,19 @@ def _generate_real_predictions():
     
     today = datetime.now().date()
     
-    # Generate MLP predictions for all bonds with PCRS scores
-    for bond in GreenBond.objects.exclude(pcr_scores=None).all()[:100]:
+    # Generate MLP predictions for bonds that have both scores and climate inputs.
+    for bond in GreenBond.objects.filter(
+        pcr_scores__isnull=False,
+        hazard_data__isnull=False,
+    ).distinct()[:100]:
         try:
             # Use REAL MLP predictor trained on database
             mlp_predictions = generate_mlp_predictions_for_bond(bond, horizons=[6, 12, 24])
-            
+
             # Save predictions to database
             for pred in mlp_predictions:
+                horizon_months = pred.get("months_ahead", 12)
+                horizon_label = {6: "short", 12: "medium", 24: "long"}.get(horizon_months, "custom")
                 PCRSPrediction.objects.create(
                     bond=bond,
                     scenario=scenario,
@@ -77,7 +82,7 @@ def _generate_real_predictions():
                     confidence=pred["confidence_pct"],
                     primary_driver=pred["primary_driver"],
                     driver_magnitude=pred["driver_magnitude"],
-                    model_version=pred["model_version"],
+                    model_version=f"{pred['model_version']}-{horizon_label}",
                 )
         except Exception as e:
             logger.warning(f"Failed to generate MLP predictions for bond {bond.bond_id}: {e}")
@@ -391,11 +396,14 @@ def predictions_dashboard(request):
     preds_by_bond = defaultdict(dict)
     for p in PCRSPrediction.objects.select_related("bond", "scenario").all():
         bid = p.bond.bond_id
-        if "lstm-short" in p.model_version:
+        month_delta = 0
+        if p.current_date and p.prediction_date:
+            month_delta = max(0, round((p.prediction_date - p.current_date).days / 30))
+        if month_delta <= 8:
             preds_by_bond[bid]["short"] = p
-        elif "lstm-medium" in p.model_version:
+        elif month_delta <= 16:
             preds_by_bond[bid]["medium"] = p
-        elif "lstm-long" in p.model_version:
+        else:
             preds_by_bond[bid]["long"] = p
     # Build clean list for template (limit to first 20 bonds)
     bond_rows = []
@@ -428,20 +436,34 @@ def predictions_dashboard(request):
         avg_pcrs=Avg("pcr_scores__score"),
         bond_count=Count("id"),
         high_risk=Count("pcr_scores__score", filter=Q(pcr_scores__score__gt=60))
-    ).order_by("-high_risk")[:3]
-    top_region = region_stats[0] if region_stats else {"country": "N/A", "avg_pcrs": 0, "high_risk": 0, "bond_count": 0}
+    ).filter(avg_pcrs__isnull=False).order_by("-high_risk", "-avg_pcrs")[:3]
+    top_region = region_stats[0] if region_stats else None
+    top_region_name = top_region["country"] if top_region else "No scored region yet"
+    top_region_avg = float(top_region["avg_pcrs"]) if top_region and top_region["avg_pcrs"] is not None else 0.0
+    top_region_high_risk = int(top_region["high_risk"]) if top_region else 0
+    top_region_count = int(top_region["bond_count"]) if top_region else 0
     market_pred = {
-        "region": top_region["country"],
-        "prediction": f"Over the next 12 months, {top_region['country']} bonds show elevated physical risk (avg PCRS {top_region['avg_pcrs']:.1f}). {top_region['high_risk']} of {top_region['bond_count']} bonds exceed threshold.",
-        "confidence": min(95, int(top_region["avg_pcrs"])),
-        "recommended_action": f"12-month rebalancing: Reduce concentration in {top_region['country']}. Shift into lower-PCRS regions.",
+        "region": top_region_name,
+        "prediction": (
+            f"Over the next 12 months, {top_region_name} bonds show elevated physical risk "
+            f"(avg PCRS {top_region_avg:.1f}). {top_region_high_risk} of {top_region_count} "
+            "bonds exceed threshold."
+            if top_region
+            else "No region has enough scored bonds yet to generate a market-level prediction."
+        ),
+        "confidence": min(95, int(top_region_avg)) if top_region else 0,
+        "recommended_action": (
+            f"12-month rebalancing: Reduce concentration in {top_region_name}. Shift into lower-PCRS regions."
+            if top_region
+            else "Complete hazard and PCRS initialization first, then regenerate predictions."
+        ),
         "timeframe": "12 months",
     }
     # Level 3: Systemic from actual portfolio-wide stats
     total_bonds = GreenBond.objects.count()
     high_risk_count = GreenBond.objects.filter(pcr_scores__score__gt=60).count()
     unviable_pct = round((high_risk_count / total_bonds) * 100, 1) if total_bonds else 0
-    worst_region = region_stats[0]["country"] if region_stats else "N/A"
+    worst_region = top_region_name if top_region else "N/A"
     systemic = {
         "scenario": "24-month systemic stress test",
         "unviable_pct": unviable_pct,

@@ -87,8 +87,8 @@ class PCRSMLPPredictor:
             return None
         
         # Calculate bond age
-        if bond.issue_date:
-            bond_age_years = (datetime.now().date() - bond.issue_date).days / 365.25
+        if bond.issuance_date:
+            bond_age_years = (datetime.now().date() - bond.issuance_date).days / 365.25
         else:
             bond_age_years = 0.0
         
