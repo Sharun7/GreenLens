@@ -47,3 +47,9 @@ class DeploymentBootstrapTests(TestCase):
         response = self.client.get("/ai/predictions/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "AI Climate Predictions")
+
+    def test_homepage_handles_real_pcr_score_field(self):
+        call_command("initialize_demo_data", limit=10)
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Global Bond Portfolio")

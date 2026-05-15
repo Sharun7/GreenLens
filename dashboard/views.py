@@ -595,7 +595,7 @@ def index(request):
         countries_set.add(bond.country)
         bonds.append({
             "bond": bond,
-            "pcr_score": latest_pcr.pcrs if latest_pcr else None,
+            "pcr_score": latest_pcr.score if latest_pcr else None,
             "risk_band": getattr(latest_pcr, 'risk_band', 'medium') if latest_pcr else 'medium',
             "risk_label": "Medium Risk" if latest_pcr else "Not Scored",
             "pcr_confidence_margin": 5.0 if latest_pcr else None,
