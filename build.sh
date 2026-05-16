@@ -14,6 +14,9 @@ python manage.py load_cbi_bonds --file=data/green_bonds-21.csv || true
 echo "Initializing demo data (risk scores, pricing, bias detection)..."
 python manage.py initialize_demo_data
 
+echo "Fitting pricing analyser model and rescoring bonds..."
+python manage.py fit_pricing_model --rescore || true
+
 echo "Collecting static files..."
 python manage.py collectstatic --no-input
 

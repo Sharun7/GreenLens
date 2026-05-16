@@ -7,9 +7,20 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import HttpResponse
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+
+def _favicon(request):
+    """Serve an inline SVG favicon to suppress 404 errors."""
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+        '<text y=".9em" font-size="90">🌿</text></svg>'
+    )
+    return HttpResponse(svg, content_type="image/svg+xml")
+
 urlpatterns = [
+    path("favicon.ico", _favicon, name="favicon"),
     path("admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

@@ -6,6 +6,7 @@
 # Database
 *.sqlite3
 db.sqlite3
+*.sql
 
 # Trained ML models (large files)
 models/*.pkl
