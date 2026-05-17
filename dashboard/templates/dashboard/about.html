@@ -6,170 +6,116 @@
 {% block extra_css %}
 <style>
     .about-hero {
-        background: linear-gradient(135deg, #0f5132 0%, #0a4d3c 60%, #083d2e 100%);
-        color: white;
-        padding: 4rem 2rem;
-        text-align: center;
-        margin-bottom: 2rem;
+        background: linear-gradient(135deg, var(--gl-primary), #0a9e70);
+        color: #fff; padding: 4rem 2rem; text-align: center; margin-bottom: 2rem;
     }
     .about-hero h1 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
-        color: #ffffff;
+        font-family: var(--font-display); font-size: 2.5rem;
+        font-weight: 800; letter-spacing: -0.5px; color: #fff; margin-bottom: 1rem;
     }
-    .about-hero p {
-        font-size: 1.1rem;
-        color: #a7f3d0;
-        max-width: 700px;
-        margin: 0 auto;
-    }
-    
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 3rem;
-    }
-    
+    .about-hero p { font-size: 1.05rem; color: rgba(232,245,240,0.7); max-width: 700px; margin: 0 auto; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 3rem; }
     .stat-card-about {
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 10px;
-        padding: 1.5rem;
-        text-align: center;
+        background: var(--gl-surface); border: 1px solid var(--gl-border);
+        border-radius: var(--gl-radius); padding: 1.5rem; text-align: center;
     }
     .stat-card-about .number {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: var(--primary-green);
+        font-family: var(--font-display); font-size: 2.5rem;
+        font-weight: 800; color: var(--gl-accent); letter-spacing: -0.5px;
     }
     .stat-card-about .label {
-        color: #8b949e;
-        font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-top: 0.25rem;
+        color: var(--gl-text-dim); font-size: 0.72rem; text-transform: uppercase;
+        letter-spacing: 0.8px; margin-top: 0.25rem; font-weight: 600;
     }
-    
+
     .content-section {
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 10px;
-        padding: 2rem;
-        margin-bottom: 2rem;
+        background: var(--gl-surface); border: 1px solid var(--gl-border);
+        border-radius: var(--gl-radius); padding: 2rem; margin-bottom: 2rem;
     }
     .content-section h2 {
-        color: var(--primary-green);
-        font-weight: 600;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #30363d;
+        font-family: var(--font-display); color: var(--gl-accent);
+        font-weight: 700; font-size: 1.2rem; letter-spacing: -0.3px;
+        margin-bottom: 1.5rem; padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--gl-border);
     }
     .content-section h3 {
-        color: #c9d1d9;
-        font-weight: 600;
-        margin-top: 1.5rem;
-        margin-bottom: 1rem;
-        font-size: 1.05rem;
+        color: var(--gl-text); font-weight: 700;
+        margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem;
     }
-    .content-section p {
-        color: #8b949e;
-        line-height: 1.7;
-        margin-bottom: 1rem;
-    }
-    .content-section ul {
-        color: #8b949e;
-        line-height: 1.8;
-    }
+    .content-section p { color: var(--gl-text-dim); line-height: 1.7; margin-bottom: 1rem; }
+    .content-section ul { color: var(--gl-text-dim); line-height: 1.8; }
     .content-section li { margin-bottom: 0.5rem; }
-    .content-section strong { color: #c9d1d9; }
-    .content-section a { color: var(--primary-green); }
-    .content-section a:hover { color: #3fb950; }
-    
+    .content-section strong { color: var(--gl-text); }
+    .content-section a { color: var(--gl-accent); }
+    .content-section a:hover { color: var(--gl-safe); }
+
     .data-source {
-        display: flex;
-        align-items: center;
-        padding: 1rem;
-        background: #0d1117;
-        border: 1px solid #21262d;
-        border-radius: 8px;
-        margin-bottom: 1rem;
+        display: flex; align-items: center; padding: 1rem;
+        background: var(--gl-bg); border: 1px solid var(--gl-border);
+        border-radius: 8px; margin-bottom: 1rem;
     }
     .data-source-icon {
-        width: 48px;
-        height: 48px;
-        background: var(--primary-green);
-        color: white;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 1rem;
-        flex-shrink: 0;
+        width: 48px; height: 48px; background: var(--gl-primary);
+        color: #fff; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        margin-right: 1rem; flex-shrink: 0;
     }
-    .data-source-info h5 {
-        margin: 0;
-        font-weight: 600;
-        color: #e6edf3;
-    }
-    .data-source-info p {
-        margin: 0;
-        font-size: 0.875rem;
-        color: #8b949e;
-    }
-    
-    .tech-stack {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-    }
+    .data-source-info h5 { margin: 0; font-weight: 700; color: var(--gl-text); font-size: 0.95rem; }
+    .data-source-info p { margin: 0; font-size: 0.82rem; color: var(--gl-text-dim); }
+
+    .tech-stack { display: flex; flex-wrap: wrap; gap: 0.6rem; }
     .tech-badge {
-        display: inline-block;
-        padding: 0.4rem 1rem;
-        background: rgba(83, 74, 183, 0.2);
-        color: #a5b4fc;
-        border: 1px solid rgba(83, 74, 183, 0.4);
-        border-radius: 20px;
-        font-size: 0.875rem;
-        font-weight: 500;
+        display: inline-block; padding: 0.35rem 0.9rem;
+        background: rgba(0,212,170,0.08); color: var(--gl-accent);
+        border: 1px solid rgba(0,212,170,0.2); border-radius: 20px;
+        font-size: 0.82rem; font-weight: 500;
     }
-    
+
     .model-diagram {
-        background: #0d1117;
-        border: 1px solid #21262d;
-        border-radius: 8px;
-        padding: 2rem;
-        text-align: center;
-        margin: 1.5rem 0;
+        background: var(--gl-bg); border: 1px solid var(--gl-border);
+        border-radius: 8px; padding: 2rem; text-align: center; margin: 1.5rem 0;
     }
     .flow-step {
-        display: inline-block;
-        padding: 0.75rem 1.25rem;
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        margin: 0.5rem;
-        font-weight: 500;
-        color: #e6edf3;
-        font-size: 0.9rem;
+        display: inline-block; padding: 0.75rem 1.25rem;
+        background: var(--gl-surface); border: 1px solid var(--gl-border);
+        border-radius: 8px; margin: 0.5rem; font-weight: 600;
+        color: var(--gl-text); font-size: 0.88rem;
     }
-    .flow-arrow {
-        font-size: 1.5rem;
-        color: var(--primary-green);
-        margin: 0 0.25rem;
-    }
-    
+    .flow-arrow { font-size: 1.5rem; color: var(--gl-accent); margin: 0 0.25rem; }
+
     .version-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        background: rgba(83, 74, 183, 0.3);
-        color: #a5b4fc;
-        border: 1px solid rgba(83, 74, 183, 0.5);
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        margin-left: 1rem;
+        display: inline-block; padding: 0.25rem 0.75rem;
+        background: rgba(0,212,170,0.15); color: var(--gl-accent);
+        border: 1px solid rgba(0,212,170,0.3); border-radius: 12px;
+        font-size: 0.72rem; font-weight: 600; margin-left: 1rem;
+    }
+
+    /* ── How It Works — animated pipeline ── */
+    .how-it-works { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 2rem 0; position: relative; }
+    .how-step {
+        text-align: center; padding: 1.5rem 1rem; position: relative;
+        opacity: 0; transform: translateX(-30px);
+        transition: all 0.5s ease;
+    }
+    .how-step.visible { opacity: 1; transform: translateX(0); }
+    .how-step-icon {
+        width: 64px; height: 64px; margin: 0 auto 1rem;
+        background: var(--gl-surface); border: 2px solid var(--gl-accent);
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-size: 1.6rem; box-shadow: 0 0 20px rgba(0,212,170,0.15);
+    }
+    .how-step h6 { color: var(--gl-text); font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .how-step p { color: var(--gl-text-dim); font-size: 0.78rem; line-height: 1.4; margin: 0; }
+    .how-step::after {
+        content: '→'; position: absolute; right: -12px; top: 50%;
+        transform: translateY(-50%); color: var(--gl-accent);
+        font-size: 1.4rem; font-weight: 700;
+    }
+    .how-step:last-child::after { display: none; }
+    @media (max-width: 768px) {
+        .how-it-works { grid-template-columns: 1fr; }
+        .how-step::after { display: none; }
     }
 </style>
 {% endblock %}
@@ -204,6 +150,33 @@
         </div>
     </div>
     
+    <!-- How It Works — Animated Pipeline -->
+    <div class="content-section">
+        <h2>⚡ How It Works</h2>
+        <div class="how-it-works" id="how-it-works">
+            <div class="how-step" style="transition-delay: 0s;">
+                <div class="how-step-icon">🛰️</div>
+                <h6>Satellite Scan</h6>
+                <p>We look from space. ESA Sentinel-2 imagery verifies what's actually on the ground.</p>
+            </div>
+            <div class="how-step" style="transition-delay: 0.3s;">
+                <div class="how-step-icon">🤖</div>
+                <h6>AI Risk Score</h6>
+                <p>XGBoost calculates a Physical Climate Risk Score (0–100) from 20+ features.</p>
+            </div>
+            <div class="how-step" style="transition-delay: 0.6s;">
+                <div class="how-step-icon">💰</div>
+                <h6>Price Check</h6>
+                <p>Compare bond yield spread to our model's predicted fair value.</p>
+            </div>
+            <div class="how-step" style="transition-delay: 0.9s;">
+                <div class="how-step-icon">🚨</div>
+                <h6>Alert</h6>
+                <p>Flag any inconsistency — mispriced bonds or greenwashing claims.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Overview -->
     <div class="content-section">
         <h2>🔬 Overview</h2>
@@ -1151,4 +1124,23 @@
         </p>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate "How It Works" steps on scroll
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                var steps = entry.target.querySelectorAll('.how-step');
+                steps.forEach(function(step) { step.classList.add('visible'); });
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.2 });
+    var hiw = document.getElementById('how-it-works');
+    if (hiw) observer.observe(hiw);
+});
+</script>
 {% endblock %}

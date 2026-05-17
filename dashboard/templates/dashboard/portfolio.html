@@ -4,59 +4,16 @@
 
 {% block extra_css %}
 <style>
-    .page-header {
-        margin-bottom: 2rem;
-    }
-    .page-header h1 {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #e6edf3;
-    }
-    .page-header p {
-        color: #8b949e;
-    }
-    .stat-card-highlight {
-        background: rgba(29, 158, 117, 0.1);
-        border: 1px solid #1D9E75;
-    }
-    .stat-card-warning {
-        background: rgba(226, 75, 74, 0.1);
-        border: 1px solid #E24B4A;
-    }
-    .chart-container {
-        position: relative;
-        height: 250px;
-        width: 100%;
-    }
-    .table-dark-custom th {
-        border-color: #30363d;
-        color: #8b949e;
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        padding: 0.75rem;
-    }
-    .table-dark-custom td {
-        border-color: #21262d;
-        color: #c9d1d9;
-        padding: 0.75rem;
-        font-size: 0.85rem;
-        vertical-align: middle;
-    }
-    .score-badge {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 0.75rem;
-    }
-    .rebalance-card {
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-    }
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { font-family: var(--font-display); font-size: 1.8rem; font-weight: 800; color: var(--gl-text); letter-spacing: -0.5px; }
+    .page-header p { color: var(--gl-text-dim); }
+    .stat-card-highlight { background: rgba(46,213,115,0.08); border: 1px solid var(--gl-safe); }
+    .stat-card-warning { background: rgba(255,71,87,0.08); border: 1px solid var(--gl-danger); }
+    .chart-container { position: relative; height: 250px; width: 100%; }
+    .table-dark-custom th { border-color: var(--gl-border); color: var(--gl-text-dim); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; padding: 0.75rem; }
+    .table-dark-custom td { border-color: rgba(26,61,46,0.3); color: var(--gl-text); padding: 0.75rem; font-size: 0.85rem; vertical-align: middle; }
+    .score-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: 600; font-size: 0.72rem; }
+    .rebalance-card { background: var(--gl-surface); border: 1px solid var(--gl-border); border-radius: var(--gl-radius); padding: 1.25rem; margin-bottom: 1rem; }
 </style>
 {% endblock %}
 
