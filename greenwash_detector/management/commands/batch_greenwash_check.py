@@ -30,6 +30,7 @@ Usage:
     # Parallel fast mode (safe only with --skip-gee)
     python manage.py batch_greenwash_check --skip-gee --workers 4
 """
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
@@ -37,9 +38,12 @@ from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.db import connection
 
+logger = logging.getLogger("greenlens.batch_greenwash")
+
 from data_ingestion.models import GreenBond
 from greenwash_detector.detection_engine import GreenwashDetector
 from greenwash_detector.models import GreenwashFlag
+from greenwash_detector.satellite_verifier import SatelliteVerifier
 
 
 class Command(BaseCommand):
@@ -146,6 +150,8 @@ class Command(BaseCommand):
 
         # ── Initialise detector once (shared across workers if sequential) ─────
         detector = GreenwashDetector(skip_gee=skip_gee)
+        # Verifier used separately for thumbnail generation (GEE only)
+        verifier = SatelliteVerifier(skip_gee=skip_gee)
 
         # ── Run checks ───────────────────────────────────────────────────────
         n_flagged = 0
@@ -154,7 +160,7 @@ class Command(BaseCommand):
         t_start = time.perf_counter()
 
         def _process_one(bond):
-            """Check a single bond and persist result."""
+            """Check a single bond, persist result, and save thumbnail URLs."""
             nonlocal n_flagged, n_ok, n_errors
             try:
                 result = detector.check_bond(bond)
@@ -162,6 +168,27 @@ class Command(BaseCommand):
                     bond=bond,
                     defaults={k: v for k, v in result.items() if k != "bond"},
                 )
+
+                # Generate GEE thumbnail URLs if GEE is available
+                if not skip_gee and verifier._ee is not None:
+                    try:
+                        issuance = bond.issuance_date
+                        before_date = (issuance - timedelta(days=365)).isoformat()
+                        after_date  = (issuance + timedelta(days=365)).isoformat()
+                        thumbs = verifier.generate_thumbnail_urls(
+                            float(bond.lat), float(bond.lon),
+                            before_date, after_date,
+                        )
+                        if thumbs["before_url"] or thumbs["after_url"]:
+                            flag.before_image_url = thumbs["before_url"]
+                            flag.after_image_url  = thumbs["after_url"]
+                            flag.save(update_fields=["before_image_url", "after_image_url"])
+                    except Exception as thumb_exc:
+                        logger.warning(
+                            "Thumbnail generation failed for %s: %s",
+                            bond.bond_id, thumb_exc
+                        )
+
                 if flag.is_inconsistent:
                     n_flagged += 1
                 else:

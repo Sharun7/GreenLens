@@ -675,6 +675,8 @@ def bond_detail(request, bond_id):
             "post_date": flag.post_project_image_date.isoformat() if flag.post_project_image_date else None,
             "verification_status": flag.verification_status,
             "model_version": flag.model_version,
+            "before_image_url": flag.before_image_url or "",
+            "after_image_url":  flag.after_image_url  or "",
         }
 
     # Extended risk dimensions (carbon, policy, transition)

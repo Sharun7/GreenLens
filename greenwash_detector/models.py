@@ -86,6 +86,20 @@ class GreenwashFlag(models.Model):
         help_text="Raw Google Earth Engine API response for audit trail",
     )
 
+    # GEE thumbnail URLs (populated by batch_greenwash_check)
+    before_image_url = models.URLField(
+        max_length=2000,
+        blank=True,
+        null=True,
+        help_text="GEE Sentinel-2 thumbnail URL for the pre-project period",
+    )
+    after_image_url = models.URLField(
+        max_length=2000,
+        blank=True,
+        null=True,
+        help_text="GEE Sentinel-2 thumbnail URL for the post-project period",
+    )
+
     class Meta:
         ordering = ["-checked_at"]
         indexes = [

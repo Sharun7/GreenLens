@@ -345,6 +345,94 @@ class SatelliteVerifier:
             logger.error("GEE URL gen failed at (%.4f, %.4f): %s", lat, lon, exc)
             return {"source": "synthetic", "before_url": "", "after_url": ""}
 
+    def generate_thumbnail_urls(
+        self,
+        lat: float,
+        lon: float,
+        before_date: str,
+        after_date: str,
+        radius_km: float = 3.0,
+    ) -> dict:
+        """
+        Generate 512×512 PNG thumbnail URLs from GEE for before/after Sentinel-2
+        composites. Used to populate GreenwashFlag.before_image_url / after_image_url.
+
+        Parameters
+        ----------
+        lat, lon       : Project site coordinates.
+        before_date    : ISO date string — start of the pre-project window.
+        after_date     : ISO date string — start of the post-project window.
+        radius_km      : Buffer radius around the point in km (default 3 km).
+
+        Returns
+        -------
+        dict with keys:
+            before_url  str | None   PNG thumbnail URL for pre-project period
+            after_url   str | None   PNG thumbnail URL for post-project period
+            source      str          "gee" or "unavailable"
+        """
+        if self._ee is None:
+            logger.debug("GEE unavailable — skipping thumbnail generation")
+            return {"before_url": None, "after_url": None, "source": "unavailable"}
+
+        ee = self._ee
+        try:
+            point = ee.Geometry.Point([float(lon), float(lat)])
+            region = point.buffer(radius_km * 1000)  # metres
+
+            b_dt = datetime.strptime(before_date, "%Y-%m-%d")
+            a_dt = datetime.strptime(after_date,  "%Y-%m-%d")
+
+            b_start = b_dt.strftime("%Y-%m-%d")
+            b_end   = (b_dt + timedelta(days=180)).strftime("%Y-%m-%d")
+            a_start = a_dt.strftime("%Y-%m-%d")
+            a_end   = (a_dt + timedelta(days=180)).strftime("%Y-%m-%d")
+
+            thumb_params = {
+                "region":     region,
+                "dimensions": "512x512",
+                "format":     "png",
+                "min":        0,
+                "max":        3000,
+                "gamma":      1.4,
+                "bands":      ["B4", "B3", "B2"],
+            }
+
+            def _thumb(start: str, end: str) -> Optional[str]:
+                col = (
+                    ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                    .filterBounds(region)
+                    .filterDate(start, end)
+                    .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 30))
+                )
+                n = int(_getinfo_with_timeout(col.size()))
+                if n == 0:
+                    logger.debug(
+                        "No cloud-free Sentinel-2 scenes in %s–%s at (%.4f, %.4f)",
+                        start, end, lat, lon,
+                    )
+                    return None
+                composite = col.median().clip(region)
+                url = _getinfo_with_timeout(composite.getThumbURL(thumb_params))
+                return url if url else None
+
+            before_url = _thumb(b_start, b_end)
+            after_url  = _thumb(a_start, a_end)
+
+            logger.info(
+                "Thumbnail URLs generated at (%.4f, %.4f): before=%s after=%s",
+                lat, lon,
+                "ok" if before_url else "none",
+                "ok" if after_url  else "none",
+            )
+            return {"before_url": before_url, "after_url": after_url, "source": "gee"}
+
+        except Exception as exc:
+            logger.error(
+                "generate_thumbnail_urls failed at (%.4f, %.4f): %s", lat, lon, exc
+            )
+            return {"before_url": None, "after_url": None, "source": "unavailable"}
+
     def _synthetic_ndvi_change(self, lat: float, lon: float, before_date: str) -> dict:
         """
         Deterministic synthetic NDVI when GEE is unavailable.

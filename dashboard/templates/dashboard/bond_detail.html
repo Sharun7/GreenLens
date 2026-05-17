@@ -724,33 +724,113 @@
                 </div>
             </div>
             
-            <!-- Satellite Imagery Placeholder -->
-            <div class="detail-card">
-                <h5>📡 Satellite Evidence</h5>
-                <div id="satellite-images-container" class="mt-3">
-                    {% if greenwash_data.verification_status == 'unverifiable' %}
-                        <div class="alert alert-secondary">
-                            Issued before Sentinel-2 launch. Satellite verification unavailable.
-                        </div>
-                    {% else %}
-                        <p class="text-muted small mb-2">Loading high-resolution Sentinel-2 median composites from Google Earth Engine...</p>
-                        <div class="d-flex justify-content-center" id="sat-loading">
-                            <div class="spinner-border text-success" role="status"></div>
-                        </div>
-                        <div class="row d-none" id="sat-images">
-                            <div class="col-6 text-center">
-                                <h6>Pre-Project</h6>
-                                <img id="sat-img-before" class="img-fluid rounded border border-secondary" alt="Before" style="min-height: 150px; background: #0d1117;">
-                                <small class="text-muted d-block mt-1">{{ greenwash_data.pre_date|default:"N/A" }}</small>
-                            </div>
-                            <div class="col-6 text-center">
-                                <h6>Post-Project</h6>
-                                <img id="sat-img-after" class="img-fluid rounded border border-secondary" alt="After" style="min-height: 150px; background: #0d1117;">
-                                <small class="text-muted d-block mt-1">{{ greenwash_data.post_date|default:"N/A" }}</small>
-                            </div>
-                        </div>
-                    {% endif %}
+            <!-- ── Satellite Evidence (3-component panel) ── -->
+            <div class="detail-card" id="satellite-evidence-panel">
+                <h5>🛰️ Satellite Evidence</h5>
+
+                {% if greenwash_data.verification_status == 'unverifiable' %}
+                <div class="alert alert-secondary">
+                    Issued before Sentinel-2 launch (2015). Satellite verification unavailable.
                 </div>
+                {% else %}
+
+                <!-- Component 2 & 3 wrapper -->
+                <div class="row g-2 mb-3">
+
+                    <!-- BEFORE image -->
+                    <div class="col-6">
+                        <div style="font-size:0.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📅 Pre-Project</div>
+                        {% if greenwash_data.before_image_url %}
+                            <img src="{{ greenwash_data.before_image_url }}"
+                                 alt="Pre-project Sentinel-2"
+                                 style="width:100%;height:220px;object-fit:cover;border-radius:8px;border:1px solid #30363d;">
+                        {% else %}
+                            <div style="width:100%;height:220px;background:#161b22;border:1px solid #30363d;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px;">
+                                <div style="font-size:1.8rem;margin-bottom:8px;">🛰️</div>
+                                <div style="color:#8b949e;font-size:0.78rem;line-height:1.4;">Satellite imagery unavailable<br><small>(insufficient cloud-free scenes)</small></div>
+                            </div>
+                        {% endif %}
+                        <div style="font-size:0.72rem;color:#8b949e;margin-top:4px;text-align:center;">
+                            {{ greenwash_data.pre_date|default:"~1 year before issuance" }}
+                        </div>
+                    </div>
+
+                    <!-- AFTER image -->
+                    <div class="col-6">
+                        <div style="font-size:0.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📅 Post-Project</div>
+                        {% if greenwash_data.after_image_url %}
+                            <img src="{{ greenwash_data.after_image_url }}"
+                                 alt="Post-project Sentinel-2"
+                                 style="width:100%;height:220px;object-fit:cover;border-radius:8px;border:1px solid #30363d;">
+                        {% else %}
+                            <div style="width:100%;height:220px;background:#161b22;border:1px solid #30363d;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px;">
+                                <div style="font-size:1.8rem;margin-bottom:8px;">🛰️</div>
+                                <div style="color:#8b949e;font-size:0.78rem;line-height:1.4;">Satellite imagery unavailable<br><small>(insufficient cloud-free scenes)</small></div>
+                            </div>
+                        {% endif %}
+                        <div style="font-size:0.72rem;color:#8b949e;margin-top:4px;text-align:center;">
+                            {{ greenwash_data.post_date|default:"~1 year after issuance" }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Component 3: NDVI Change Bar -->
+                {% with ndvi=greenwash_data.ndvi_change ptype=greenwash_data.claimed_project_type %}
+                <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;margin-bottom:14px;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#8b949e;margin-bottom:6px;">
+                        <span>Before NDVI: <strong style="color:#c9d1d9;">{{ greenwash_data.ndvi_change|add:"-0.0"|floatformat:3 }}</strong></span>
+                        <span>NDVI Change</span>
+                        <span>After NDVI: <strong style="color:#c9d1d9;">{{ greenwash_data.ndvi_change|floatformat:3 }}</strong></span>
+                    </div>
+                    <!-- Bar track -->
+                    <div style="height:10px;background:#21262d;border-radius:99px;overflow:hidden;position:relative;">
+                        <div style="
+                            position:absolute;
+                            height:100%;
+                            width:50%;
+                            left:50%;
+                            border-radius:0 99px 99px 0;
+                            {% if ndvi > 0 %}
+                                width:{{ ndvi|floatformat:2 }}%;
+                                background:linear-gradient(90deg,#1D9E75,#3fb950);
+                            {% else %}
+                                width:{{ ndvi|floatformat:2 }}%;
+                                left:auto;
+                                right:50%;
+                                border-radius:99px 0 0 99px;
+                                background:linear-gradient(270deg,#E24B4A,#f85149);
+                            {% endif %}
+                        "></div>
+                        <!-- Centre marker -->
+                        <div style="position:absolute;left:50%;top:0;width:2px;height:100%;background:#30363d;"></div>
+                    </div>
+                    <!-- Plain English verdict -->
+                    <div style="margin-top:10px;font-size:0.82rem;line-height:1.5;">
+                        {% if ndvi > 0.1 %}
+                            <span style="color:#3fb950;font-weight:600;">✅ Vegetation INCREASED by {{ ndvi|floatformat:1 }}%</span>
+                            — Consistent with claimed <em>{{ ptype }}</em> project
+                        {% elif ndvi < -0.1 %}
+                            <span style="color:#f85149;font-weight:600;">⚠️ Vegetation DECREASED by {{ ndvi|floatformat:1 }}%</span>
+                            — INCONSISTENT with claimed <em>{{ ptype }}</em> project
+                        {% else %}
+                            <span style="color:#f0a030;font-weight:600;">➡️ No significant vegetation change detected</span>
+                            (NDVI Δ {{ ndvi|floatformat:3 }}, within ±0.1 threshold)
+                        {% endif %}
+                    </div>
+                </div>
+                {% endwith %}
+
+                <!-- Component 1: Live Satellite Mini-Map -->
+                <div style="font-size:0.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
+                    📍 Project Location — Live Satellite View
+                </div>
+                <div id="bond-sat-map" style="width:100%;height:350px;border-radius:8px;border:1px solid #30363d;overflow:hidden;"></div>
+                <div style="font-size:0.7rem;color:#8b949e;margin-top:4px;">
+                    Coordinates: {{ bond.lat|floatformat:4 }}, {{ bond.lon|floatformat:4 }}
+                    · Tiles © Esri · Sentinel-2 true-colour (RGB B4/B3/B2)
+                </div>
+
+                {% endif %}{# end verification_status check #}
             </div>
             {% endif %}
             
@@ -821,24 +901,48 @@
 
 {% block extra_js %}
 <script>
+    // ── Satellite mini-map (Component 1) ──────────────────────────────────
     {% if flag and greenwash_data.verification_status != 'unverifiable' %}
-    fetch(`/api/greenwash/flags/visualise/?bond_pk={{ bond.pk }}`)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('sat-loading').classList.add('d-none');
-            if (data.before_url && data.after_url) {
-                document.getElementById('sat-images').classList.remove('d-none');
-                document.getElementById('sat-img-before').src = data.before_url;
-                document.getElementById('sat-img-after').src = data.after_url;
-            } else {
-                document.getElementById('satellite-images-container').innerHTML = '<div class="alert alert-warning">Synthetic data used. Live GEE thumbnails unavailable.</div>';
-            }
-        })
-        .catch(err => {
-            document.getElementById('sat-loading').classList.add('d-none');
-            console.error('Error fetching satellite thumbnails:', err);
+    document.addEventListener('DOMContentLoaded', function () {
+        var satMapEl = document.getElementById('bond-sat-map');
+        if (!satMapEl) return;
+
+        var lat = {{ bond.lat|default:"0" }};
+        var lon = {{ bond.lon|default:"0" }};
+
+        var satMap = L.map('bond-sat-map', {
+            center: [lat, lon],
+            zoom: 13,
+            zoomControl: true,
+            attributionControl: true,
+            scrollWheelZoom: false,
         });
+
+        L.tileLayer(
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            {
+                attribution: 'Tiles &copy; Esri',
+                maxZoom: 19,
+            }
+        ).addTo(satMap);
+
+        // Bond site marker
+        var markerIcon = L.divIcon({
+            html: '<div style="width:14px;height:14px;background:#0F6E56;border:3px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(15,110,86,0.8);"></div>',
+            className: '',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+        });
+        L.marker([lat, lon], { icon: markerIcon })
+            .addTo(satMap)
+            .bindPopup(
+                '<strong>{{ bond.issuer_name|escapejs }}</strong><br>' +
+                '{{ bond.project_category|title|escapejs }}<br>' +
+                'PCRS: {% if pcr %}{{ pcr.score|floatformat:1 }}{% else %}N/A{% endif %}'
+            );
+    });
     {% endif %}
+
 
     const feedbackForm = document.getElementById('feedback-form');
     if (feedbackForm) {
