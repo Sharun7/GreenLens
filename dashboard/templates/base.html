@@ -108,7 +108,7 @@
         }
         .gl-nav-links a {
             color: var(--gl-text-dim); text-decoration: none;
-            padding: 8px 14px; font-size: 0.82rem; font-weight: 500;
+            padding: 8px 10px; font-size: 0.78rem; font-weight: 500;
             border-radius: 6px; transition: all 0.2s;
             position: relative; white-space: nowrap;
         }
@@ -379,10 +379,13 @@
             <li><a href="{% url 'dashboard:pricing_analysis' %}" class="{% if 'pricing' in request.path %}active{% endif %}">📊 Pricing</a></li>
             <li><a href="{% url 'dashboard:portfolio' %}" class="{% if 'portfolio' in request.path %}active{% endif %}">💼 Portfolio</a></li>
             <li><a href="{% url 'dashboard:model_bias' %}" class="{% if 'model-bias' in request.path %}active{% endif %}">Model Bias</a></li>
+            <li><a href="{% url 'dashboard:decision_impact' %}" class="{% if 'decision-impact' in request.path %}active{% endif %}">Impact</a></li>
+            <li><a href="{% url 'dashboard:model_trust' %}" class="{% if 'model-trust' in request.path %}active{% endif %}">Trust</a></li>
             <li><a href="{% url 'dashboard:risk_management' %}" class="{% if 'risk-management' in request.path %}active{% endif %}">Risk Shield</a></li>
+            <li><a href="{% url 'dashboard:data_pipeline' %}" class="{% if 'data-pipeline' in request.path %}active{% endif %}">Pipeline</a></li>
             <li><a href="{% url 'dashboard:about' %}" class="{% if 'about' in request.path %}active{% endif %}">ℹ About</a></li>
-            <li><a href="{% url 'dashboard:terms' %}" class="{% if 'terms' in request.path %}active{% endif %}">Terms</a></li>
-            <li><a href="https://github.com/Sharun7/GreenLens" target="_blank" rel="noopener noreferrer">GitHub ↗</a></li>
+            <li><a href="{% url 'dashboard:future_innovations' %}" class="{% if 'future' in request.path %}active{% endif %}">🚀 Future</a></li>
+            <li><a href="{% url 'dashboard:terms' %}" class="{% if 'terms' in request.path %}active{% endif %}">📜 Terms</a></li>
         </ul>
 
         <div class="gl-nav-ticker d-none d-xl-flex">
