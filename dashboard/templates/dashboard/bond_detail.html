@@ -596,6 +596,10 @@
                 </div>
                 {% else %}
 
+                <!-- Component 1: Live Satellite Mini-Map -->
+                <div style="font-size:0.75rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📍 Project Location (Satellite)</div>
+                <div id="satellite-minimap" style="width:100%;height:350px;border-radius:8px;border:1px solid #30363d;margin-bottom:16px;"></div>
+
                 <!-- Component 2 & 3 wrapper -->
                 <div class="row g-2 mb-3">
 
@@ -844,6 +848,45 @@
                 statusEl.textContent = `Could not record feedback: ${error.message}`;
             }
         });
+    }
+
+    // Initialize satellite mini-map
+    if (document.getElementById('satellite-minimap')) {
+        const lat = {{ bond.lat|default:"null" }};
+        const lon = {{ bond.lon|default:"null" }};
+        if (lat !== null && lon !== null) {
+            const smap = L.map('satellite-minimap', {
+                zoomControl: true,
+                attributionControl: true
+            }).setView([lat, lon], 13);
+            
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
+                maxZoom: 19
+            }).addTo(smap);
+
+            const markerHtml = `
+                <div style="position: relative;">
+                    <div style="
+                        width: 16px;
+                        height: 16px;
+                        background: #1D9E75;
+                        border-radius: 50%;
+                        border: 2px solid white;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    "></div>
+                </div>
+            `;
+            const customIcon = L.divIcon({
+                html: markerHtml,
+                className: 'custom-marker',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+            L.marker([lat, lon], {icon: customIcon}).addTo(smap);
+        } else {
+            document.getElementById('satellite-minimap').innerHTML = '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:#8b949e;">Location data not available</div>';
+        }
     }
 
     // SHAP Waterfall Chart

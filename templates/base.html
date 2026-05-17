@@ -108,7 +108,7 @@
         }
         .gl-nav-links a {
             color: var(--gl-text-dim); text-decoration: none;
-            padding: 8px 10px; font-size: 0.78rem; font-weight: 500;
+            padding: 8px 14px; font-size: 0.82rem; font-weight: 500;
             border-radius: 6px; transition: all 0.2s;
             position: relative; white-space: nowrap;
         }
@@ -386,6 +386,7 @@
             <li><a href="{% url 'dashboard:about' %}" class="{% if 'about' in request.path %}active{% endif %}">ℹ About</a></li>
             <li><a href="{% url 'dashboard:future_innovations' %}" class="{% if 'future' in request.path %}active{% endif %}">🚀 Future</a></li>
             <li><a href="{% url 'dashboard:terms' %}" class="{% if 'terms' in request.path %}active{% endif %}">📜 Terms</a></li>
+            <li><a href="https://github.com/Sharun7/GreenLens" target="_blank" rel="noopener noreferrer">GitHub ↗</a></li>
         </ul>
 
         <div class="gl-nav-ticker d-none d-xl-flex">
