@@ -655,20 +655,63 @@
     // Initialize map
     function initMap() {
         map = L.map('bond-map').setView([20, 0], 2);
-        
-        // Add CartoDB dark tile layer (works locally, no referrer required, matches dark theme)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+
+        // ── Tile layers ────────────────────────────────────────────────────
+        const streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
             subdomains: 'abcd',
             maxZoom: 20
-        }).addTo(map);
-        
+        });
+
+        const satelliteLayer = L.tileLayer(
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP',
+            maxZoom: 19
+        });
+
+        streetLayer.addTo(map);  // default: dark street
+
+        // ── Layer toggle button ───────────────────────────────────────────
+        let isSatellite = false;
+        const toggleBtn = L.control({ position: 'bottomleft' });
+        toggleBtn.onAdd = function () {
+            const btn = L.DomUtil.create('button', '');
+            btn.id = 'layer-toggle-btn';
+            btn.innerHTML = '🛰️ Satellite View';
+            btn.style.cssText = [
+                'background:#0F6E56', 'color:#fff', 'border:none',
+                'border-radius:6px', 'padding:7px 13px', 'font-size:0.8rem',
+                'font-weight:600', 'cursor:pointer', 'box-shadow:0 2px 8px rgba(0,0,0,0.5)',
+                'transition:background 0.2s'
+            ].join(';');
+            btn.onmouseover = () => btn.style.background = '#0a4d3c';
+            btn.onmouseout  = () => btn.style.background = isSatellite ? '#534AB7' : '#0F6E56';
+            L.DomEvent.on(btn, 'click', L.DomEvent.stopPropagation);
+            L.DomEvent.on(btn, 'click', function () {
+                if (isSatellite) {
+                    map.removeLayer(satelliteLayer);
+                    streetLayer.addTo(map);
+                    btn.innerHTML = '🛰️ Satellite View';
+                    btn.style.background = '#0F6E56';
+                    isSatellite = false;
+                } else {
+                    map.removeLayer(streetLayer);
+                    satelliteLayer.addTo(map);
+                    btn.innerHTML = '🗺️ Street View';
+                    btn.style.background = '#534AB7';
+                    isSatellite = true;
+                }
+            });
+            return btn;
+        };
+        toggleBtn.addTo(map);
+
         // Render markers
         renderMarkers();
-        
+
         // Hide loading
         document.getElementById('map-loading').style.display = 'none';
-        
+
         // Update visible count
         updateVisibleCount();
     }

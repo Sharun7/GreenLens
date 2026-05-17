@@ -8,6 +8,11 @@
 db.sqlite3
 *.sql
 
+# Google Earth Engine service account key — NEVER commit this
+greenlens-ai-*.json
+*-3b2ad36b30d4.json
+test_ee.py
+
 # Trained ML models (large files)
 models/*.pkl
 models/*.pt

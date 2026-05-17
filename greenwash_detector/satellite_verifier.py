@@ -46,29 +46,56 @@ WORLDCOVER_CLASSES = {
 
 def _init_ee():
     """
-    Initialise Google Earth Engine.
-    Tries ee.Initialize(project=GEE_PROJECT) first; if credentials are absent
-    calls ee.Authenticate() interactively then re-initialises.
-    Returns the ee module on success, or None if GEE is unavailable.
+    Initialise Google Earth Engine using a service-account JSON stored in
+    the EARTHENGINE_TOKEN environment variable (set in Render dashboard).
+
+    Falls back to synthetic NDVI if the token is absent or invalid.
     """
+    import os
+    import json as _json
+
     try:
         import ee
+        from google.oauth2 import service_account as _sa
+    except ImportError:
+        logger.warning("earthengine-api or google-auth not installed — GEE unavailable")
+        return None
+
+    token = os.getenv("EARTHENGINE_TOKEN")
+
+    if token:
+        # ── Render / production: use service-account JSON from env var ──────
+        try:
+            info = _json.loads(token)
+            credentials = _sa.Credentials.from_service_account_info(
+                info,
+                scopes=["https://www.googleapis.com/auth/earthengine"],
+            )
+            ee.Initialize(credentials, project=info.get("project_id", GEE_PROJECT))
+            logger.info("GEE initialised via EARTHENGINE_TOKEN service account")
+            return ee
+        except Exception as exc:
+            logger.warning("GEE service-account init failed (%s) — synthetic NDVI will be used", exc)
+            return None
+    else:
+        # ── Local dev: try existing credentials / interactive auth ───────────
         try:
             ee.Initialize(project=GEE_PROJECT)
-            logger.info("GEE initialised (project=%s)", GEE_PROJECT)
+            logger.info("GEE initialised (local credentials, project=%s)", GEE_PROJECT)
             return ee
         except ee.EEException:
-            logger.info("GEE credentials absent — running ee.Authenticate()")
-            ee.Authenticate()
-            ee.Initialize(project=GEE_PROJECT)
-            logger.info("GEE initialised after authentication (project=%s)", GEE_PROJECT)
-            return ee
-    except ImportError:
-        logger.warning("earthengine-api not installed — GEE unavailable")
-        return None
-    except Exception as exc:
-        logger.warning("GEE initialisation failed (%s) — synthetic NDVI will be used", exc)
-        return None
+            try:
+                logger.info("GEE credentials absent — running ee.Authenticate() for local dev")
+                ee.Authenticate()
+                ee.Initialize(project=GEE_PROJECT)
+                logger.info("GEE initialised after local authentication")
+                return ee
+            except Exception as exc:
+                logger.warning("GEE local auth failed (%s) — synthetic NDVI will be used", exc)
+                return None
+        except Exception as exc:
+            logger.warning("GEE initialisation failed (%s) — synthetic NDVI will be used", exc)
+            return None
 
 
 # ── GEE cache ─────────────────────────────────────────────────────────────────

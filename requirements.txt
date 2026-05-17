@@ -40,6 +40,7 @@ datasets>=2.20.0            # HuggingFace datasets — EuroSAT download
 
 # Google Earth Engine
 earthengine-api==0.1.410
+google-auth>=2.29.0
 
 # Geocoding
 geopy==2.4.1
