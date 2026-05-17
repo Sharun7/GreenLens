@@ -1,115 +1,492 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}GreenLens{% endblock %}</title>
-  <meta name="og:title" content="{% block og_title %}GreenLens — Climate Risk Intelligence{% endblock %}" />
-  <meta name="description" content="Satellite-verified climate risk scoring system for green bonds." />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- SEO Meta Tags -->
+    <title>{% block title %}GreenLens{% endblock %}</title>
+    <meta name="description" content="Climate Risk Intelligence for Green Finance — satellite-verified climate risk scoring for green bonds using NASA Earthdata, ESA Copernicus, and XGBoost machine learning.">
+    <meta name="keywords" content="green bonds, climate risk, ESG, satellite data, earth engine, PCRS, greenwashing detection">
+    <meta name="author" content="Sharun Tomy">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:title" content="{% block og_title %}GreenLens — Climate Risk Intelligence{% endblock %}">
+    <meta property="og:description" content="Satellite-verified climate risk scoring for green bonds. Detect greenwashing, analyze pricing gaps, and assess physical climate risk.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
+    
+    <!-- Design System -->
+    <style>
+        :root {
+            --gl-primary: #0F6E56;
+            --gl-accent: #00D4AA;
+            --gl-bg: #060D0A;
+            --gl-surface: #0D1F1A;
+            --gl-surface-2: #0A1A14;
+            --gl-border: #1A3D2E;
+            --gl-text: #E8F5F0;
+            --gl-text-dim: #7A9E8E;
+            --gl-danger: #FF4757;
+            --gl-warning: #FFA502;
+            --gl-safe: #2ED573;
+            --gl-radius: 10px;
+            --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+            --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+        }
 
-  <!-- Bootstrap 5 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <!-- Leaflet.js -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        *, *::before, *::after { box-sizing: border-box; }
 
-  <style>
-    :root {
-      --primary-green: #1D9E75;
-      --dark-bg: #0d1117;
-      --card-bg: #161b22;
-      --border-color: #30363d;
-      --text-muted: #8b949e;
-    }
-    * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-    body { background: var(--dark-bg); color: #e6edf3; margin: 0; }
-    .navbar { background: #161b22 !important; border-bottom: 1px solid var(--border-color); padding: 0.6rem 1.5rem; }
-    .navbar-brand { font-weight: 700; color: var(--primary-green) !important; font-size: 1.2rem; text-decoration: none; }
-    .navbar-brand:hover { color: #3fb950 !important; }
-    .nav-link { color: #8b949e !important; font-weight: 500; transition: color 0.2s; }
-    .nav-link:hover, .nav-link.active { color: var(--primary-green) !important; }
-    .stat-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; }
-    .stat-card .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
-    .stat-card .value { font-size: 2rem; font-weight: 700; color: var(--primary-green); }
-    #map { height: 520px; border-radius: 8px; border: 1px solid var(--border-color); }
-    .container-page { padding: 1.5rem; max-width: 100%; }
-    .global-disclaimer {
-      background: rgba(239, 159, 39, 0.12);
-      border-bottom: 1px solid rgba(239, 159, 39, 0.35);
-      color: #f0a030;
-      font-size: 0.78rem;
-      line-height: 1.35;
-      padding: 0.55rem 1rem;
-      text-align: center;
-    }
-    .global-disclaimer strong { color: #f6c177; }
-  </style>
-  {% block extra_head %}{% endblock %}
-  {% block extra_css %}{% endblock %}
+        body {
+            font-family: var(--font-body);
+            background: var(--gl-bg);
+            color: var(--gl-text);
+            font-size: 14px;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Accessibility ────────────────────────────── */
+        .skip-link {
+            position: absolute; top: -40px; left: 0;
+            background: var(--gl-primary); color: #fff;
+            padding: 8px 16px; text-decoration: none; z-index: 10000;
+        }
+        .skip-link:focus { top: 0; }
+
+        /* ── Navbar ───────────────────────────────────── */
+        .gl-nav {
+            height: 64px;
+            background: var(--gl-surface-2);
+            border-bottom: 1px solid var(--gl-border);
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            position: sticky; top: 0; z-index: 1030;
+        }
+        .gl-nav-brand {
+            display: flex; align-items: center; gap: 10px;
+            text-decoration: none; color: var(--gl-text); flex-shrink: 0;
+        }
+        .gl-nav-brand-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            background: linear-gradient(135deg, var(--gl-primary), var(--gl-accent));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+        .gl-nav-brand-text {
+            font-family: var(--font-display);
+            font-weight: 800; font-size: 1.25rem;
+            letter-spacing: -0.5px;
+        }
+        .gl-nav-brand-sub {
+            font-size: 0.65rem; color: var(--gl-text-dim);
+            letter-spacing: 0.3px; margin-top: -2px;
+        }
+        .gl-nav-links {
+            display: flex; align-items: center; gap: 2px;
+            margin-left: auto; list-style: none; padding: 0; margin-bottom: 0;
+        }
+        .gl-nav-links a {
+            color: var(--gl-text-dim); text-decoration: none;
+            padding: 8px 14px; font-size: 0.82rem; font-weight: 500;
+            border-radius: 6px; transition: all 0.2s;
+            position: relative; white-space: nowrap;
+        }
+        .gl-nav-links a::after {
+            content: ''; position: absolute; bottom: 4px;
+            left: 50%; width: 0; height: 2px;
+            background: var(--gl-accent); border-radius: 1px;
+            transition: all 0.25s; transform: translateX(-50%);
+        }
+        .gl-nav-links a:hover,
+        .gl-nav-links a.active { color: var(--gl-text); }
+        .gl-nav-links a:hover::after,
+        .gl-nav-links a.active::after { width: 60%; }
+
+        /* Nav ticker */
+        .gl-nav-ticker {
+            display: flex; align-items: center; gap: 16px;
+            margin-left: 24px; padding-left: 24px;
+            border-left: 1px solid var(--gl-border);
+            font-size: 0.72rem; color: var(--gl-text-dim);
+        }
+        .gl-nav-ticker span { white-space: nowrap; }
+        .gl-nav-ticker strong {
+            color: var(--gl-accent); font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Mobile nav toggle */
+        .gl-nav-toggle {
+            display: none; background: none; border: 1px solid var(--gl-border);
+            color: var(--gl-text); padding: 6px 10px; border-radius: 6px;
+            cursor: pointer; margin-left: auto; font-size: 1.2rem;
+        }
+        @media (max-width: 991px) {
+            .gl-nav-toggle { display: block; }
+            .gl-nav-links {
+                display: none; flex-direction: column; position: absolute;
+                top: 64px; left: 0; right: 0; background: var(--gl-surface-2);
+                border-bottom: 1px solid var(--gl-border);
+                padding: 12px; gap: 4px; z-index: 1029;
+            }
+            .gl-nav-links.show { display: flex; }
+            .gl-nav-ticker { display: none; }
+        }
+
+        /* ── Main content ─────────────────────────────── */
+        main { flex: 1 0 auto; }
+
+        /* ── Global card styles ───────────────────────── */
+        .stat-card, .detail-card {
+            background: var(--gl-surface);
+            border: 1px solid var(--gl-border);
+            border-radius: var(--gl-radius);
+            padding: 1.25rem;
+        }
+        .stat-card { text-align: center; padding: 1.5rem; }
+        .stat-card .value, .card-value {
+            font-family: var(--font-display);
+            font-size: 2rem; font-weight: 800;
+            letter-spacing: -0.5px; color: var(--gl-accent);
+        }
+        .stat-card .label {
+            font-size: 0.72rem; color: var(--gl-text-dim);
+            text-transform: uppercase; letter-spacing: 0.8px;
+            margin-top: 4px; font-weight: 600;
+        }
+        .stat-card .sub, .card-sub {
+            font-size: 0.75rem; color: var(--gl-text-dim); margin-top: 2px;
+        }
+        .detail-card { margin-bottom: 1rem; }
+        .detail-card h5 {
+            font-family: var(--font-display);
+            font-weight: 700; font-size: 1rem;
+            letter-spacing: -0.3px; color: var(--gl-text);
+            margin-bottom: 1rem;
+        }
+
+        /* ── Metric rows ──────────────────────────────── */
+        .metric-row {
+            display: flex; justify-content: space-between;
+            align-items: center; padding: 8px 0;
+            border-bottom: 1px solid rgba(26,61,46,0.4);
+            font-size: 0.85rem;
+        }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-label { color: var(--gl-text-dim); }
+        .metric-value { font-weight: 600; color: var(--gl-text); }
+
+        /* ── Buttons ──────────────────────────────────── */
+        .btn-gl {
+            background: linear-gradient(135deg, var(--gl-primary), #0a9e70);
+            color: #fff; border: none; border-radius: 8px;
+            padding: 10px 20px; font-weight: 600; font-size: 0.85rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-gl:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(0,212,170,0.25);
+            color: #fff;
+        }
+        .btn-gl-outline {
+            background: transparent;
+            border: 1px solid var(--gl-border); color: var(--gl-text);
+            border-radius: 8px; padding: 8px 16px;
+            font-weight: 500; font-size: 0.82rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-gl-outline:hover {
+            border-color: var(--gl-accent);
+            color: var(--gl-accent);
+        }
+
+        /* Bootstrap overrides */
+        .btn-primary { background: var(--gl-primary); border-color: var(--gl-primary); }
+        .btn-primary:hover { background: #0a9e70; border-color: #0a9e70; }
+        .btn-outline-primary { color: var(--gl-primary); border-color: var(--gl-primary); }
+        .btn-outline-primary:hover { background: var(--gl-primary); border-color: var(--gl-primary); }
+        .form-check-input:checked { background-color: var(--gl-primary); border-color: var(--gl-primary); }
+        .form-select { background-color: var(--gl-surface); border-color: var(--gl-border); color: var(--gl-text); }
+        .form-select:focus { border-color: var(--gl-accent); box-shadow: 0 0 0 2px rgba(0,212,170,0.15); }
+        .dropdown-menu-dark { background: var(--gl-surface); border: 1px solid var(--gl-border); }
+        .dropdown-item { color: var(--gl-text-dim); font-size: 0.85rem; }
+        .dropdown-item:hover { background: rgba(0,212,170,0.1); color: var(--gl-text); }
+
+        /* ── NDVI indicators ──────────────────────────── */
+        .ndvi-positive { color: var(--gl-safe); }
+        .ndvi-negative { color: var(--gl-danger); }
+
+        /* ── Alerts ───────────────────────────────────── */
+        .alert-success { background: rgba(46,213,115,0.1); border-color: var(--gl-safe); color: var(--gl-safe); }
+        .alert-danger { background: rgba(255,71,87,0.1); border-color: var(--gl-danger); color: var(--gl-danger); }
+        .alert-warning { background: rgba(255,165,2,0.1); border-color: var(--gl-warning); color: var(--gl-warning); }
+        .alert-secondary { background: rgba(122,158,142,0.1); border-color: var(--gl-border); color: var(--gl-text-dim); }
+
+        /* ── Chart containers ─────────────────────────── */
+        .chart-container { position: relative; width: 100%; }
+
+        /* ── Tables ───────────────────────────────────── */
+        .table { color: var(--gl-text); --bs-table-bg: transparent; }
+        .table th { border-color: var(--gl-border); color: var(--gl-text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .table td { border-color: rgba(26,61,46,0.3); font-size: 0.85rem; vertical-align: middle; }
+
+        /* ── Feedback form controls ───────────────────── */
+        .feedback-form-control {
+            background: var(--gl-surface); border: 1px solid var(--gl-border);
+            color: var(--gl-text); border-radius: 6px; padding: 6px 10px; font-size: 0.85rem;
+        }
+        .feedback-form-control:focus { border-color: var(--gl-accent); outline: none; box-shadow: 0 0 0 2px rgba(0,212,170,0.15); }
+
+        /* ── Footer ───────────────────────────────────── */
+        .gl-footer {
+            background: #050F0A;
+            border-top: 1px solid var(--gl-border);
+            padding: 3rem 0 0;
+            margin-top: auto;
+        }
+        .gl-footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 2rem; padding: 0 1.5rem;
+        }
+        .gl-footer h6 {
+            font-family: var(--font-display);
+            font-weight: 700; font-size: 0.8rem;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: var(--gl-text); margin-bottom: 1rem;
+        }
+        .gl-footer p, .gl-footer li {
+            color: var(--gl-text-dim); font-size: 0.8rem; line-height: 1.8;
+        }
+        .gl-footer ul { list-style: none; padding: 0; margin: 0; }
+        .gl-footer a { color: var(--gl-accent); text-decoration: none; }
+        .gl-footer a:hover { text-decoration: underline; }
+        .gl-footer-bar {
+            margin-top: 2rem; padding: 1rem 1.5rem;
+            border-top: 1px solid rgba(26,61,46,0.4);
+            font-size: 0.72rem; color: var(--gl-text-dim);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        @media (max-width: 768px) {
+            .gl-footer-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+            .gl-footer-bar { flex-direction: column; gap: 4px; text-align: center; }
+        }
+
+        /* ── Scroll to top ────────────────────────────── */
+        .gl-scroll-top {
+            position: fixed; bottom: 24px; right: 24px;
+            width: 40px; height: 40px; border-radius: 50%;
+            background: var(--gl-primary); color: #fff;
+            border: none; cursor: pointer; z-index: 1020;
+            display: none; align-items: center; justify-content: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            transition: all 0.25s; font-size: 1.1rem;
+        }
+        .gl-scroll-top:hover { transform: translateY(-2px); background: var(--gl-accent); }
+        .gl-scroll-top.show { display: flex; }
+
+        /* ── Toast notification ────────────────────────── */
+        .gl-toast {
+            position: fixed; bottom: 24px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--gl-surface); border: 1px solid var(--gl-border);
+            color: var(--gl-text); padding: 12px 24px;
+            border-radius: 8px; font-size: 0.85rem; font-weight: 500;
+            z-index: 9999; opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .gl-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        /* ── Page fade-in ─────────────────────────────── */
+        @keyframes gl-fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        main { animation: gl-fadeIn 0.35s ease-out; }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+    
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg">
-  <a class="navbar-brand" href="{% url 'dashboard:index' %}">🌿 GreenLens</a>
-  <div class="collapse navbar-collapse" id="navbarContent">
-    <ul class="navbar-nav ms-auto">
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}" href="{% url 'dashboard:index' %}">🗺 Map</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'pricing_analysis' %}active{% endif %}" href="{% url 'dashboard:pricing_analysis' %}">📊 Pricing</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'portfolio' %}active{% endif %}" href="{% url 'dashboard:portfolio' %}">💼 Portfolio</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'model_bias' %}active{% endif %}" href="{% url 'dashboard:model_bias' %}">Model Bias</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'decision_impact' %}active{% endif %}" href="{% url 'dashboard:decision_impact' %}">Impact</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'model_trust' %}active{% endif %}" href="{% url 'dashboard:model_trust' %}">Trust</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'data_pipeline' %}active{% endif %}" href="{% url 'dashboard:data_pipeline' %}">Pipeline</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" href="{% url 'dashboard:about' %}">ℹ About</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'future_innovations' %}active{% endif %}" href="{% url 'dashboard:future_innovations' %}">🚀 Future</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.resolver_match.url_name == 'terms' %}active{% endif %}" href="{% url 'dashboard:terms' %}">📜 Terms</a>
-      </li>
-    </ul>
-  </div>
-  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
-    <span class="navbar-toggler-icon"></span>
-  </button>
-</nav>
+    <!-- Loading Overlay — shown on cold starts (Render free tier) -->
+    <div id="loading-overlay" style="
+        position: fixed; inset: 0; background: #060D0A;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 99999; font-family: var(--font-body);
+    ">
+        <div style="position: relative; width: 100px; height: 100px; margin-bottom: 24px;">
+            <div style="position:absolute;inset:0;border-radius:50%;border:2px solid rgba(0,212,170,0.2);animation:gl-ripple 1.6s ease-out infinite;"></div>
+            <div style="position:absolute;inset:12px;border-radius:50%;border:2px solid rgba(0,212,170,0.4);animation:gl-ripple 1.6s ease-out 0.4s infinite;"></div>
+            <div style="position:absolute;inset:24px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#00D4AA);display:flex;align-items:center;justify-content:center;font-size:1.6rem;box-shadow:0 0 40px rgba(0,212,170,0.4);">🌿</div>
+        </div>
+        <p style="color:#E8F5F0;font-size:1.2rem;font-weight:700;margin:0 0 6px;letter-spacing:-0.3px;">GreenLens</p>
+        <p style="color:rgba(232,245,240,0.4);font-size:0.78rem;margin:0;">Climate Intelligence · Loading...</p>
+        <div style="margin-top:28px;width:200px;height:2px;background:rgba(0,212,170,0.1);border-radius:99px;overflow:hidden;">
+            <div style="height:100%;background:linear-gradient(90deg,var(--gl-primary),var(--gl-accent));border-radius:99px;animation:gl-progress 2.4s ease-in-out infinite;"></div>
+        </div>
+        <style>
+            @keyframes gl-ripple { 0%{transform:scale(0.85);opacity:1} 100%{transform:scale(1.6);opacity:0} }
+            @keyframes gl-progress { 0%{width:0;margin-left:0} 50%{width:80%;margin-left:0} 100%{width:0;margin-left:100%} }
+        </style>
+    </div>
+    <script>
+        window.addEventListener('load', function () {
+            var el = document.getElementById('loading-overlay');
+            if (el) { el.style.transition='opacity 0.4s'; el.style.opacity='0'; setTimeout(function(){el.style.display='none'},420); }
+        });
+    </script>
 
-<div class="global-disclaimer">
-  <strong>GreenLens scores are research indicators only.</strong>
-  Not financial advice. Independent verification recommended before investment decisions.
-</div>
+    <!-- Skip to content -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <!-- Navigation -->
+    <nav class="gl-nav" role="navigation" aria-label="Main navigation">
+        <a class="gl-nav-brand" href="{% url 'dashboard:index' %}">
+            <div class="gl-nav-brand-icon">🌿</div>
+            <div>
+                <div class="gl-nav-brand-text">GreenLens</div>
+                <div class="gl-nav-brand-sub">Climate Intelligence for Green Finance</div>
+            </div>
+        </a>
 
-<div id="page-content">
-  {% block content %}{% endblock %}
-</div>
+        <button class="gl-nav-toggle" onclick="document.getElementById('gl-nav-menu').classList.toggle('show')" aria-label="Toggle navigation">☰</button>
 
-<!-- Global Disclaimer Footer -->
-<footer style="background: #0d1117; border-top: 1px solid #30363d; padding: 12px 20px; text-align: center; margin-top: auto;">
-    <p style="color: #8b949e; font-size: 0.75rem; margin: 0;">
-        ⚠️ <strong>GreenLens scores are research indicators only.</strong> Not financial advice. Independent verification recommended before investment decisions.
-    </p>
-</footer>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-{% block extra_js %}{% endblock %}
+        <ul class="gl-nav-links" id="gl-nav-menu">
+            <li><a href="{% url 'dashboard:index' %}" class="{% if request.path == '/' %}active{% endif %}">🗺️ Map</a></li>
+            <li><a href="{% url 'dashboard:pricing_analysis' %}" class="{% if 'pricing' in request.path %}active{% endif %}">📊 Pricing</a></li>
+            <li><a href="{% url 'dashboard:portfolio' %}" class="{% if 'portfolio' in request.path %}active{% endif %}">💼 Portfolio</a></li>
+            <li><a href="{% url 'dashboard:model_bias' %}" class="{% if 'model-bias' in request.path %}active{% endif %}">Model Bias</a></li>
+            <li><a href="{% url 'dashboard:risk_management' %}" class="{% if 'risk-management' in request.path %}active{% endif %}">Risk Shield</a></li>
+            <li><a href="{% url 'dashboard:about' %}" class="{% if 'about' in request.path %}active{% endif %}">ℹ About</a></li>
+            <li><a href="{% url 'dashboard:terms' %}" class="{% if 'terms' in request.path %}active{% endif %}">Terms</a></li>
+            <li><a href="https://github.com/Sharun7/GreenLens" target="_blank" rel="noopener noreferrer">GitHub ↗</a></li>
+        </ul>
+
+        <div class="gl-nav-ticker d-none d-xl-flex">
+            <span><strong id="tick-bonds">0</strong> bonds</span>
+            <span><strong id="tick-mispriced">0</strong> mispriced</span>
+            <span><strong id="tick-flagged">0</strong> flagged</span>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main id="main-content" role="main">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="gl-footer" role="contentinfo">
+        <div class="gl-footer-grid">
+            <div>
+                <h6>About GreenLens</h6>
+                <p>An open-source climate risk intelligence platform that independently verifies green bond claims using satellite imagery, machine learning, and live financial data. Built by Sharun Tomy.</p>
+            </div>
+            <div>
+                <h6>Data Sources</h6>
+                <ul>
+                    <li><a href="https://earthdata.nasa.gov" target="_blank" rel="noopener">NASA Earthdata</a></li>
+                    <li><a href="https://copernicus.eu" target="_blank" rel="noopener">ESA Copernicus</a></li>
+                    <li><a href="https://www.climatebonds.net" target="_blank" rel="noopener">Climate Bonds Initiative</a></li>
+                    <li><a href="https://earthengine.google.com" target="_blank" rel="noopener">Google Earth Engine</a></li>
+                </ul>
+            </div>
+            <div>
+                <h6>Legal</h6>
+                <ul>
+                    <li><a href="{% url 'dashboard:terms' %}">Terms of Use</a></li>
+                    <li><a href="{% url 'dashboard:about' %}">Methodology</a></li>
+                    <li>Model: XGBoost + SHAP</li>
+                    <li>License: BUSL-1.1</li>
+                </ul>
+            </div>
+        </div>
+        <div class="gl-footer-bar">
+            <span>© 2026 Sharun Tomy · Research Prototype · Not Financial Advice</span>
+            <span>v2.0 · Django 5 · PostgreSQL · Earth Engine</span>
+        </div>
+    </footer>
+
+    <!-- Scroll to top -->
+    <button class="gl-scroll-top" id="scrollTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll to top">↑</button>
+
+    <!-- Toast notification container -->
+    <div class="gl-toast" id="gl-toast"></div>
+    
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" 
+            integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" 
+            crossorigin="anonymous"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
+            crossorigin="anonymous"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Global utilities -->
+    <script>
+        // ── CountUp ticker ────────────────────────────────
+        function glCountUp(el, target, duration) {
+            if (!el || !target) return;
+            var start = 0, startTime = null;
+            target = parseInt(target);
+            function step(ts) {
+                if (!startTime) startTime = ts;
+                var progress = Math.min((ts - startTime) / duration, 1);
+                var val = Math.floor(progress * target);
+                el.textContent = val.toLocaleString();
+                if (progress < 1) requestAnimationFrame(step);
+                else el.textContent = target.toLocaleString();
+            }
+            requestAnimationFrame(step);
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            glCountUp(document.getElementById('tick-bonds'), '{{ total_bonds|default:"1275" }}', 1200);
+            glCountUp(document.getElementById('tick-mispriced'), '{{ mispriced_count|default:"290" }}', 1000);
+            glCountUp(document.getElementById('tick-flagged'), '{{ flagged_count|default:"107" }}', 800);
+        });
+
+        // ── Scroll to top ─────────────────────────────────
+        window.addEventListener('scroll', function() {
+            var btn = document.getElementById('scrollTopBtn');
+            if (btn) btn.classList.toggle('show', window.scrollY > 300);
+        });
+
+        // ── Toast notification ────────────────────────────
+        function glToast(msg, ms) {
+            var t = document.getElementById('gl-toast');
+            if (!t) return;
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(function(){ t.classList.remove('show'); }, ms || 2500);
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
