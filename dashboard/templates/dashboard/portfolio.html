@@ -206,10 +206,10 @@
 {% block extra_js %}
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const sectorLabels = JSON.parse('{{ sector_labels|safe }}');
-        const sectorValues = JSON.parse('{{ sector_values|safe }}');
-        const countryLabels = JSON.parse('{{ country_labels|safe }}');
-        const countryValues = JSON.parse('{{ country_values|safe }}');
+        const sectorLabels  = JSON.parse("{{ sector_labels|escapejs }}");
+        const sectorValues  = JSON.parse("{{ sector_values|escapejs }}");
+        const countryLabels = JSON.parse("{{ country_labels|escapejs }}");
+        const countryValues = JSON.parse("{{ country_values|escapejs }}");
 
         const chartOptions = {
             responsive: true,

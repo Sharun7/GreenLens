@@ -725,6 +725,7 @@
             </div>
             
             <!-- ── Satellite Evidence (3-component panel) ── -->
+            {% if greenwash_data %}
             <div class="detail-card" id="satellite-evidence-panel">
                 <h5>🛰️ Satellite Evidence</h5>
 
@@ -832,8 +833,9 @@
 
                 {% endif %}{# end verification_status check #}
             </div>
-            {% endif %}
-            
+            {% endif %}{# end greenwash_data check #}
+
+
             <!-- Pricing Scatter Position -->
             {% if gap %}
             <div class="detail-card">
