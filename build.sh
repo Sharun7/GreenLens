@@ -23,6 +23,9 @@ python manage.py fit_pricing_model --rescore || true
 echo "Seeding missing named issuer bonds..."
 python manage.py seed_demo_data || true
 
+echo "Running greenwash check on any missing bonds (fast synthetic mode)..."
+python manage.py batch_greenwash_check --only-missing --skip-gee || true
+
 echo "Collecting static files..."
 python manage.py collectstatic --no-input
 

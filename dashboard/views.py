@@ -661,6 +661,38 @@ def bond_detail(request, bond_id):
         for p in historical_pcr
     ]
     
+    # ── Lazy GEE thumbnail generation ────────────────────────────────────────
+    # If this bond has a greenwash flag but no image URLs yet, try to generate
+    # them now using the service-account credentials (EARTHENGINE_TOKEN).
+    # This runs synchronously on first page view only; result is saved to DB so
+    # subsequent visits are instant. Silently skips if GEE is unavailable.
+    if (
+        flag
+        and bond.lat is not None
+        and bond.lon is not None
+        and not flag.before_image_url
+        and not flag.after_image_url
+        and flag.verification_status != "unverifiable"
+    ):
+        try:
+            from greenwash_detector.satellite_verifier import SatelliteVerifier
+            _verifier = SatelliteVerifier(skip_gee=False)
+            if _verifier._ee is not None:
+                from datetime import date, timedelta
+                issuance = bond.issuance_date or date.today()
+                before_date = (issuance - timedelta(days=365)).isoformat()
+                after_date  = (issuance + timedelta(days=365)).isoformat()
+                thumbs = _verifier.generate_thumbnail_urls(
+                    float(bond.lat), float(bond.lon),
+                    before_date, after_date,
+                )
+                if thumbs.get("before_url") or thumbs.get("after_url"):
+                    flag.before_image_url = thumbs["before_url"]
+                    flag.after_image_url  = thumbs["after_url"]
+                    flag.save(update_fields=["before_image_url", "after_image_url"])
+        except Exception:
+            pass  # Never break the page load for a missing thumbnail
+
     # Greenwash satellite data
     greenwash_data = None
     if flag:
