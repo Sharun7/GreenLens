@@ -353,65 +353,64 @@
 
             <!-- Map Area -->
             <div id="map-panel">
-            <div class="map-container">
-                <!-- 3-line Explainer Box (UX Fix) -->
-                <div style="position: absolute; top: 20px; left: 50px; z-index: 1000; background: rgba(13, 17, 23, 0.9); border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); pointer-events: none;">
-                    <h6 style="color: #a5b4fc; font-size: 0.9rem; margin-bottom: 4px; font-weight: 600;">🌍 Welcome to GreenLens</h6>
-                    <p style="color: #c9d1d9; font-size: 0.8rem; margin: 0; line-height: 1.4;">
-                        {{ stats.total_bonds }} green bonds globally mapped.<br>
-                        Satellite verified project data.<br>
-                        <strong>Click any bond marker</strong> to see its climate risk score.
-                    </p>
+                <div class="map-container">
+                    <!-- 3-line Explainer Box (UX Fix) -->
+                    <div style="position: absolute; top: 20px; left: 50px; z-index: 1000; background: rgba(13, 17, 23, 0.9); border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); pointer-events: none;">
+                        <h6 style="color: #a5b4fc; font-size: 0.9rem; margin-bottom: 4px; font-weight: 600;">🌍 Welcome to GreenLens</h6>
+                        <p style="color: #c9d1d9; font-size: 0.8rem; margin: 0; line-height: 1.4;">
+                            {{ stats.total_bonds }} green bonds globally mapped.<br>
+                            Satellite verified project data.<br>
+                            <strong>Click any bond marker</strong> to see its climate risk score.
+                        </p>
+                    </div>
+
+                    <!-- Loading Overlay -->
+                    <div id="map-loading">
+                        <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="loading-text">Loading bond data...</p>
+                    </div>
+
+                    <!-- Climate Alerts Panel (Future Scope Implementation) -->
+                    <div class="map-legend-panel" id="alerts-panel" style="top: 20px; bottom: auto; right: 20px; width: 320px; display: none;">
+                        <div class="legend-title" style="color: #E24B4A; border-bottom: 1px solid #30363d; padding-bottom: 8px;">
+                            🚨 Active Climate Alerts
+                        </div>
+                        <div id="alerts-container" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
+                            <!-- Alerts will be injected here via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Map -->
+                    <div id="bond-map"></div>
+
+                    <!-- Legend -->
+                    <div class="map-legend-panel">
+                        <div class="legend-title">Risk Score (PCRS)</div>
+                        <div class="legend-item">
+                            <div class="legend-marker" style="background: #1D9E75;"></div>
+                            <span>Low (0-33)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker" style="background: #EF9F27;"></div>
+                            <span>Medium (34-66)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker" style="background: #E24B4A;"></div>
+                            <span>High (67-100)</span>
+                        </div>
+                        <div class="legend-item mt-2">
+                            <div class="legend-ring"></div>
+                            <span>Mispriced</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-warning">!</div>
+                            <span>Greenwash Flag</span>
+                        </div>
+                    </div>
                 </div>
-                
-                <!-- Loading Overlay -->
-                <div id="map-loading">
-                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="loading-text">Loading bond data...</p>
-                </div>
-                
-                <!-- Climate Alerts Panel (Future Scope Implementation) -->
-                <div class="map-legend-panel" id="alerts-panel" style="top: 20px; bottom: auto; right: 20px; width: 320px; display: none;">
-                    <div class="legend-title" style="color: #E24B4A; border-bottom: 1px solid #30363d; padding-bottom: 8px;">
-                        🚨 Active Climate Alerts
-                    </div>
-                    <div id="alerts-container" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
-                        <!-- Alerts will be injected here via JS -->
-                    </div>
-                </div>
-                
-                <!-- Map -->
-                <div id="bond-map"></div>
-                
-                <!-- Legend -->
-                <div class="map-legend-panel">
-                    <div class="legend-title">Risk Score (PCRS)</div>
-                    <div class="legend-item">
-                        <div class="legend-marker" style="background: #1D9E75;"></div>
-                        <span>Low (0-33)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-marker" style="background: #EF9F27;"></div>
-                        <span>Medium (34-66)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-marker" style="background: #E24B4A;"></div>
-                        <span>High (67-100)</span>
-                    </div>
-                    <div class="legend-item mt-2">
-                        <div class="legend-ring"></div>
-                        <span>Mispriced</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-warning">!</div>
-                        <span>Greenwash Flag</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        </div><!-- end map-panel -->
+            </div><!-- end map-panel -->
 
             <!-- Table Panel (hidden by default) -->
             <div id="table-panel" style="display:none;">
@@ -435,9 +434,9 @@
                 </div>
             </div>
 
-        </div>
-    </div>
-</div>
+        </div><!-- end col-lg-9 -->
+    </div><!-- end row -->
+</div><!-- end container-fluid -->
 {% endblock %}
 
 {% block extra_js %}
