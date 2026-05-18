@@ -44,6 +44,7 @@ urlpatterns = [
     path("api/data-reliability/", views.data_reliability_api, name="api_data_reliability"),
     path("api/model-depth/", views.model_depth_api, name="api_model_depth"),
     path("api/dashboard/stats/", views.dashboard_stats, name="stats"),
+    path("api/chat/", views.ai_chat_api, name="api_chat"),
     
     # API v1 endpoints (DRF ViewSets)
     path("api/v1/", include(api_router.urls)),

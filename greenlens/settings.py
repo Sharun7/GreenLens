@@ -297,6 +297,12 @@ EE_SERVICE_ACCOUNT = env("EE_SERVICE_ACCOUNT", default="")
 EE_PRIVATE_KEY_FILE = env("EE_PRIVATE_KEY_FILE", default="")
 EE_PROJECT_ID = env("EE_PROJECT_ID", default="")
 
+# ── AI Chat Assistant — Google Gemini ─────────────────────────────────────────
+# Get a free key at: https://aistudio.google.com/app/apikey
+# Set as environment variable GEMINI_API_KEY on Render dashboard.
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+
 # ── NASA Earthdata ─────────────────────────────────────────────────────────────
 EARTHDATA_USERNAME = env("EARTHDATA_USERNAME", default="")
 EARTHDATA_PASSWORD = env("EARTHDATA_PASSWORD", default="")

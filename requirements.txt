@@ -72,3 +72,6 @@ drf-spectacular==0.29.0
 dj-database-url==2.2.0
 black==24.4.2
 flake8==7.1.0
+
+# AI Chat Assistant — Google Gemini LLM
+google-generativeai>=0.7.0

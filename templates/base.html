@@ -488,5 +488,466 @@
     </script>
     
     {% block extra_js %}{% endblock %}
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!--  GreenLens AI Chat Assistant                                    -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <style>
+        /* ── Chat bubble ───────────────────────────────────────────── */
+        #gl-chat-bubble {
+            position: fixed; bottom: 28px; right: 28px; z-index: 9998;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: linear-gradient(135deg, #0F6E56, #00D4AA);
+            border: none; cursor: pointer;
+            box-shadow: 0 4px 24px rgba(0,212,170,0.45);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; transition: all 0.25s;
+            animation: chat-pulse 2.8s ease-in-out infinite;
+        }
+        #gl-chat-bubble:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 32px rgba(0,212,170,0.65);
+            animation: none;
+        }
+        @keyframes chat-pulse {
+            0%,100% { box-shadow: 0 4px 24px rgba(0,212,170,0.45); }
+            50%      { box-shadow: 0 4px 32px rgba(0,212,170,0.75); }
+        }
+        #gl-chat-badge {
+            position: absolute; top: -3px; right: -3px;
+            background: #FF4757; color: #fff;
+            border-radius: 50%; width: 18px; height: 18px;
+            font-size: 0.65rem; font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
+            display: none;
+        }
+
+        /* ── Chat panel ────────────────────────────────────────────── */
+        #gl-chat-panel {
+            position: fixed; bottom: 96px; right: 28px; z-index: 9997;
+            width: 400px; max-width: calc(100vw - 40px);
+            height: 580px; max-height: calc(100vh - 120px);
+            background: #0A1410;
+            border: 1px solid #1A3D2E;
+            border-radius: 16px;
+            box-shadow: 0 20px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,212,170,0.08);
+            display: none; flex-direction: column;
+            overflow: hidden;
+            transform: translateY(16px) scale(0.97);
+            opacity: 0;
+            transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        #gl-chat-panel.open {
+            display: flex;
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        /* Header */
+        .gl-chat-header {
+            background: linear-gradient(135deg, #0D2A20, #0A1F16);
+            border-bottom: 1px solid #1A3D2E;
+            padding: 14px 18px;
+            display: flex; align-items: center; gap: 12px;
+            flex-shrink: 0;
+        }
+        .gl-chat-avatar {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: linear-gradient(135deg, #0F6E56, #00D4AA);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; flex-shrink: 0;
+            box-shadow: 0 0 16px rgba(0,212,170,0.3);
+        }
+        .gl-chat-header-info { flex: 1; }
+        .gl-chat-header-name {
+            font-weight: 700; font-size: 0.92rem; color: #E8F5F0;
+            letter-spacing: -0.2px;
+        }
+        .gl-chat-header-status {
+            font-size: 0.7rem; color: #00D4AA; display: flex;
+            align-items: center; gap: 5px; margin-top: 1px;
+        }
+        .gl-chat-status-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #00D4AA;
+            animation: blink-dot 1.8s ease-in-out infinite;
+        }
+        @keyframes blink-dot {
+            0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+        }
+        .gl-chat-close {
+            background: none; border: none; cursor: pointer;
+            color: #7A9E8E; font-size: 1.2rem; padding: 4px;
+            border-radius: 6px; transition: all 0.15s;
+            display: flex; align-items: center;
+        }
+        .gl-chat-close:hover { color: #E8F5F0; background: rgba(255,255,255,0.05); }
+
+        /* Suggested questions */
+        .gl-chat-suggestions {
+            padding: 12px 14px 6px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+            border-bottom: 1px solid rgba(26,61,46,0.4);
+            flex-shrink: 0;
+        }
+        .gl-chat-suggestion {
+            background: rgba(15,110,86,0.12);
+            border: 1px solid rgba(0,212,170,0.2);
+            color: #7FFFD4; font-size: 0.7rem; font-weight: 500;
+            border-radius: 20px; padding: 4px 10px;
+            cursor: pointer; transition: all 0.15s; white-space: nowrap;
+        }
+        .gl-chat-suggestion:hover {
+            background: rgba(0,212,170,0.15);
+            border-color: rgba(0,212,170,0.5);
+            color: #E8F5F0;
+        }
+
+        /* Messages area */
+        #gl-chat-messages {
+            flex: 1; overflow-y: auto; padding: 16px 14px;
+            display: flex; flex-direction: column; gap: 14px;
+            scroll-behavior: smooth;
+        }
+        #gl-chat-messages::-webkit-scrollbar { width: 4px; }
+        #gl-chat-messages::-webkit-scrollbar-track { background: transparent; }
+        #gl-chat-messages::-webkit-scrollbar-thumb { background: #1A3D2E; border-radius: 2px; }
+
+        .gl-msg {
+            display: flex; gap: 8px;
+            animation: msg-in 0.22s ease-out;
+        }
+        @keyframes msg-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .gl-msg-user { flex-direction: row-reverse; }
+        .gl-msg-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            flex-shrink: 0; display: flex; align-items: center;
+            justify-content: center; font-size: 0.8rem; margin-top: 2px;
+        }
+        .gl-msg-avatar-bot  { background: linear-gradient(135deg,#0F6E56,#00D4AA); }
+        .gl-msg-avatar-user { background: #1A3D2E; }
+
+        .gl-msg-bubble {
+            max-width: 82%; padding: 10px 13px;
+            border-radius: 14px; font-size: 0.82rem; line-height: 1.55;
+        }
+        .gl-msg-bot  {
+            background: rgba(13,31,26,0.9); color: #C8E6DE;
+            border: 1px solid #1A3D2E;
+            border-radius: 4px 14px 14px 14px;
+        }
+        .gl-msg-user-b {
+            background: linear-gradient(135deg, #0F6E56, #0a9e70);
+            color: #fff; border-radius: 14px 4px 14px 14px;
+        }
+        .gl-msg-bot strong { color: #00D4AA; }
+        .gl-msg-bot ul { margin: 6px 0 6px 16px; padding: 0; }
+        .gl-msg-bot li { margin-bottom: 3px; }
+        .gl-msg-bot code {
+            background: rgba(0,212,170,0.1); color: #7FFFD4;
+            padding: 1px 5px; border-radius: 4px; font-size: 0.78rem;
+        }
+
+        /* Typing indicator */
+        .gl-typing {
+            display: flex; gap: 5px; padding: 12px 14px;
+            align-items: center;
+        }
+        .gl-typing span {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #00D4AA; opacity: 0.4;
+            animation: typing-bounce 1.2s ease-in-out infinite;
+        }
+        .gl-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .gl-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing-bounce {
+            0%,80%,100% { transform: translateY(0); opacity: 0.4; }
+            40%          { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* Input area */
+        .gl-chat-input-area {
+            padding: 12px 14px; border-top: 1px solid #1A3D2E;
+            display: flex; gap: 8px; align-items: flex-end;
+            flex-shrink: 0; background: #0A1410;
+        }
+        #gl-chat-input {
+            flex: 1; background: rgba(13,31,26,0.8);
+            border: 1px solid #1A3D2E; color: #E8F5F0;
+            border-radius: 10px; padding: 9px 12px;
+            font-size: 0.82rem; font-family: var(--font-body);
+            resize: none; min-height: 38px; max-height: 100px;
+            transition: border-color 0.15s; line-height: 1.4;
+        }
+        #gl-chat-input::placeholder { color: #4A6E5E; }
+        #gl-chat-input:focus {
+            outline: none; border-color: rgba(0,212,170,0.4);
+            box-shadow: 0 0 0 2px rgba(0,212,170,0.08);
+        }
+        #gl-chat-send {
+            width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+            background: linear-gradient(135deg, #0F6E56, #00D4AA);
+            border: none; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 1rem; transition: all 0.2s; color: #fff;
+        }
+        #gl-chat-send:hover { transform: scale(1.08); box-shadow: 0 4px 16px rgba(0,212,170,0.4); }
+        #gl-chat-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .gl-chat-footer {
+            text-align: center; font-size: 0.62rem; color: #3A5E4E;
+            padding: 4px 0 8px; flex-shrink: 0;
+        }
+    </style>
+
+    <!-- Chat Bubble -->
+    <button id="gl-chat-bubble" onclick="glChatToggle()" aria-label="Open AI Chat Assistant">
+        <span id="gl-chat-icon">🤖</span>
+        <span id="gl-chat-badge"></span>
+    </button>
+
+    <!-- Chat Panel -->
+    <div id="gl-chat-panel" role="dialog" aria-label="GreenLens AI Assistant">
+        <!-- Header -->
+        <div class="gl-chat-header">
+            <div class="gl-chat-avatar">🌿</div>
+            <div class="gl-chat-header-info">
+                <div class="gl-chat-header-name">GreenLens AI</div>
+                <div class="gl-chat-header-status">
+                    <div class="gl-chat-status-dot"></div>
+                    Powered by Gemini · Live bond data
+                </div>
+            </div>
+            <button class="gl-chat-close" onclick="glChatToggle()" aria-label="Close chat">✕</button>
+        </div>
+
+        <!-- Suggested Questions -->
+        <div class="gl-chat-suggestions" id="gl-suggestions">
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">🌊 Highest flood risk bonds?</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">💰 Most mispriced bonds?</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">🛰️ Greenwash flagged bonds</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">🌍 Southeast Asia risk</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">📊 Average PCRS score</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">☀️ Solar bonds in Europe</button>
+        </div>
+
+        <!-- Messages -->
+        <div id="gl-chat-messages">
+            <div class="gl-msg">
+                <div class="gl-msg-avatar gl-msg-avatar-bot">🌿</div>
+                <div class="gl-msg-bubble gl-msg-bot">
+                    <strong>Hello! I'm GreenLens AI</strong> 👋<br><br>
+                    I have live access to <strong>1,275+ green bonds</strong> with satellite verification, PCRS climate risk scores, and pricing gap analysis.<br><br>
+                    Ask me anything — <em>"Which bonds in India are most at risk from floods?"</em> or <em>"Show me the most mispriced bonds."</em>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="gl-chat-input-area">
+            <textarea
+                id="gl-chat-input"
+                placeholder="Ask about bonds, climate risk, greenwashing..."
+                rows="1"
+                onkeydown="glChatKeydown(event)"
+                oninput="glChatAutoResize(this)"
+                aria-label="Chat message"
+            ></textarea>
+            <button id="gl-chat-send" onclick="glChatSend()" aria-label="Send message">➤</button>
+        </div>
+        <div class="gl-chat-footer">Gemini 1.5 Flash · Research use only · Not financial advice</div>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        // ── State ──────────────────────────────────────────────────────────
+        let glChatOpen    = false;
+        let glChatHistory = [];
+        let glChatBusy    = false;
+
+        // ── Toggle panel ───────────────────────────────────────────────────
+        window.glChatToggle = function () {
+            glChatOpen = !glChatOpen;
+            const panel  = document.getElementById('gl-chat-panel');
+            const icon   = document.getElementById('gl-chat-icon');
+            const badge  = document.getElementById('gl-chat-badge');
+
+            if (glChatOpen) {
+                panel.style.display = 'flex';
+                requestAnimationFrame(() => panel.classList.add('open'));
+                icon.textContent = '✕';
+                badge.style.display = 'none';
+                setTimeout(() => document.getElementById('gl-chat-input').focus(), 280);
+            } else {
+                panel.classList.remove('open');
+                setTimeout(() => { panel.style.display = 'none'; }, 250);
+                icon.textContent = '🤖';
+            }
+        };
+
+        // ── Suggested question click ───────────────────────────────────────
+        window.glChatSuggest = function (btn) {
+            const text = btn.textContent.replace(/^[^\w]+/, '').trim();
+            document.getElementById('gl-chat-input').value = text;
+            // Hide suggestions after first use
+            document.getElementById('gl-suggestions').style.display = 'none';
+            glChatSend();
+        };
+
+        // ── Send on Enter (Shift+Enter = newline) ──────────────────────────
+        window.glChatKeydown = function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                glChatSend();
+            }
+        };
+
+        // ── Auto-resize textarea ───────────────────────────────────────────
+        window.glChatAutoResize = function (el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+        };
+
+        // ── Append a message bubble ────────────────────────────────────────
+        function glChatAppend(role, html) {
+            const messages = document.getElementById('gl-chat-messages');
+            const wrap = document.createElement('div');
+            wrap.className = 'gl-msg' + (role === 'user' ? ' gl-msg-user' : '');
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'gl-msg-avatar ' + (role === 'user' ? 'gl-msg-avatar-user' : 'gl-msg-avatar-bot');
+            avatarDiv.textContent = role === 'user' ? '👤' : '🌿';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'gl-msg-bubble ' + (role === 'user' ? 'gl-msg-user-b' : 'gl-msg-bot');
+            bubble.innerHTML = html;
+
+            wrap.appendChild(avatarDiv);
+            wrap.appendChild(bubble);
+            messages.appendChild(wrap);
+            messages.scrollTop = messages.scrollHeight;
+            return bubble;
+        }
+
+        // ── Typing indicator ───────────────────────────────────────────────
+        let typingEl = null;
+        function glShowTyping() {
+            const messages = document.getElementById('gl-chat-messages');
+            typingEl = document.createElement('div');
+            typingEl.className = 'gl-msg';
+            typingEl.innerHTML = `
+                <div class="gl-msg-avatar gl-msg-avatar-bot">🌿</div>
+                <div class="gl-msg-bubble gl-msg-bot" style="padding:0;">
+                    <div class="gl-typing">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>`;
+            messages.appendChild(typingEl);
+            messages.scrollTop = messages.scrollHeight;
+        }
+        function glHideTyping() {
+            if (typingEl) { typingEl.remove(); typingEl = null; }
+        }
+
+        // ── Markdown → safe HTML (minimal) ────────────────────────────────
+        function glMd(text) {
+            return text
+                // code blocks first
+                .replace(/```[\s\S]*?```/g, m => {
+                    const code = m.replace(/```\w*\n?/, '').replace(/```$/, '');
+                    return `<pre style="background:rgba(0,212,170,0.07);border:1px solid rgba(0,212,170,0.15);border-radius:6px;padding:8px 10px;overflow-x:auto;font-size:0.75rem;color:#7FFFD4;margin:8px 0;">${glEscape(code)}</pre>`;
+                })
+                // inline code
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                // bold
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                // bullet list
+                .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+                .replace(/(<li>.*<\/li>(\n|$))+/gs, m => `<ul>${m}</ul>`)
+                // numbered list
+                .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+                // line breaks
+                .replace(/\n\n+/g, '<br><br>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function glEscape(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        // ── Send message ───────────────────────────────────────────────────
+        window.glChatSend = async function () {
+            if (glChatBusy) return;
+
+            const input  = document.getElementById('gl-chat-input');
+            const sendBtn = document.getElementById('gl-chat-send');
+            const text   = input.value.trim();
+            if (!text) return;
+
+            // Append user message
+            glChatAppend('user', glEscape(text));
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Hide suggestions permanently after first real message
+            document.getElementById('gl-suggestions').style.display = 'none';
+
+            // Update history
+            glChatHistory.push({ role: 'user', content: text });
+
+            // Show typing
+            glChatBusy = true;
+            sendBtn.disabled = true;
+            glShowTyping();
+
+            try {
+                const res = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        history: glChatHistory.slice(-6),
+                    }),
+                });
+
+                const data = await res.json();
+                glHideTyping();
+
+                const reply = data.response || data.error || 'No response received.';
+                glChatAppend('bot', glMd(reply));
+                glChatHistory.push({ role: 'model', content: reply });
+
+                // Show badge if chat is closed
+                if (!glChatOpen) {
+                    const badge = document.getElementById('gl-chat-badge');
+                    badge.style.display = 'flex';
+                    badge.textContent = '1';
+                }
+
+            } catch (err) {
+                glHideTyping();
+                glChatAppend('bot', '⚠️ Connection error. Please check your network and try again.');
+            } finally {
+                glChatBusy = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        };
+
+        // ── Keyboard shortcut: Ctrl+/ to open chat ─────────────────────────
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+                e.preventDefault();
+                glChatToggle();
+            }
+        });
+
+    })();
+    </script>
 </body>
 </html>
+

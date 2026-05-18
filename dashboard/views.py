@@ -1528,3 +1528,47 @@ def data_pipeline_reality(request):
 def future_innovations(request):
     # Category 15 - Future Innovation Questions.
     return render(request, "dashboard/future_innovations.html")
+
+
+# ── AI Chat Assistant ─────────────────────────────────────────────────────────
+
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+
+
+@csrf_exempt
+@require_POST
+def ai_chat_api(request):
+    """
+    POST /api/chat/
+    Body: { "message": "...", "history": [...] }
+    Returns: { "response": "..." }
+
+    Calls Google Gemini 1.5 Flash with live GreenLens bond data as context.
+    """
+    try:
+        body = json.loads(request.body)
+        user_message = str(body.get("message", "")).strip()
+        history = body.get("history", [])
+
+        if not user_message:
+            return JsonResponse({"error": "Empty message."}, status=400)
+
+        if len(user_message) > 1000:
+            return JsonResponse({"error": "Message too long (max 1000 chars)."}, status=400)
+
+        from dashboard.ai_chat import get_ai_response
+        response_text = get_ai_response(user_message, history)
+
+        return JsonResponse({"response": response_text})
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON body."}, status=400)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error("AI chat error: %s", exc)
+        return JsonResponse(
+            {"response": "I encountered an unexpected error. Please try again."},
+            status=200,
+        )
+
