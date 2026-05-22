@@ -34,8 +34,9 @@ joblib==1.4.2
 matplotlib>=3.8.0
 
 # Deep Learning (greenwash detector)
-torch==2.3.1
-torchvision==0.18.1
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.1+cpu
+torchvision==0.18.1+cpu
 datasets>=2.20.0            # HuggingFace datasets — EuroSAT download
 
 # Google Earth Engine
