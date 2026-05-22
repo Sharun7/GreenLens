@@ -31,16 +31,23 @@ environ.Env.read_env(BASE_DIR / ".env")
 # ── Core ───────────────────────────────────────────────────────────────────────
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '.onrender.com',
-    'greenlens.onrender.com',
-]
+# ── Allowed Hosts — supports Railway + Render automatically ───────────────────
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
 
-RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default=None)
+# Render
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# Railway
+RAILWAY_PUBLIC_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+if RAILWAY_PUBLIC_DOMAIN:
+    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+# Any extra hosts (comma-separated) from env
+EXTRA_HOSTS = os.environ.get('ALLOWED_HOSTS', '')
+if EXTRA_HOSTS:
+    ALLOWED_HOSTS.extend([h.strip() for h in EXTRA_HOSTS.split(',') if h.strip()])
 
 # ── Installed Apps ─────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
@@ -106,18 +113,18 @@ TEMPLATES = [
 WSGI_APPLICATION = "greenlens.wsgi.application"
 ASGI_APPLICATION = "greenlens.asgi.application"
 
-# ── Database — PostgreSQL + PostGIS ───────────────────────────────────────────
-# Render/Heroku provide DATABASE_URL; fall back to individual env vars for local dev.
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
-
-# If no DATABASE_URL, fall back to individual env vars for local dev
-if not os.environ.get('DATABASE_URL'):
+# ── Database — Railway + Render + local dev ───────────────────────────────────
+# Railway and Render both inject DATABASE_URL automatically.
+# Fall back to individual env vars for local development.
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.environ.get('DATABASE_URL'),
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -126,9 +133,7 @@ if not os.environ.get('DATABASE_URL'):
             "PASSWORD": env("DB_PASSWORD", default="greenlens_pass"),
             "HOST": env("DB_HOST", default="localhost"),
             "PORT": env("DB_PORT", default="5432"),
-            "OPTIONS": {
-                "connect_timeout": 10,
-            },
+            "OPTIONS": {"connect_timeout": 10},
             "CONN_MAX_AGE": 600,
         }
     }
@@ -180,11 +185,11 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# ── Caching (Local Memory Only - No Redis) ───────────────────────────────────
+# ── Caching — local memory (no Redis required on Railway or Render) ───────────
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-snowflake",
+        "LOCATION": "greenlens-cache",
     }
 }
 

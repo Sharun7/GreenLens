@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ["gdal", "python311", "postgresql"]
+
+[phases.install]
+cmds = [
+  "pip install --upgrade pip setuptools wheel",
+  "pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = [
+  "python manage.py collectstatic --no-input"
+]
+
+[start]
+cmd = "gunicorn greenlens.wsgi:application --workers 2 --timeout 120"
