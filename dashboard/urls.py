@@ -26,6 +26,7 @@ urlpatterns = [
     # HTML Views
     path("", views.index, name="index"),
     path("bond/<str:bond_id>/", views.bond_detail, name="bond_detail"),
+    path("verify/", views.location_verify, name="verify"),
     path("pricing/", views.pricing_analysis, name="pricing_analysis"),
     path("portfolio/", views.portfolio_optimizer, name="portfolio"),
     path("about/", views.about, name="about"),

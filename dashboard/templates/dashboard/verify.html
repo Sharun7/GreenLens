@@ -1,0 +1,701 @@
+{% extends "base.html" %}
+{% block title %}Verify Location — GreenLens Climate Intelligence{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Page layout ──────────────────────────────────────────────────────────── */
+.verify-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+}
+
+/* ── Hero search ──────────────────────────────────────────────────────────── */
+.verify-hero {
+    text-align: center;
+    margin-bottom: 36px;
+}
+.verify-hero h1 {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, #00D4AA, #7FFFD4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+}
+.verify-hero p {
+    color: var(--gl-text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 0;
+}
+
+/* Search form */
+.verify-search-form {
+    display: flex;
+    gap: 10px;
+    max-width: 680px;
+    margin: 24px auto 12px;
+}
+.verify-search-input {
+    flex: 1;
+    background: rgba(13,31,26,0.9);
+    border: 1.5px solid rgba(0,212,170,0.25);
+    color: var(--gl-text);
+    border-radius: 12px;
+    padding: 13px 18px;
+    font-size: 0.95rem;
+    font-family: var(--font-body);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.verify-search-input:focus {
+    outline: none;
+    border-color: rgba(0,212,170,0.6);
+    box-shadow: 0 0 0 3px rgba(0,212,170,0.1);
+}
+.verify-search-input::placeholder { color: #4A6E5E; }
+.verify-search-btn {
+    background: linear-gradient(135deg, #0F6E56, #00D4AA);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 13px 26px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+}
+.verify-search-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0,212,170,0.4);
+}
+.verify-examples {
+    font-size: 0.75rem;
+    color: #4A6E5E;
+}
+.verify-examples span {
+    color: #00D4AA;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+.verify-examples span:hover { color: #7FFFD4; text-decoration: underline; }
+
+/* ── Error banner ─────────────────────────────────────────────────────────── */
+.verify-error {
+    background: rgba(255,71,87,0.1);
+    border: 1px solid rgba(255,71,87,0.3);
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: #FF6B6B;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+}
+
+/* ── Result sections ──────────────────────────────────────────────────────── */
+.verify-section {
+    background: rgba(10,20,16,0.6);
+    border: 1px solid rgba(26,61,46,0.7);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(8px);
+}
+.verify-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #00D4AA;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.verify-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0,212,170,0.3), transparent);
+}
+
+/* ── Location confirmed card ──────────────────────────────────────────────── */
+.verify-location-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+}
+.verify-location-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--gl-text);
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+.verify-location-coords {
+    font-size: 0.78rem;
+    color: var(--gl-text-muted);
+    font-family: 'Fira Code', monospace;
+}
+.verify-source-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    background: rgba(0,212,170,0.12);
+    border: 1px solid rgba(0,212,170,0.25);
+    color: #00D4AA;
+    white-space: nowrap;
+}
+
+/* ── Satellite map ────────────────────────────────────────────────────────── */
+#verify-map {
+    height: 480px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(26,61,46,0.5);
+}
+
+/* ── PCRS score card ──────────────────────────────────────────────────────── */
+.pcrs-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+@media (max-width: 640px) { .pcrs-row { grid-template-columns: 1fr; } }
+
+.pcrs-score-box {
+    background: rgba(13,31,26,0.8);
+    border: 1px solid rgba(26,61,46,0.6);
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.pcrs-score-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(0,212,170,0.06), transparent 70%);
+}
+.pcrs-number {
+    font-size: 4rem;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 4px;
+    letter-spacing: -2px;
+}
+.pcrs-band {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+}
+.pcrs-driver-text {
+    font-size: 0.78rem;
+    color: var(--gl-text-muted);
+    line-height: 1.5;
+}
+.pcrs-driver-text strong { color: #00D4AA; }
+
+/* Risk bars */
+.risk-bars { display: flex; flex-direction: column; gap: 14px; }
+.risk-bar-row { display: flex; flex-direction: column; gap: 5px; }
+.risk-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--gl-text-muted);
+}
+.risk-bar-label strong { color: var(--gl-text); font-weight: 600; }
+.risk-bar-track {
+    height: 8px;
+    background: rgba(26,61,46,0.6);
+    border-radius: 99px;
+    overflow: hidden;
+}
+.risk-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 1s cubic-bezier(0.34,1.56,0.64,1);
+}
+.risk-bar-flood  { background: linear-gradient(90deg, #1A8FFF, #0062CC); }
+.risk-bar-heat   { background: linear-gradient(90deg, #FF6B35, #CC3300); }
+.risk-bar-drought{ background: linear-gradient(90deg, #F5A623, #CC7A00); }
+
+/* SHAP contributions */
+.shap-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+}
+@media (max-width: 600px) { .shap-grid { grid-template-columns: 1fr; } }
+
+.shap-card {
+    background: rgba(13,31,26,0.6);
+    border: 1px solid rgba(26,61,46,0.5);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+}
+.shap-card-label { font-size: 0.7rem; color: var(--gl-text-muted); margin-bottom: 4px; }
+.shap-card-value { font-size: 1.4rem; font-weight: 800; color: #00D4AA; }
+.shap-card-unit  { font-size: 0.65rem; color: #4A6E5E; margin-top: 1px; }
+
+/* ── Nearby bonds table ───────────────────────────────────────────────────── */
+.verify-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+.verify-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #4A6E5E;
+    border-bottom: 1px solid rgba(26,61,46,0.6);
+}
+.verify-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(26,61,46,0.25);
+    color: var(--gl-text-muted);
+    vertical-align: middle;
+}
+.verify-table tr:last-child td { border-bottom: none; }
+.verify-table tr:hover td { background: rgba(0,212,170,0.03); }
+.verify-table a { color: #00D4AA; text-decoration: none; font-weight: 600; }
+.verify-table a:hover { color: #7FFFD4; text-decoration: underline; }
+
+.risk-chip {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.risk-low       { background: rgba(0,212,170,0.15);  color: #00D4AA; }
+.risk-medium-low{ background: rgba(127,212,76,0.15); color: #7FD44C; }
+.risk-medium-high{background: rgba(245,166,35,0.15); color: #F5A623; }
+.risk-high      { background: rgba(255,107,53,0.15); color: #FF6B35; }
+.risk-extreme   { background: rgba(255,71,87,0.15);  color: #FF4757; }
+
+.mispriced-yes { color: #FF6B35; font-weight: 700; }
+.mispriced-no  { color: #4A6E5E; }
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+.verify-empty {
+    text-align: center;
+    padding: 32px;
+    color: var(--gl-text-muted);
+    font-size: 0.85rem;
+}
+.verify-empty span { display: block; font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4; }
+
+/* ── Idle state (no query) ────────────────────────────────────────────────── */
+.verify-idle {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 40px;
+}
+@media (max-width: 640px) { .verify-idle { grid-template-columns: 1fr; } }
+
+.idle-card {
+    background: rgba(10,20,16,0.5);
+    border: 1px solid rgba(26,61,46,0.5);
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s;
+    cursor: pointer;
+}
+.idle-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(0,212,170,0.35);
+}
+.idle-card-icon { font-size: 2rem; margin-bottom: 10px; }
+.idle-card-title { font-size: 0.88rem; font-weight: 700; color: var(--gl-text); margin-bottom: 4px; }
+.idle-card-desc  { font-size: 0.73rem; color: var(--gl-text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="verify-page">
+
+    <!-- ── Hero ──────────────────────────────────────────────────────────── -->
+    <div class="verify-hero">
+        <h1>🔍 Verify Any Location</h1>
+        <p>Type any place name or coordinates — get instant satellite view + physical climate risk analysis</p>
+
+        <form class="verify-search-form" method="GET" action="{% url 'dashboard:verify' %}">
+            <input
+                type="text"
+                name="q"
+                class="verify-search-input"
+                id="verify-q"
+                placeholder="e.g. Kerala, India · Rajasthan Solar Park · Germany · 10.5°N, 76.2°E"
+                value="{{ query|default:'' }}"
+                autocomplete="off"
+                autofocus
+            >
+            <button type="submit" class="verify-search-btn">🔍 Analyse</button>
+        </form>
+
+        <div class="verify-examples">
+            Try:
+            <span onclick="fillSearch('Kerala, India')">Kerala, India</span> ·
+            <span onclick="fillSearch('Rajasthan Solar Park')">Rajasthan Solar Park</span> ·
+            <span onclick="fillSearch('Mekong Delta, Vietnam')">Mekong Delta, Vietnam</span> ·
+            <span onclick="fillSearch('Sahel Region, Niger')">Sahel, Niger</span> ·
+            <span onclick="fillSearch('Rhine Valley, Germany')">Rhine Valley, Germany</span>
+        </div>
+    </div>
+
+    <!-- ── Error ─────────────────────────────────────────────────────────── -->
+    {% if error %}
+    <div class="verify-error">
+        <span style="font-size:1.3rem;">⚠️</span>
+        <div>{{ error }}</div>
+    </div>
+    {% endif %}
+
+    {% if location_name %}
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!--  RESULTS                                                              -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Section 1 — Location confirmed -->
+    <div class="verify-section">
+        <div class="verify-section-title">📍 Location Confirmed</div>
+        <div class="verify-location-grid">
+            <div>
+                <div class="verify-location-name">{{ location_name }}</div>
+                <div class="verify-location-coords">
+                    {{ lat|floatformat:5 }}°N, {{ lon|floatformat:5 }}°E &nbsp;·&nbsp;
+                    Searched for: <em>"{{ query }}"</em>
+                </div>
+            </div>
+            <div>
+                {% if source == "heuristic" %}
+                <span class="verify-source-badge" style="background:rgba(245,166,35,0.15);border-color:rgba(245,166,35,0.3);color:#F5A623;">
+                    ⚡ Heuristic
+                </span>
+                {% else %}
+                <span class="verify-source-badge">🛰 NASA CMR</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2 — Live satellite map -->
+    <div class="verify-section" style="padding: 0; overflow:hidden;">
+        <div style="padding:16px 20px 0; display:flex; align-items:center; gap:8px;">
+            <div class="verify-section-title" style="margin-bottom:12px;">🛰️ Satellite View</div>
+        </div>
+        <div id="verify-map"></div>
+    </div>
+
+    <!-- Section 3 — Climate Risk Analysis -->
+    <div class="verify-section">
+        <div class="verify-section-title">⚡ Physical Climate Risk Analysis</div>
+        <div class="pcrs-row">
+
+            <!-- PCRS Score -->
+            <div class="pcrs-score-box">
+                <div class="pcrs-number" style="color: {{ risk_color }};">{{ pcrs_score }}</div>
+                <div class="pcrs-band" style="color: {{ risk_color }};">{{ risk_band }} Risk</div>
+                <div class="pcrs-driver-text">
+                    Primary driver: <strong>{{ main_driver }}</strong><br>
+                    accounts for ~{{ main_driver_pct }}% of score<br><br>
+                    <span style="font-size:0.72rem; color:#3A5E4E;">
+                        PCRS = Physical Climate Risk Score (0–100)<br>
+                        Methodology: GreenLens ML Engine v1
+                    </span>
+                </div>
+            </div>
+
+            <!-- Risk bars -->
+            <div class="risk-bars">
+                <div class="risk-bar-row">
+                    <div class="risk-bar-label">
+                        <strong>🌊 Flood Exposure</strong>
+                        <span>{{ flood_pct }}%</span>
+                    </div>
+                    <div class="risk-bar-track">
+                        <div class="risk-bar-fill risk-bar-flood" id="bar-flood" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="risk-bar-row">
+                    <div class="risk-bar-label">
+                        <strong>🌡️ Heat Stress</strong>
+                        <span>{{ heat_pct }}%</span>
+                    </div>
+                    <div class="risk-bar-track">
+                        <div class="risk-bar-fill risk-bar-heat" id="bar-heat" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="risk-bar-row">
+                    <div class="risk-bar-label">
+                        <strong>🏜️ Drought Severity</strong>
+                        <span>{{ drought_pct }}%</span>
+                    </div>
+                    <div class="risk-bar-track">
+                        <div class="risk-bar-fill risk-bar-drought" id="bar-drought" style="width:0%"></div>
+                    </div>
+                </div>
+
+                <!-- SHAP-style contribution breakdown -->
+                <div style="margin-top: 20px;">
+                    <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:1px; color:#4A6E5E; margin-bottom:10px; font-weight:700;">
+                        SHAP-style PCRS Contribution
+                    </div>
+                    <div class="shap-grid">
+                        {% for name, val in contributions.items %}
+                        <div class="shap-card">
+                            <div class="shap-card-label">{{ name }}</div>
+                            <div class="shap-card-value">{{ val }}</div>
+                            <div class="shap-card-unit">pts / 100</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4 — Nearby bonds -->
+    <div class="verify-section">
+        <div class="verify-section-title">
+            📋 Existing Green Bonds Within 200 km
+            <span style="margin-left:auto; font-size:0.7rem; color:#4A6E5E; text-transform:none; letter-spacing:0; font-weight:400;">
+                {{ nearby_bonds|length }} bond{{ nearby_bonds|length|pluralize }} found
+            </span>
+        </div>
+
+        {% if nearby_bonds %}
+        <div style="overflow-x:auto;">
+            <table class="verify-table">
+                <thead>
+                    <tr>
+                        <th>Bond ID</th>
+                        <th>Issuer</th>
+                        <th>Category</th>
+                        <th>Distance</th>
+                        <th>PCRS</th>
+                        <th>Risk Band</th>
+                        <th>Mispriced?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in nearby_bonds %}
+                    <tr>
+                        <td><a href="{% url 'dashboard:bond_detail' item.bond.bond_id %}">{{ item.bond.bond_id }}</a></td>
+                        <td>{{ item.bond.issuer_name|truncatechars:30 }}</td>
+                        <td>{{ item.bond.get_project_category_display }}</td>
+                        <td>{{ item.dist_km }} km</td>
+                        <td>
+                            {% if item.pcr_score is not None %}
+                                <strong style="color:{% if item.pcr_score < 45 %}#00D4AA{% elif item.pcr_score < 65 %}#F5A623{% else %}#FF6B35{% endif %};">
+                                    {{ item.pcr_score }}
+                                </strong>
+                            {% else %}
+                                <span style="color:#3A5E4E;">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.risk_band %}
+                            <span class="risk-chip risk-{{ item.risk_band|lower|slugify }}">{{ item.risk_band }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if item.is_mispriced %}
+                                <span class="mispriced-yes">⚠ YES {% if item.gap_bps %}({{ item.gap_bps }} bps){% endif %}</span>
+                            {% else %}
+                                <span class="mispriced-no">✓ No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% else %}
+        <div class="verify-empty">
+            <span>🌏</span>
+            No green bonds found within 200 km of this location.<br>
+            This area may be underserved by green finance — a potential market opportunity.
+        </div>
+        {% endif %}
+    </div>
+
+    {% elif not error %}
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!--  IDLE STATE — no query yet                                            -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <div class="verify-idle">
+        <div class="idle-card" onclick="fillSearch('Kerala, India')">
+            <div class="idle-card-icon">🌊</div>
+            <div class="idle-card-title">Kerala, India</div>
+            <div class="idle-card-desc">High flood + monsoon exposure, coastal delta region</div>
+        </div>
+        <div class="idle-card" onclick="fillSearch('Sahel Region, Niger')">
+            <div class="idle-card-icon">🏜️</div>
+            <div class="idle-card-title">Sahel, Niger</div>
+            <div class="idle-card-desc">Extreme drought risk, rapidly expanding desertification</div>
+        </div>
+        <div class="idle-card" onclick="fillSearch('Rhine Valley, Germany')">
+            <div class="idle-card-icon">🌿</div>
+            <div class="idle-card-title">Rhine Valley, Germany</div>
+            <div class="idle-card-desc">Active green bond market, moderate climate risk</div>
+        </div>
+        <div class="idle-card" onclick="fillSearch('Mekong Delta, Vietnam')">
+            <div class="idle-card-icon">🌾</div>
+            <div class="idle-card-title">Mekong Delta, Vietnam</div>
+            <div class="idle-card-desc">Severe flooding + salinity intrusion risk</div>
+        </div>
+        <div class="idle-card" onclick="fillSearch('Rajasthan, India')">
+            <div class="idle-card-icon">☀️</div>
+            <div class="idle-card-title">Rajasthan, India</div>
+            <div class="idle-card-desc">Largest solar power zone, heat & drought stress</div>
+        </div>
+        <div class="idle-card" onclick="fillSearch('Jakarta, Indonesia')">
+            <div class="idle-card-icon">🏙️</div>
+            <div class="idle-card-title">Jakarta, Indonesia</div>
+            <div class="idle-card-desc">Sinking coastal city, extreme flood risk</div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function fillSearch(text) {
+    document.getElementById('verify-q').value = text;
+    document.querySelector('.verify-search-form').submit();
+}
+
+{% if location_name %}
+// ── Animate risk bars after load ───────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        document.getElementById('bar-flood').style.width   = '{{ flood_pct }}%';
+        document.getElementById('bar-heat').style.width    = '{{ heat_pct }}%';
+        document.getElementById('bar-drought').style.width = '{{ drought_pct }}%';
+    }, 200);
+});
+
+// ── Leaflet satellite map ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const lat = {{ lat }};
+    const lon = {{ lon }};
+
+    const map = L.map('verify-map', {
+        center: [lat, lon],
+        zoom: 12,
+        zoomControl: true,
+        scrollWheelZoom: true,
+    });
+
+    // ESRI World Imagery — free, no key required
+    L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 19,
+        }
+    ).addTo(map);
+
+    // Custom GreenLens marker
+    const glIcon = L.divIcon({
+        html: `<div style="
+            width:36px; height:36px; border-radius:50%;
+            background: linear-gradient(135deg, #0F6E56, #00D4AA);
+            border: 3px solid #fff;
+            box-shadow: 0 4px 16px rgba(0,212,170,0.6);
+            display:flex; align-items:center; justify-content:center;
+            font-size:1rem; cursor:pointer;
+        ">🔍</div>`,
+        className: '',
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+    });
+
+    const marker = L.marker([lat, lon], { icon: glIcon }).addTo(map);
+    marker.bindPopup(`
+        <div style="font-family:system-ui; font-size:0.8rem; min-width:180px;">
+            <strong style="color:#00D4AA;">{{ query|escapejs }}</strong><br>
+            <span style="color:#666; font-size:0.72rem;">{{ lat|floatformat:4 }}°N, {{ lon|floatformat:4 }}°E</span><br><br>
+            <span style="font-size:0.75rem;">
+                PCRS Score: <strong style="color:{{ risk_color }};">{{ pcrs_score }}</strong>
+                &nbsp;·&nbsp;
+                <strong style="color:{{ risk_color }};">{{ risk_band }}</strong>
+            </span>
+        </div>
+    `, { maxWidth: 240 }).openPopup();
+
+    {% for item in nearby_bonds %}
+    // Nearby bond marker
+    (function() {
+        const bLat = {{ item.bond.lat }};
+        const bLon = {{ item.bond.lon }};
+        {% if item.pcr_score is not None %}
+        const score = {{ item.pcr_score }};
+        {% else %}
+        const score = null;
+        {% endif %}
+        const color = score === null ? '#4A6E5E' :
+                      score < 45  ? '#00D4AA' :
+                      score < 65  ? '#F5A623' : '#FF6B35';
+
+        const bondIcon = L.divIcon({
+            html: `<div style="
+                width:24px; height:24px; border-radius:50%;
+                background:${color}33; border:2px solid ${color};
+                display:flex; align-items:center; justify-content:center;
+                font-size:0.65rem; font-weight:800; color:${color};
+            ">${score !== null ? Math.round(score) : '?'}</div>`,
+            className: '',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+        });
+
+        const bMarker = L.marker([bLat, bLon], { icon: bondIcon }).addTo(map);
+        bMarker.bindPopup(`
+            <div style="font-family:system-ui; font-size:0.8rem; min-width:180px;">
+                <strong style="color:${color};">{{ item.bond.bond_id }}</strong><br>
+                <span style="font-size:0.72rem; color:#666;">{{ item.bond.issuer_name|truncatechars:30|escapejs }}</span><br>
+                <span style="font-size:0.72rem;">Category: {{ item.bond.get_project_category_display }}</span><br>
+                <span style="font-size:0.72rem;">Distance: {{ item.dist_km }} km</span>
+                {% if item.pcr_score is not None %}<br>
+                <span style="font-size:0.72rem;">PCRS: <strong style="color:${color};">{{ item.pcr_score }}</strong></span>
+                {% endif %}
+                <br><a href="{% url 'dashboard:bond_detail' item.bond.bond_id %}" style="font-size:0.72rem; color:#00D4AA;">
+                    View full analysis →
+                </a>
+            </div>
+        `, { maxWidth: 220 });
+    })();
+    {% endfor %}
+});
+{% endif %}
+</script>
+{% endblock %}

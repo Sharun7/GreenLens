@@ -1572,3 +1572,165 @@ def ai_chat_api(request):
             status=200,
         )
 
+
+# ── Verify Any Location ───────────────────────────────────────────────────────
+
+def location_verify(request):
+    """
+    GET /verify/          → blank search page
+    GET /verify/?q=...    → geocode, fetch NASA hazards, score, find nearby bonds
+
+    Lets any ESG analyst type a location name and instantly see:
+      - Live satellite map (ESRI World Imagery tiles, no key required)
+      - Physical climate risk analysis (flood, heat, drought)
+      - Computed PCRS score using the same formula as the ML engine
+      - Nearby green bonds within 200 km
+    """
+    import math as _math
+
+    query = request.GET.get("q", "").strip()
+    if not query:
+        return render(request, "dashboard/verify.html", {"query": ""})
+
+    # ── Step 1: Geocode ───────────────────────────────────────────────────────
+    try:
+        from geopy.geocoders import Nominatim
+        from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+        geolocator = Nominatim(user_agent="greenlens-verify/1.0")
+        location = geolocator.geocode(query, timeout=10, language="en")
+    except Exception as exc:
+        return render(request, "dashboard/verify.html", {
+            "query": query,
+            "error": f"Geocoding service error: {exc}",
+        })
+
+    if not location:
+        return render(request, "dashboard/verify.html", {
+            "query": query,
+            "error": f'Location "{query}" could not be found. Try a more specific name.',
+        })
+
+    lat = float(location.latitude)
+    lon = float(location.longitude)
+    location_name = location.address
+
+    # ── Step 2: Fetch NASA climate hazards ────────────────────────────────────
+    try:
+        from data_ingestion.nasa_fetcher import NASAClimateDataFetcher
+        fetcher = NASAClimateDataFetcher()
+        hazards = fetcher.get_all_hazards(lat, lon)
+    except Exception as exc:
+        # Graceful fallback using heuristics (fetcher still returns values)
+        import logging as _log
+        _log.getLogger(__name__).warning("NASA fetcher fallback for %s: %s", query, exc)
+        from data_ingestion.nasa_fetcher import NASAClimateDataFetcher
+        f = NASAClimateDataFetcher.__new__(NASAClimateDataFetcher)
+        hazards = {
+            "flood_risk_index":  f._heuristic_flood(lat, lon) if hasattr(f, '_heuristic_flood') else 0.35,
+            "heat_stress_index": f._heuristic_heat(lat) if hasattr(f, '_heuristic_heat') else 0.40,
+            "drought_spei":      f._heuristic_spei(lat, lon) if hasattr(f, '_heuristic_spei') else 0.0,
+            "lat": lat, "lon": lon, "source": "heuristic",
+        }
+
+    flood  = float(hazards.get("flood_risk_index",  0.35))
+    heat   = float(hazards.get("heat_stress_index", 0.40))
+    spei   = float(hazards.get("drought_spei",      0.0))
+
+    # ── Step 3: Compute PCRS using the same formula as the ML engine ──────────
+    # Mirrors risk_scoring/feature_pipeline.py exactly
+    drought_severity = max(0.0, -spei / 3.0)
+    composite_hazard = min(1.0,
+        flood  * 0.40 +
+        heat   * 0.35 +
+        drought_severity * 0.25
+    )
+    pcrs_score = round(composite_hazard * 100.0, 1)
+
+    # Risk band (matches _risk_band() in ml_engine.py)
+    if pcrs_score < 20:
+        risk_band = "Low"
+        risk_color = "#00D4AA"
+    elif pcrs_score < 45:
+        risk_band = "Medium-Low"
+        risk_color = "#7FD44C"
+    elif pcrs_score < 65:
+        risk_band = "Medium-High"
+        risk_color = "#F5A623"
+    elif pcrs_score < 85:
+        risk_band = "High"
+        risk_color = "#FF6B35"
+    else:
+        risk_band = "Extreme"
+        risk_color = "#FF4757"
+
+    # SHAP-style driver identification
+    contributions = {
+        "Flood Exposure":   round(flood  * 0.40 * 100, 1),
+        "Heat Stress":      round(heat   * 0.35 * 100, 1),
+        "Drought Severity": round(drought_severity * 0.25 * 100, 1),
+    }
+    main_driver = max(contributions, key=contributions.get)
+    main_driver_pct = round(contributions[main_driver] / pcrs_score * 100 if pcrs_score else 0, 0)
+
+    # Progress bar values (0–100)
+    flood_pct   = round(flood * 100, 1)
+    heat_pct    = round(heat  * 100, 1)
+    drought_pct = round(drought_severity * 100, 1)
+
+    # ── Step 4: Find nearby bonds (within ~200 km bounding box) ──────────────
+    # 1 degree lat ≈ 111 km → 2 degrees ≈ 222 km bounding box
+    bbox_deg = 1.8   # slightly < 2 to stay within 200 km at equator
+    nearby_raw = GreenBond.objects.filter(
+        lat__range=(lat - bbox_deg, lat + bbox_deg),
+        lon__range=(lon - bbox_deg, lon + bbox_deg),
+    ).prefetch_related("pcr_scores", "pricing_gaps")[:30]
+
+    def _haversine(lat1, lon1, lat2, lon2):
+        R = 6371.0
+        dlat = _math.radians(lat2 - lat1)
+        dlon = _math.radians(lon2 - lon1)
+        a = (_math.sin(dlat / 2) ** 2 +
+             _math.cos(_math.radians(lat1)) * _math.cos(_math.radians(lat2)) *
+             _math.sin(dlon / 2) ** 2)
+        return R * 2 * _math.atan2(_math.sqrt(a), _math.sqrt(1 - a))
+
+    nearby_bonds = []
+    for bond in nearby_raw:
+        dist_km = _haversine(lat, lon, float(bond.lat or 0), float(bond.lon or 0))
+        if dist_km > 200:
+            continue
+        latest_pcr = bond.pcr_scores.order_by("-scored_at").first()
+        latest_gap = bond.pricing_gaps.order_by("-checked_at").first()
+        nearby_bonds.append({
+            "bond": bond,
+            "dist_km": round(dist_km, 0),
+            "pcr_score": round(float(latest_pcr.score), 1) if latest_pcr else None,
+            "risk_band": latest_pcr.risk_band if latest_pcr else "—",
+            "is_mispriced": latest_gap.is_mispriced if latest_gap else False,
+            "gap_bps": round(float(latest_gap.gap_bps), 0) if latest_gap else None,
+        })
+
+    # Sort by distance ascending
+    nearby_bonds.sort(key=lambda x: x["dist_km"])
+    nearby_bonds = nearby_bonds[:10]  # cap at 10
+
+    return render(request, "dashboard/verify.html", {
+        "query": query,
+        "location_name": location_name,
+        "lat": lat,
+        "lon": lon,
+        "hazards": hazards,
+        "flood_pct":    flood_pct,
+        "heat_pct":     heat_pct,
+        "drought_pct":  drought_pct,
+        "pcrs_score":   pcrs_score,
+        "risk_band":    risk_band,
+        "risk_color":   risk_color,
+        "main_driver":  main_driver,
+        "main_driver_pct": int(main_driver_pct),
+        "contributions": contributions,
+        "nearby_bonds": nearby_bonds,
+        "source": hazards.get("source", "nasa_cmr"),
+    })
+
+

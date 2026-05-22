@@ -376,6 +376,7 @@
 
         <ul class="gl-nav-links" id="gl-nav-menu">
             <li><a href="{% url 'dashboard:index' %}" class="{% if request.path == '/' %}active{% endif %}">🗺️ Map</a></li>
+            <li><a href="{% url 'dashboard:verify' %}" class="{% if 'verify' in request.path %}active{% endif %}">🔍 Verify</a></li>
             <li><a href="{% url 'dashboard:pricing_analysis' %}" class="{% if 'pricing' in request.path %}active{% endif %}">📊 Pricing</a></li>
             <li><a href="{% url 'dashboard:portfolio' %}" class="{% if 'portfolio' in request.path %}active{% endif %}">💼 Portfolio</a></li>
             <li><a href="{% url 'dashboard:model_bias' %}" class="{% if 'model-bias' in request.path %}active{% endif %}">Model Bias</a></li>
