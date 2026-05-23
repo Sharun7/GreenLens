@@ -1,2 +1,2 @@
-web: gunicorn greenlens.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
-release: python manage.py migrate
+web: gunicorn greenlens.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+release: python manage.py migrate --no-input
