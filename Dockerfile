@@ -27,12 +27,11 @@ EXPOSE 8000
 
 # Run migrations, collect static, then start gunicorn.
 # SECRET_KEY and DATABASE_URL must be supplied via --env-file or docker-compose.
-CMD ["sh", "-c", \
-     "python manage.py migrate --noinput && \
-      python manage.py collectstatic --noinput && \
-      gunicorn greenlens.wsgi:application \
-        --bind 0.0.0.0:8000 \
-        --workers 2 \
-        --timeout 120 \
-        --access-logfile - \
-        --error-logfile -"]
+CMD sh -c "python manage.py migrate --noinput && \
+     python manage.py collectstatic --noinput && \
+     gunicorn greenlens.wsgi:application \
+       --bind 0.0.0.0:${PORT:-8000} \
+       --workers 2 \
+       --timeout 120 \
+       --access-logfile - \
+       --error-logfile -"
