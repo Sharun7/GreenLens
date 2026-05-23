@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "sh -c 'gunicorn greenlens.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120'",
+    "startCommand": "sh -c 'python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn greenlens.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120'",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
