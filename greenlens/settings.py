@@ -32,22 +32,18 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 # ── Allowed Hosts — supports Railway + Render automatically ───────────────────
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '.railway.app',
+    '.onrender.com',
+    os.environ.get('RAILWAY_PUBLIC_DOMAIN', ''),
+    os.environ.get('RENDER_EXTERNAL_HOSTNAME', ''),
+    os.environ.get('ALLOWED_HOSTS', ''),
+]
 
-# Render
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')
-if RENDER_EXTERNAL_HOSTNAME:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-
-# Railway
-RAILWAY_PUBLIC_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
-if RAILWAY_PUBLIC_DOMAIN:
-    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
-
-# Any extra hosts (comma-separated) from env
-EXTRA_HOSTS = os.environ.get('ALLOWED_HOSTS', '')
-if EXTRA_HOSTS:
-    ALLOWED_HOSTS.extend([h.strip() for h in EXTRA_HOSTS.split(',') if h.strip()])
+# Remove empty strings from list
+ALLOWED_HOSTS = [h for h in ALLOWED_HOSTS if h]
 
 # ── Installed Apps ─────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
