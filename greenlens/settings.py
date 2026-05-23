@@ -37,6 +37,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '.railway.app',
     '.onrender.com',
+    'greenlens-production-5af0.up.railway.app',
     os.environ.get('RAILWAY_PUBLIC_DOMAIN', ''),
     os.environ.get('RENDER_EXTERNAL_HOSTNAME', ''),
     os.environ.get('ALLOWED_HOSTS', ''),
