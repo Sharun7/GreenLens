@@ -794,7 +794,9 @@ document.addEventListener('DOMContentLoaded', function() {
         `, { maxWidth: 220 });
     })();
     {% endfor %}
-    // ── Historical Satellite Timeline Loading ───────────────────────────────────
+});
+
+// ── Historical Satellite Timeline Loading ───────────────────────────────────
     let currentNDVI = null;
 
     window.loadHistoricalSatellite = async function(year, element) {
