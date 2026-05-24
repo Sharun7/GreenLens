@@ -405,8 +405,22 @@
 
     <!-- Section 2 — Live satellite map -->
     <div class="verify-section" style="padding: 0; overflow:hidden;">
-        <div style="padding:16px 20px 0; display:flex; align-items:center; gap:8px;">
-            <div class="verify-section-title" style="margin-bottom:12px;">🛰️ Satellite View</div>
+        <div style="padding:16px 20px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px; border-bottom: 1px solid rgba(26,61,46,0.3);">
+            <div class="verify-section-title" style="margin-bottom:0; flex:none;">🛰️ Satellite View</div>
+            <div style="display:flex; gap:10px;">
+                <a href="https://earth.google.com/web/@{{ lat }},{{ lon }},200a,500d,35y,0h,45t,0r" 
+                   target="_blank" 
+                   class="verify-search-btn" 
+                   style="padding:6px 12px; font-size:0.75rem; border-radius:6px; background:linear-gradient(135deg, #1A73E8, #00C6FF); text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:700;">
+                    🪐 Open in Google Earth 3D
+                </a>
+                <a href="https://www.google.com/maps/@{{ lat }},{{ lon }},18z/data=!3m1!1e3" 
+                   target="_blank" 
+                   class="verify-search-btn" 
+                   style="padding:6px 12px; font-size:0.75rem; border-radius:6px; background:linear-gradient(135deg, #34A853, #78C257); text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:700;">
+                    🗺️ Open in Google Maps
+                </a>
+            </div>
         </div>
         <div id="verify-map"></div>
     </div>
@@ -610,17 +624,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const map = L.map('verify-map', {
         center: [lat, lon],
-        zoom: 12,
+        zoom: 15, // Higher default zoom for better high-resolution details
         zoomControl: true,
         scrollWheelZoom: true,
     });
 
-    // ESRI World Imagery — free, no key required
+    // Google Satellite Hybrid Tiles — free, high resolution, no key required
     L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
         {
-            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-            maxZoom: 19,
+            attribution: 'Map data &copy; Google',
+            maxZoom: 21,
         }
     ).addTo(map);
 
