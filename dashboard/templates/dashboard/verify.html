@@ -332,6 +332,29 @@
 .idle-card-icon { font-size: 2rem; margin-bottom: 10px; }
 .idle-card-title { font-size: 0.88rem; font-weight: 700; color: var(--gl-text); margin-bottom: 4px; }
 .idle-card-desc  { font-size: 0.73rem; color: var(--gl-text-muted); }
+
+/* Timeline styling */
+.timeline-year-btn {
+    background: none;
+    border: none;
+    color: #4A6E5E;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.timeline-year-btn:hover {
+    color: #00D4AA;
+    background: rgba(0,212,170,0.05);
+}
+.timeline-year-btn.active-year {
+    color: #fff;
+    background: linear-gradient(135deg, #0F6E56, #00D4AA);
+    box-shadow: 0 2px 8px rgba(0,212,170,0.3);
+}
 </style>
 {% endblock %}
 
@@ -423,6 +446,68 @@
             </div>
         </div>
         <div id="verify-map"></div>
+    </div>
+
+    <!-- Section 2.5 — Historical Satellite Timeline -->
+    <div class="verify-section">
+        <div class="verify-section-title">📅 Historical Satellite Timeline (Change Over Time)</div>
+        <p style="font-size:0.82rem; color:var(--gl-text-muted); margin-bottom: 20px;">
+            Select a year to inspect historical Sentinel-2 satellite previews, computed vegetation density (NDVI), and classified land cover.
+        </p>
+        
+        <!-- Year Timeline Selector -->
+        <div class="timeline-container" style="display:flex; justify-content:space-between; align-items:center; background:rgba(13,31,26,0.6); border:1px solid rgba(26,61,46,0.5); border-radius:12px; padding:12px 20px; margin-bottom:20px; overflow-x:auto; gap:10px;">
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2016, this)">2016</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2017, this)">2017</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2018, this)">2018</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2019, this)">2019</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2020, this)">2020</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2021, this)">2021</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2022, this)">2022</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2023, this)">2023</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2024, this)">2024</button>
+            <button type="button" class="timeline-year-btn" onclick="loadHistoricalSatellite(2025, this)">2025</button>
+            <button type="button" class="timeline-year-btn active-year" onclick="loadHistoricalSatellite(2026, this)">2026</button>
+        </div>
+        
+        <!-- Timeline Content Panel -->
+        <div class="pcrs-row" id="historical-satellite-panel" style="min-height:240px; align-items:center;">
+            <!-- Satellite Image Column -->
+            <div style="text-align:center;">
+                <div style="width:100%; max-width:320px; height:240px; margin:0 auto; background:#161b22; border:1px solid #30363d; border-radius:10px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center;">
+                    <img id="hist-sat-img" src="" alt="Historical Satellite View" style="width:100%; height:100%; object-fit:cover; display:none;">
+                    <div id="hist-sat-loading" style="font-size:0.85rem; color:#4A6E5E;">Select a year to load satellite imagery...</div>
+                </div>
+                <div style="font-size:0.7rem; color:#4A6E5E; margin-top:8px;" id="hist-sat-source"></div>
+            </div>
+            
+            <!-- Analysis Column -->
+            <div style="display:flex; flex-direction:column; justify-content:center; gap:16px;">
+                <div style="background:rgba(13,31,26,0.8); border:1px solid rgba(26,61,46,0.6); border-radius:12px; padding:16px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                        <span style="color:var(--gl-text-muted);">Selected Year:</span>
+                        <strong id="hist-info-year" style="color:#00D4AA;">—</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                        <span style="color:var(--gl-text-muted);">Vegetation Density (NDVI):</span>
+                        <strong id="hist-info-ndvi">—</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                        <span style="color:var(--gl-text-muted);">Dominant Land Cover:</span>
+                        <strong id="hist-info-cover" style="text-transform:capitalize;">—</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                        <span style="color:var(--gl-text-muted);">Satellite Observations:</span>
+                        <span id="hist-info-images" style="color:var(--gl-text);">—</span>
+                    </div>
+                </div>
+                
+                <!-- NDVI Change Comparison Card -->
+                <div style="background:rgba(83,74,183,0.1); border-left:4px solid #534AB7; border-radius:4px; padding:12px; font-size:0.82rem; line-height:1.4;" id="hist-comparison-verdict">
+                    Compare historical data with current status by clicking different years on the timeline.
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Section 3 — Climate Risk Analysis -->
@@ -709,7 +794,94 @@ document.addEventListener('DOMContentLoaded', function() {
         `, { maxWidth: 220 });
     })();
     {% endfor %}
-});
-{% endif %}
+    // ── Historical Satellite Timeline Loading ───────────────────────────────────
+    let currentNDVI = null;
+
+    window.loadHistoricalSatellite = async function(year, element) {
+        const lat = {{ lat }};
+        const lon = {{ lon }};
+        
+        // Update active button state
+        document.querySelectorAll('.timeline-year-btn').forEach(btn => {
+            btn.classList.remove('active-year');
+        });
+        if (element) {
+            element.classList.add('active-year');
+        }
+        
+        const imgEl = document.getElementById('hist-sat-img');
+        const loadingEl = document.getElementById('hist-sat-loading');
+        const sourceEl = document.getElementById('hist-sat-source');
+        
+        imgEl.style.display = 'none';
+        loadingEl.style.display = 'block';
+        loadingEl.textContent = `Loading ${year} satellite data...`;
+        
+        try {
+            const response = await fetch(`/api/greenwash/flags/history/?lat=${lat}&lon=${lon}&year=${year}`);
+            if (!response.ok) throw new Error('API error');
+            
+            const data = await response.json();
+            
+            // Show image
+            imgEl.src = data.thumbnail_url;
+            imgEl.style.display = 'block';
+            loadingEl.style.display = 'none';
+            
+            // Update texts
+            document.getElementById('hist-info-year').textContent = data.year;
+            
+            const ndviVal = parseFloat(data.ndvi);
+            document.getElementById('hist-info-ndvi').innerHTML = `
+                <span class="ndvi-indicator ${ndviVal > 0.3 ? 'ndvi-positive' : 'ndvi-negative'}">
+                    ${ndviVal.toFixed(3)}
+                </span>
+            `;
+            document.getElementById('hist-info-cover').textContent = data.land_cover.replace('_', ' ');
+            document.getElementById('hist-info-images').textContent = `${data.n_images} cloud-free scenes`;
+            sourceEl.textContent = `Source: Sentinel-2 median RGB (${data.source.toUpperCase()})`;
+            
+            // Comparison verdict
+            if (year === 2026) {
+                currentNDVI = ndviVal;
+            }
+            
+            const verdictEl = document.getElementById('hist-comparison-verdict');
+            if (year === 2026) {
+                verdictEl.innerHTML = `<strong>Baseline Year (2026):</strong> This shows the current vegetation cover. Select past years on the timeline to analyze long-term changes.`;
+                verdictEl.style.borderColor = '#534AB7';
+                verdictEl.style.background = 'rgba(83,74,183,0.1)';
+            } else if (currentNDVI !== null) {
+                const diff = currentNDVI - ndviVal;
+                const diffPct = ndviVal !== 0 ? (diff / Math.abs(ndviVal) * 100) : 0;
+                
+                if (diff > 0.05) {
+                    verdictEl.innerHTML = `<strong>📈 Land Greening Detected:</strong> Vegetation density (NDVI) increased by <strong>+${diff.toFixed(3)}</strong> (${diffPct.toFixed(1)}%) from ${year} to 2026. This indicates active re-vegetation or reforestation.`;
+                    verdictEl.style.borderColor = '#1D9E75';
+                    verdictEl.style.background = 'rgba(29,158,117,0.1)';
+                } else if (diff < -0.05) {
+                    verdictEl.innerHTML = `<strong>📉 Land Clearing / Deforestation:</strong> Vegetation density (NDVI) decreased by <strong>${diff.toFixed(3)}</strong> (${diffPct.toFixed(1)}%) from ${year} to 2026. This is consistent with clearing land for solar panels, urban construction, or agricultural logging.`;
+                    verdictEl.style.borderColor = '#E24B4A';
+                    verdictEl.style.background = 'rgba(226,75,74,0.1)';
+                } else {
+                    verdictEl.innerHTML = `<strong>➡️ Stable Land Use:</strong> No significant vegetation change detected between ${year} and 2026 (NDVI change: ${diff.toFixed(3)}). The land cover has remained stable.`;
+                    verdictEl.style.borderColor = '#4A6E5E';
+                    verdictEl.style.background = 'rgba(74,110,94,0.1)';
+                }
+            }
+        } catch(err) {
+            loadingEl.textContent = `Failed to load data for ${year}`;
+            console.error(err);
+        }
+    }
+
+    // Auto-load current year (2026) on startup
+    document.addEventListener('DOMContentLoaded', () => {
+        const activeBtn = document.querySelector('.timeline-year-btn.active-year');
+        if (activeBtn) {
+            window.loadHistoricalSatellite(2026, activeBtn);
+        }
+    });
+    {% endif %}
 </script>
 {% endblock %}

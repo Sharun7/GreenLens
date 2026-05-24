@@ -183,6 +183,37 @@ class GreenwashFlagViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as exc:
             return Response({"error": str(exc)}, status=500)
 
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    def history(self, request):
+        """
+        GET /api/greenwash/flags/history/?lat=12.3&lon=45.6&year=2021
+        Returns satellite thumbnail, NDVI, and land cover for a specific coordinates and year.
+        """
+        lat_str = request.query_params.get("lat")
+        lon_str = request.query_params.get("lon")
+        year_str = request.query_params.get("year")
+        radius_str = request.query_params.get("radius_km", "2.0")
+        
+        if not lat_str or not lon_str or not year_str:
+            return Response({"error": "lat, lon, and year are required parameters"}, status=400)
+            
+        try:
+            lat = float(lat_str)
+            lon = float(lon_str)
+            year = int(year_str)
+            radius_km = float(radius_str)
+        except ValueError:
+            return Response({"error": "Invalid format for lat, lon, year, or radius_km"}, status=400)
+            
+        try:
+            from .satellite_verifier import SatelliteVerifier
+            verifier = SatelliteVerifier()
+            data = verifier.get_historical_data(lat, lon, year, radius_km=radius_km)
+            return Response(data)
+        except Exception as exc:
+            logger.error("Error fetching historical satellite data: %s", exc)
+            return Response({"error": str(exc)}, status=500)
+
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def batch_check(self, request):
         """

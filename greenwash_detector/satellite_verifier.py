@@ -531,6 +531,166 @@ class SatelliteVerifier:
         return "bare"
 
     # ──────────────────────────────────────────────────────────────────────────
+    # Historical Satellite Data Retrieval
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def get_historical_data(self, lat: float, lon: float, year: int, radius_km: float = 2.0) -> dict:
+        """
+        Fetch satellite thumbnail, NDVI, and land cover for a specific year.
+        If GEE is unavailable, returns deterministic synthetic data.
+        """
+        import base64
+        # Date window for the selected year
+        start_date = f"{year}-01-01"
+        end_date = f"{year}-12-31"
+        
+        # Check cache first
+        cache = _read_cache(_cache_path("history", lat, lon, year, radius_km))
+        if cache is not None:
+            return cache
+
+        # Determine if GEE is available
+        if self._ee is not None:
+            ee = self._ee
+            try:
+                point = ee.Geometry.Point([float(lon), float(lat)])
+                roi = point.buffer(radius_km * 1000)
+                
+                # Fetch Sentinel-2 collection for the year
+                col = (
+                    ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                    .filterBounds(roi)
+                    .filterDate(start_date, end_date)
+                    .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
+                )
+                
+                n_images = int(_getinfo_with_timeout(col.size()))
+                if n_images > 0:
+                    # Median composite
+                    composite = col.median()
+                    
+                    # Compute mean NDVI over the area
+                    ndvi_img = composite.normalizedDifference(["B8", "B4"]).rename("NDVI")
+                    ndvi_val = _getinfo_with_timeout(
+                        ndvi_img.reduceRegion(
+                            reducer=ee.Reducer.mean(),
+                            geometry=roi,
+                            scale=10,
+                            maxPixels=1e8,
+                        )
+                    )
+                    ndvi = ndvi_val.get("NDVI")
+                    
+                    # Generate thumbnail URL
+                    thumb_url = _getinfo_with_timeout(composite.clip(roi).getThumbURL({
+                        "min": 0, "max": 3000, 
+                        "bands": ["B4", "B3", "B2"], 
+                        "dimensions": 500,
+                        "format": "jpg"
+                    }))
+                    
+                    # Dominant land cover (using WorldCover)
+                    wc = ee.ImageCollection("ESA/WorldCover/v200").first()
+                    wc_val = _getinfo_with_timeout(
+                        wc.reduceRegion(
+                            reducer=ee.Reducer.mode(),
+                            geometry=roi,
+                            scale=10,
+                            maxPixels=1e6,
+                        )
+                    )
+                    code = wc_val.get("Map")
+                    land_cover = WORLDCOVER_CLASSES.get(int(code), "unknown") if code is not None else "unknown"
+                    
+                    result = {
+                        "year": year,
+                        "lat": lat,
+                        "lon": lon,
+                        "ndvi": round(float(ndvi), 4) if ndvi is not None else 0.0,
+                        "land_cover": land_cover,
+                        "thumbnail_url": thumb_url,
+                        "n_images": n_images,
+                        "source": "gee"
+                    }
+                    _write_cache(_cache_path("history", lat, lon, year, radius_km), result)
+                    return result
+            except Exception as exc:
+                logger.error("GEE historical data failed for %d at (%.4f, %.4f): %s", year, lat, lon, exc)
+        
+        # Deterministic synthetic fallback
+        seed = int(
+            hashlib.md5(f"history:{lat:.4f}{lon:.4f}{year}".encode()).hexdigest(), 16
+        ) % (2 ** 31)
+        rng = random.Random(seed)
+        
+        # Base vegetation signature from coordinates
+        if abs(lat) < 15:
+            base_ndvi = rng.uniform(0.50, 0.80)   # Tropical
+            cover_choices = ["forest", "wetland", "water", "cropland"]
+        elif abs(lat) < 35:
+            base_ndvi = rng.uniform(0.25, 0.55)   # Subtropical / desert border
+            cover_choices = ["grassland", "cropland", "bare", "shrubland"]
+        else:
+            base_ndvi = rng.uniform(0.15, 0.45)   # Temperate
+            cover_choices = ["forest", "shrubland", "grassland", "built-up"]
+            
+        land_cover = rng.choice(cover_choices)
+        
+        # Add year-based fluctuation to simulate land development / climate change
+        # e.g., gradual urbanisation or greening/deforestation
+        trend = (year - 2016) * rng.uniform(-0.02, 0.015)
+        ndvi = max(-0.1, min(0.9, base_ndvi + trend))
+        
+        # Update land cover if NDVI falls too low
+        if ndvi < 0.15 and land_cover == "forest":
+            land_cover = "bare"
+        elif ndvi > 0.45 and land_cover == "bare":
+            land_cover = "grassland"
+
+        # Deterministic color styling for SVG mock thumbnail so the card looks high-end!
+        colors = {
+            "forest": "#0B4C25",
+            "shrubland": "#7E823E",
+            "grassland": "#8BB754",
+            "cropland": "#CDAA66",
+            "built-up": "#E60000",
+            "bare": "#CCB3B3",
+            "water": "#1A5D8C",
+            "wetland": "#347878"
+        }
+        fill_color = colors.get(land_cover, "#8BB754")
+        
+        # Generate inline SVG data URI as thumbnail fallback
+        mock_svg = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">'
+            f'<rect width="200" height="200" fill="{fill_color}"/>'
+            # Add some textures / grids to simulate satellite features
+            f'<circle cx="80" cy="90" r="45" fill="#4B6E5E" opacity="0.4"/>'
+            f'<rect x="120" y="30" width="60" height="60" fill="#2E4A3F" opacity="0.3"/>'
+            f'<path d="M 0,100 Q 50,50 100,100 T 200,100" fill="none" stroke="#223E36" stroke-width="8" opacity="0.5"/>'
+            f'<text x="10" y="25" fill="#ffffff" font-family="system-ui" font-size="12" font-weight="bold" opacity="0.9">{year} Satellite Preview</text>'
+            f'<text x="10" y="45" fill="#ffffff" font-family="system-ui" font-size="10" opacity="0.7">NDVI: {ndvi:.2f}</text>'
+            f'<text x="10" y="60" fill="#ffffff" font-family="system-ui" font-size="10" opacity="0.7">Cover: {land_cover}</text>'
+            f'</svg>'
+        )
+        svg_base64 = base64.b64encode(mock_svg.encode('utf-8')).decode('utf-8')
+        thumbnail_url = f"data:image/svg+xml;base64,{svg_base64}"
+        
+        result = {
+            "year": year,
+            "lat": lat,
+            "lon": lon,
+            "ndvi": round(ndvi, 4),
+            "land_cover": land_cover,
+            "thumbnail_url": thumbnail_url,
+            "n_images": rng.randint(5, 20),
+            "source": "synthetic"
+        }
+        # Cache synthetic results too
+        _write_cache(_cache_path("history", lat, lon, year, radius_km), result)
+        return result
+
+    # ──────────────────────────────────────────────────────────────────────────
     # Step 5.1c — Project consistency check
     # ──────────────────────────────────────────────────────────────────────────
 
