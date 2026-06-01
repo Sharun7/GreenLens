@@ -53,3 +53,8 @@ logs/
 
 # Static files (generated)
 staticfiles/
+
+# Agent logs, documentation, and reports
+/*.md
+!/README.md
+
