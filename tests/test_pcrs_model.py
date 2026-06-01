@@ -16,24 +16,25 @@ def mock_bond(db):
         issuer_name="Test Issuer",
         country="USA",
         project_category="solar",
+        bond_maturity_years=5,
+        amount_millions=100.0,
         lat=40.7128,
         lon=-74.0060,
         issuance_date=date(2021, 6, 1)
     )
 
 @pytest.mark.django_db
-def test_pcrs_predictor_bounds(mock_bond, monkeypatch):
+def test_pcrs_predictor_bounds(mock_bond):
     """1. Test that PCRSPredictor returns a score between 0 and 100"""
-    # Mocking Earth Engine calls just in case the predictor attempts live fetch
-    monkeypatch.setattr("risk_scoring.predictor.ee.ImageCollection", lambda *args: None)
-    monkeypatch.setattr("risk_scoring.predictor.ee.Geometry", lambda *args: None)
-    
     # Generate the dummy DB record so predictability works instantly
     score_obj = PCRScore.objects.create(
         bond=mock_bond,
         score=75.5,
-        climate_hazards_data="{}",
-        shap_values="{}"
+        flood_contribution=10.0,
+        heat_contribution=5.0,
+        drought_contribution=2.0,
+        model_version="v1.0.0",
+        shap_values={}
     )
     
     assert 0 <= score_obj.score <= 100

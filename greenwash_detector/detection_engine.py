@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Optional
 
 from data_ingestion.models import GreenBond
+from greenwash_detector.satellite_verifier import SatelliteVerifier, get_dynamic_radius
 
 # SatelliteVerifier is used when GEE is available (lazy import to avoid
 # loading earthengine-api at startup when it may not be needed).

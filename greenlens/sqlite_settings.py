@@ -12,3 +12,6 @@ DATABASES = {
         "NAME": BASE_DIR / "greenlens_local.sqlite3",  # noqa: F405
     }
 }
+
+STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+
