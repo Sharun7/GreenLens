@@ -40,11 +40,11 @@ ALLOWED_HOSTS = [
     'greenlens-production-5af0.up.railway.app',
     os.environ.get('RAILWAY_PUBLIC_DOMAIN', ''),
     os.environ.get('RENDER_EXTERNAL_HOSTNAME', ''),
-    os.environ.get('ALLOWED_HOSTS', ''),
+    *os.environ.get('ALLOWED_HOSTS', '').split(','),
 ]
 
 # Remove empty strings from list
-ALLOWED_HOSTS = [h for h in ALLOWED_HOSTS if h]
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS if host.strip()]
 
 # ── Installed Apps ─────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
@@ -308,6 +308,26 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 # ── NASA Earthdata ─────────────────────────────────────────────────────────────
 EARTHDATA_USERNAME = env("EARTHDATA_USERNAME", default="")
 EARTHDATA_PASSWORD = env("EARTHDATA_PASSWORD", default="")
+
+# Sentinel-1 screening heuristics; not calibrated or independently validated.
+SAR_ORBIT_PASS = env("SAR_ORBIT_PASS", default="DESCENDING")
+SAR_MIN_SCENES = env.int("SAR_MIN_SCENES", default=2)
+SAR_MIN_OBSERVED_FRACTION = env.float("SAR_MIN_OBSERVED_FRACTION", default=0.9)
+SAR_REDUCTION_SCALE_METRES = env.int("SAR_REDUCTION_SCALE_METRES", default=20)
+SAR_FLOOD_CHANGE_DB = env.float("SAR_FLOOD_CHANGE_DB", default=-3.0)
+SAR_FLOOD_MAX_AFTER_DB = env.float("SAR_FLOOD_MAX_AFTER_DB", default=-15.0)
+SAR_CATEGORY_THRESHOLDS = {
+    "solar": {"vv_db": (env.float("SAR_SOLAR_MIN_VV_DB", default=-18.0), None)},
+    "wind": {"vv_db": (env.float("SAR_WIND_MIN_VV_DB", default=-18.0), None)},
+    "reforestation": {
+        "vh_db": (env.float("SAR_FOREST_MIN_VH_DB", default=-18.0), None),
+        "vh_vv_ratio": (env.float("SAR_FOREST_MIN_RATIO", default=0.15), None),
+    },
+    "water": {
+        "vv_db": (None, env.float("SAR_WATER_MAX_VV_DB", default=-15.0)),
+        "vh_vv_ratio": (None, env.float("SAR_WATER_MAX_RATIO", default=0.3)),
+    },
+}
 
 # ── Security hardening (production only) ──────────────────────────────────────
 if not DEBUG:

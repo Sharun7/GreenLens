@@ -145,7 +145,25 @@ class GreenwashDetector:
 
         ndvi_result = self._get_ndvi(bond)
 
-        # Run CNN classifier if available (synthetic patch when GEE is offline)
+        if ndvi_result.source != "gee":
+            return {
+                "bond": bond,
+                "verification_status": "unverifiable",
+                "ndvi_change": 0.0,
+                "satellite_land_use": "unknown",
+                "pre_project_image_date": None,
+                "post_project_image_date": None,
+                "claimed_project_type": bond.project_category,
+                "is_inconsistent": False,
+                "confidence": 0.0,
+                "model_version": "v1.1.0",
+                "raw_ee_metadata": {
+                    **ndvi_result.raw_metadata,
+                    "source": ndvi_result.source,
+                    "reason": "satellite_data_unavailable",
+                },
+            }
+
         cnn_result = self._get_cnn_result(bond)
         raw_meta = ndvi_result.raw_metadata.copy()
         if cnn_result:
@@ -174,7 +192,7 @@ class GreenwashDetector:
         try:
             issue_str = bond.issuance_date.isoformat()
             result = self._classifier.classify_patch(
-                float(bond.lat), float(bond.lon), issue_str
+                float(bond.lat), float(bond.lon), issue_str, allow_synthetic=False
             )
             return {
                 "predicted_class": result["predicted_class"],

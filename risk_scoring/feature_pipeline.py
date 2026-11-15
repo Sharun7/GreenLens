@@ -132,6 +132,7 @@ class FeatureEngineeringPipeline:
         Uses WorldBankClimateFetcher as fallback for bonds without hazard data.
         """
         # Import inside method to allow module-level import without Django setup
+        from django.db.models import OuterRef, Subquery
         from data_ingestion.models import GreenBond, ClimateHazardData
         from greenlens.data.worldbank_climate import WorldBankClimateFetcher
 
@@ -142,11 +143,13 @@ class FeatureEngineeringPipeline:
             qs = qs.filter(pk__in=bond_ids)
 
         # Build a dict of latest hazard data per bond
-        hazard_qs = (
-            ClimateHazardData.objects
-            .filter(bond__in=qs)
-            .order_by("bond_id", "-data_date")
-            .distinct("bond_id")
+        latest_hazard = (
+            ClimateHazardData.objects.filter(bond_id=OuterRef("bond_id"))
+            .order_by("-data_date", "-pk")
+            .values("pk")[:1]
+        )
+        hazard_qs = ClimateHazardData.objects.filter(
+            bond__in=qs, pk=Subquery(latest_hazard)
         )
         hazard_map: dict[int, ClimateHazardData] = {h.bond_id: h for h in hazard_qs}
 

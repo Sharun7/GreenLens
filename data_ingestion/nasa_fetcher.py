@@ -24,6 +24,8 @@ from typing import Optional
 
 import requests
 
+from data_ingestion.earthdata_auth import EarthdataError, earthdata_get
+
 logger = logging.getLogger("greenlens.nasa_fetcher")
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -47,7 +49,8 @@ class NASAClimateDataFetcher:
     given lat/lon coordinate.
 
     Credentials are read from env vars:
-        NASA_USERNAME, NASA_PASSWORD, NASA_TOKEN (Bearer JWT)
+        EARTHDATA_TOKEN (preferred bearer token), or legacy
+        NASA_USERNAME, NASA_PASSWORD, NASA_TOKEN.
     """
 
     def __init__(self):
@@ -66,7 +69,7 @@ class NASAClimateDataFetcher:
             session.headers.update({"Authorization": f"Bearer {self._token}"})
         elif self._username and self._password:
             session.auth = (self._username, self._password)
-        else:
+        elif not os.environ.get("EARTHDATA_TOKEN", "").strip():
             logger.warning("No NASA credentials found — unauthenticated requests may fail.")
         session.headers.update({"User-Agent": "GreenLens/1.0 (climate-risk-research)"})
         return session
@@ -133,11 +136,19 @@ class NASAClimateDataFetcher:
             "sort_key": "-start_date",
         }
         try:
-            resp = self._session.get(
-                f"{CMR_BASE}/granules.json", params=params, timeout=20
-            )
+            if os.environ.get("EARTHDATA_TOKEN", "").strip():
+                resp = earthdata_get(
+                    f"{CMR_BASE}/granules.json", params=params, timeout=20
+                )
+            else:
+                resp = self._session.get(
+                    f"{CMR_BASE}/granules.json", params=params, timeout=20
+                )
             resp.raise_for_status()
             return resp.json().get("feed", {}).get("entry", [])
+        except EarthdataError as exc:
+            logger.warning("Earthdata granule search unavailable: %s", exc)
+            return []
         except requests.RequestException as exc:
             logger.error("CMR granule search failed for %s: %s", concept_id, exc)
             return []

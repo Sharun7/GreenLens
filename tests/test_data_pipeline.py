@@ -1,11 +1,104 @@
 from datetime import date
+from types import SimpleNamespace
+from unittest.mock import Mock
 
-from django.test import Client, TestCase
+from django.test import Client, SimpleTestCase, TestCase
+from django.urls import resolve
 
 from data_ingestion.models import ClimateHazardData, GreenBond
+from data_ingestion.regulatory_compliance import RegulatoryComplianceGenerator
+from greenwash_detector.detection_engine import GreenwashDetector, NDVIResult
 from greenwash_detector.models import GreenwashFlag
 from pricing_analysis.models import PricingGap
 from risk_scoring.models import PCRScore
+
+
+class BondRouteTests(SimpleTestCase):
+    def test_viewport_route_is_not_treated_as_a_bond_id(self):
+        self.assertEqual(resolve("/api/bonds/viewport/").url_name, "bonds-viewport")
+
+    def test_hazard_route_is_not_treated_as_a_bond_id(self):
+        self.assertEqual(resolve("/api/bonds/hazards/").url_name, "climatehazard-list")
+
+    def test_bond_detail_route_is_preserved(self):
+        match = resolve("/api/bonds/123/")
+        self.assertEqual(match.url_name, "greenbond-detail")
+        self.assertEqual(match.kwargs["pk"], "123")
+
+
+class SatelliteEvidenceTests(SimpleTestCase):
+    def setUp(self):
+        self.bond = SimpleNamespace(
+            bond_id="EVIDENCE_001", lat=20.0, lon=78.0,
+            issuance_date=date(2020, 1, 1), project_category="reforestation",
+        )
+        self.detector = GreenwashDetector.__new__(GreenwashDetector)
+        self.ndvi = NDVIResult(
+            pre_ndvi=0.7, post_ndvi=0.2, ndvi_change=-0.5,
+            pre_date=date(2019, 1, 1), post_date=date(2021, 1, 1),
+            land_use="bare_soil", source="synthetic",
+            raw_metadata={"method": "synthetic"},
+        )
+        self.detector._get_ndvi = Mock(return_value=self.ndvi)
+        self.detector._get_cnn_result = Mock(return_value=None)
+
+    def test_synthetic_data_cannot_verify_or_flag_a_bond(self):
+        result = self.detector.check_bond(self.bond)
+
+        self.assertEqual(result["verification_status"], "unverifiable")
+        self.assertFalse(result["is_inconsistent"])
+        self.assertEqual(result["confidence"], 0.0)
+        self.assertEqual(result["ndvi_change"], 0.0)
+        self.assertEqual(result["satellite_land_use"], "unknown")
+        self.assertIsNone(result["pre_project_image_date"])
+        self.assertIsNone(result["post_project_image_date"])
+        self.assertEqual(result["raw_ee_metadata"]["source"], "synthetic")
+        self.detector._get_cnn_result.assert_not_called()
+
+    def test_satellite_evidence_can_still_flag_inconsistent_claims(self):
+        self.ndvi.source = "gee"
+        result = self.detector.check_bond(self.bond)
+
+        self.assertEqual(result["verification_status"], "verifiable")
+        self.assertTrue(result["is_inconsistent"])
+        self.assertGreater(result["confidence"], 0.0)
+        self.assertEqual(result["pre_project_image_date"], self.ndvi.pre_date)
+
+    def test_pre_sentinel_bond_remains_unverifiable(self):
+        self.bond.issuance_date = date(2010, 1, 1)
+        result = self.detector.check_bond(self.bond)
+
+        self.assertEqual(result["verification_status"], "unverifiable")
+        self.detector._get_ndvi.assert_not_called()
+        self.detector._get_cnn_result.assert_not_called()
+
+    def test_classifier_can_require_real_imagery(self):
+        from greenwash_detector.satellite_classifier import SatelliteClassifier
+
+        classifier = SatelliteClassifier.__new__(SatelliteClassifier)
+        classifier._skip_gee = True
+        classifier._synthetic_patch_tensor = Mock()
+        classifier._infer = Mock()
+
+        with self.assertRaisesMessage(ValueError, "Satellite imagery is unavailable"):
+            classifier.classify_patch(20.0, 78.0, "2020-01-01", allow_synthetic=False)
+
+        classifier._synthetic_patch_tensor.assert_not_called()
+        classifier._infer.assert_not_called()
+
+    def test_detector_requires_real_cnn_imagery(self):
+        del self.detector._get_cnn_result
+        self.detector._classifier = Mock()
+        self.detector._classifier.classify_patch.return_value = {
+            "predicted_class": "forest", "confidence": 0.9, "all_probs": {},
+        }
+
+        result = self.detector._get_cnn_result(self.bond)
+
+        self.assertEqual(result["predicted_class"], "forest")
+        self.detector._classifier.classify_patch.assert_called_once_with(
+            20.0, 78.0, "2020-01-01", allow_synthetic=False,
+        )
 
 
 class DataPipelineRealityTests(TestCase):
@@ -69,6 +162,15 @@ class DataPipelineRealityTests(TestCase):
         self.assertContains(response, "Data Pipeline Reality")
         self.assertContains(response, "Quarterly PCRS retraining")
         self.assertContains(response, "Missing Data Handling")
+
+    def test_esma_report_does_not_invent_compliance_evidence(self):
+        report = RegulatoryComplianceGenerator.generate_esma_report(self.bond)
+
+        for field in ("eu_taxonomy_aligned", "sfdr_classification", "external_reviewer"):
+            self.assertIsNone(report[field])
+        for field in ("carbon_footprint", "fossil_fuel_exposure", "biodiversity_impact"):
+            self.assertIsNone(report["principal_adverse_impacts"][field])
+        self.assertEqual(report["climate_risk_score"], 62.4)
 
     def test_data_reliability_api_still_available(self):
         response = self.client.get("/api/data-reliability/")

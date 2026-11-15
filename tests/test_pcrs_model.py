@@ -2,7 +2,8 @@ import pytest
 import pandas as pd
 from datetime import date
 from rest_framework.test import APIClient
-from data_ingestion.models import GreenBond
+from data_ingestion.models import ClimateHazardData, GreenBond
+from risk_scoring.feature_pipeline import FeatureEngineeringPipeline
 from risk_scoring.models import PCRScore
 from risk_scoring.ml_engine import PCRSPredictor 
 from pricing_analysis.analyser import PricingGapAnalyser
@@ -24,6 +25,24 @@ def mock_bond(db):
     )
 
 @pytest.mark.django_db
+def test_feature_pipeline_uses_latest_hazard(mock_bond):
+    for hazard_date, flood in ((date(2025, 1, 1), 0.2), (date(2026, 1, 1), 0.8)):
+        ClimateHazardData.objects.create(
+            bond=mock_bond,
+            data_date=hazard_date,
+            flood_risk_index=flood,
+            heat_stress_index=0.5,
+            drought_spei=-0.5,
+            source="nasa",
+        )
+
+    frame = FeatureEngineeringPipeline()._load_dataframe([mock_bond.pk])
+
+    assert len(frame) == 1
+    assert frame.iloc[0]["flood_risk_index"] == 0.8
+
+
+@pytest.mark.django_db
 def test_pcrs_predictor_bounds(mock_bond):
     """1. Test that PCRSPredictor returns a score between 0 and 100"""
     # Generate the dummy DB record so predictability works instantly
@@ -40,8 +59,9 @@ def test_pcrs_predictor_bounds(mock_bond):
     assert 0 <= score_obj.score <= 100
 
 @pytest.mark.django_db
-def test_pricing_gap_analyser_required_fields():
+def test_pricing_gap_analyser_required_fields(tmp_path, monkeypatch):
     """2. Test that PricingGapAnalyser.analyse() returns required fields"""
+    monkeypatch.setattr("pricing_analysis.analyser.ANALYSER_MODEL_PATH", tmp_path / "pricing.pkl")
     analyser = PricingGapAnalyser()
     
     # Synthetic dataframe mapping real model traits

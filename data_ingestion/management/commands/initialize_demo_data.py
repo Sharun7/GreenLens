@@ -220,29 +220,16 @@ def _greenwash_defaults(bond: GreenBond, rng: random.Random) -> dict:
             },
         }
 
-    inconsistent = rng.random() < (0.24 if bond.project_category == "reforestation" else 0.10)
-    observed_land_use = LAND_USE_BY_CATEGORY.get(str(bond.project_category).lower(), "cropland")
-    ndvi_change = rng.uniform(-0.08, 0.18)
-    if inconsistent:
-        if bond.project_category == "reforestation":
-            observed_land_use = "bare_soil"
-            ndvi_change = rng.uniform(-0.32, -0.10)
-        elif bond.project_category == "solar":
-            observed_land_use = "forest"
-            ndvi_change = rng.uniform(0.10, 0.28)
-        else:
-            observed_land_use = "urban"
-            ndvi_change = rng.uniform(-0.18, 0.04)
-
     return {
-        "verification_status": "verifiable",
-        "ndvi_change": round(ndvi_change, 4),
-        "satellite_land_use": observed_land_use,
+        "verification_status": "unverifiable",
+        "ndvi_change": 0.0,
+        "satellite_land_use": "unknown",
         "claimed_project_type": bond.project_category,
-        "is_inconsistent": inconsistent,
-        "confidence": round(rng.uniform(0.64, 0.93) if inconsistent else rng.uniform(0.72, 0.98), 3),
+        "is_inconsistent": False,
+        "confidence": 0.0,
         "raw_ee_metadata": {
             "source": "deployment_bootstrap",
+            "reason": "satellite_data_unavailable",
             "generated_at": timezone.now().isoformat(),
         },
     }

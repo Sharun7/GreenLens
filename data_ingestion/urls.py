@@ -8,10 +8,10 @@ from rest_framework.routers import DefaultRouter
 from .views import GreenBondViewSet, ClimateHazardDataViewSet, bonds_in_viewport
 
 router = DefaultRouter()
-router.register(r"", GreenBondViewSet, basename="greenbond")
 router.register(r"hazards", ClimateHazardDataViewSet, basename="climatehazard")
+router.register(r"", GreenBondViewSet, basename="greenbond")
 
 urlpatterns = [
-    path("", include(router.urls)),
     path("viewport/", bonds_in_viewport, name="bonds-viewport"),
+    path("", include(router.urls)),
 ]

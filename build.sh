@@ -8,11 +8,8 @@ pip install -r requirements.txt
 echo "Running migrations..."
 python manage.py migrate
 
-echo "Loading greenwash data..."
-python manage.py loaddata greenwash_fixture.json || true
-
 echo "Loading bond data..."
-python manage.py load_cbi_bonds data/green_bonds-21.csv || true
+python manage.py load_cbi_bonds --file=data/green_bonds-21.csv
 
 echo "Initializing demo data..."
 python manage.py initialize_demo_data || true

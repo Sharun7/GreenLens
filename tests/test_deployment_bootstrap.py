@@ -1,4 +1,10 @@
+import ast
+import os
+import shlex
 from datetime import date
+from pathlib import Path
+from unittest import TestCase as SimpleTestCase
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import Client, TestCase
@@ -8,6 +14,46 @@ from data_ingestion.models import ClimateHazardData, GreenBond
 from greenwash_detector.models import GreenwashFlag
 from pricing_analysis.models import PricingGap
 from risk_scoring.models import PCRScore
+
+
+class AllowedHostsConfigurationTests(SimpleTestCase):
+    def test_build_imports_registry_with_required_file_option(self):
+        from data_ingestion.management.commands.load_cbi_bonds import Command
+
+        build_path = Path(__file__).resolve().parents[1] / "build.sh"
+        commands = [shlex.split(line) for line in build_path.read_text().splitlines()]
+        registry_command = next(command for command in commands if "load_cbi_bonds" in command)
+        parser = Command().create_parser("manage.py", "load_cbi_bonds")
+        options = parser.parse_args(registry_command[3:])
+
+        self.assertEqual(options.file, "data/green_bonds-21.csv")
+        self.assertFalse(any(
+            "loaddata" in command and "greenwash_fixture.json" in command
+            for command in commands
+        ))
+
+    def test_comma_separated_hosts_are_trimmed_and_empty_hosts_removed(self):
+        settings_path = Path(__file__).resolve().parents[1] / "greenlens" / "settings.py"
+        settings_tree = ast.parse(settings_path.read_text())
+        assignments = [
+            node for node in settings_tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "ALLOWED_HOSTS"
+                    for target in node.targets)
+        ]
+        namespace = {"os": os}
+        with patch.dict(os.environ, {
+            "ALLOWED_HOSTS": " one.example, two.example, ,",
+            "RAILWAY_PUBLIC_DOMAIN": "railway.example",
+            "RENDER_EXTERNAL_HOSTNAME": "render.example",
+        }):
+            exec(compile(ast.Module(body=assignments, type_ignores=[]), str(settings_path), "exec"), namespace)
+
+        hosts = namespace["ALLOWED_HOSTS"]
+        for hostname in ("one.example", "two.example", "railway.example", "render.example", "localhost"):
+            self.assertIn(hostname, hosts)
+        self.assertNotIn("", hosts)
+        self.assertFalse(any("," in host or host != host.strip() for host in hosts))
 
 
 class DeploymentBootstrapTests(TestCase):
@@ -42,6 +88,13 @@ class DeploymentBootstrapTests(TestCase):
         self.assertEqual(PCRScore.objects.filter(bond=self.bond).count(), 1)
         self.assertEqual(PricingGap.objects.filter(bond=self.bond).count(), 1)
         self.assertEqual(GreenwashFlag.objects.filter(bond=self.bond).count(), 1)
+
+        flag = GreenwashFlag.objects.get(bond=self.bond)
+        self.assertEqual(flag.verification_status, "unverifiable")
+        self.assertFalse(flag.is_inconsistent)
+        self.assertEqual(flag.confidence, 0.0)
+        self.assertIsNone(flag.pre_project_image_date)
+        self.assertIsNone(flag.post_project_image_date)
 
     def test_predictions_page_handles_unscored_database(self):
         response = self.client.get("/ai/predictions/")

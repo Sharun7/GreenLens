@@ -247,7 +247,7 @@ class SatelliteClassifier:
 
     # ── Inference ─────────────────────────────────────────────────────────────
 
-    def classify_patch(self, lat: float, lon: float, date: str) -> dict:
+    def classify_patch(self, lat: float, lon: float, date: str, allow_synthetic: bool = True) -> dict:
         """
         Retrieve a 64×64 Sentinel-2 RGB patch from GEE (or generate a synthetic
         proxy), resize to 224×224, normalise, and run inference.
@@ -264,11 +264,11 @@ class SatelliteClassifier:
             confidence       float  softmax probability for predicted class
             all_probs        dict   {class: probability} for all 6 classes
         """
-        tensor = self._get_patch_tensor(lat, lon, date)
+        tensor = self._get_patch_tensor(lat, lon, date, allow_synthetic=allow_synthetic)
         return self._infer(tensor)
 
     def _get_patch_tensor(
-        self, lat: float, lon: float, date: str
+        self, lat: float, lon: float, date: str, allow_synthetic: bool = True
     ) -> torch.Tensor:
         if not self._skip_gee:
             if self._ee is None:
@@ -277,6 +277,8 @@ class SatelliteClassifier:
                 tensor = self._gee_patch_tensor(lat, lon, date)
                 if tensor is not None:
                     return tensor
+        if not allow_synthetic:
+            raise ValueError("Satellite imagery is unavailable for CNN classification")
         return self._synthetic_patch_tensor(lat, lon)
 
     def _init_ee(self):

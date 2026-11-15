@@ -130,13 +130,13 @@ class RegulatoryComplianceGenerator:
                 "accuracy_level": "high_precision" if bond.location_confidence == "precise" else "medium_precision",
                 
                 # EU Taxonomy alignment (placeholder - would come from bond metadata)
-                "eu_taxonomy_aligned": True,  # TODO: Add field to GreenBond model
+                "eu_taxonomy_aligned": None,
                 
                 # SFDR classification (placeholder - would come from bond metadata)
-                "sfdr_classification": "Article_9",  # TODO: Add field to GreenBond model
+                "sfdr_classification": None,
                 
                 # External reviewer (placeholder - would come from bond metadata)
-                "external_reviewer": "Verified",  # TODO: Add field to GreenBond model
+                "external_reviewer": None,
                 
                 # Standard climate hazards
                 "flood_risk": latest_hazard.flood_risk_index if latest_hazard else None,
@@ -146,9 +146,9 @@ class RegulatoryComplianceGenerator:
                 # SFDR Principal Adverse Impacts (PAIs)
                 "principal_adverse_impacts": {
                     "ghg_emissions_exposure": latest_hazard.carbon_intensity_score if latest_hazard else None,
-                    "carbon_footprint": latest_score.score if latest_score else None,  # Proxy via PCRS
-                    "fossil_fuel_exposure": 0.0,  # Green bonds should have zero
-                    "biodiversity_impact": 1.0 - latest_hazard.drought_spei if latest_hazard and latest_hazard.drought_spei else None,  # NDVI proxy
+                    "carbon_footprint": None,
+                    "fossil_fuel_exposure": None,
+                    "biodiversity_impact": None,
                     "water_stress": latest_hazard.drought_spei if latest_hazard else None,
                 },
                 
