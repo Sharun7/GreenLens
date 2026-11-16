@@ -15,6 +15,22 @@ TIMEOUT_SECONDS = 45
 BUFFER_METRES = 2000
 
 
+def _orbit_counts(histogram):
+    counts = {}
+    if not isinstance(histogram, dict):
+        return counts
+    for orbit, count in histogram.items():
+        try:
+            orbit_number, scene_count = float(orbit), float(count)
+        except (ValueError, TypeError):
+            continue
+        if (math.isfinite(orbit_number) and orbit_number.is_integer()
+                and 1 <= orbit_number <= 175 and math.isfinite(scene_count)
+                and scene_count.is_integer() and scene_count >= 0):
+            counts[int(orbit_number)] = int(scene_count)
+    return counts
+
+
 class SarVerifier:
     """Compare explicit, non-overlapping date windows without synthetic fallback.
 
@@ -110,6 +126,8 @@ class SarVerifier:
             "before_vh_db": None, "after_vh_db": None, "vh_change_db": None,
             "before_vh_vv_ratio": None, "after_vh_vv_ratio": None,
             "flooded_fraction": None, "observed_fraction": None,
+            "water_map_coverage_fraction": None,
+            "permanent_water_policy": "Exclude known pre-event JRC class-3 water; unmapped pixels are not assumed to be confirmed dry land.",
             "before_scene_count": 0, "after_scene_count": 0,
             "relative_orbit": None, "water_mask_year": None,
             "orbit_pass": settings.SAR_ORBIT_PASS,
@@ -178,8 +196,8 @@ class SarVerifier:
                 "after_orbits": after.aggregate_histogram("relativeOrbitNumber_start"),
                 "water_count": water.size(),
             }))
-            before_orbits = metadata.get("before_orbits") or {}
-            after_orbits = metadata.get("after_orbits") or {}
+            before_orbits = _orbit_counts(metadata.get("before_orbits"))
+            after_orbits = _orbit_counts(metadata.get("after_orbits"))
             common = [
                 orbit for orbit in before_orbits.keys() & after_orbits.keys()
                 if min(before_orbits[orbit], after_orbits[orbit]) >= settings.SAR_MIN_SCENES
@@ -227,13 +245,13 @@ class SarVerifier:
         valid = (
             before.select("VV").mask().And(before.select("VH").mask())
             .And(after.select("VV").mask()).And(after.select("VH").mask())
-            .And(water_class.mask()).And(water_class.neq(0))
         )
+        permanent_water = water_class.eq(3).unmask(0)
         change = after.select("VV").subtract(before.select("VV"))
         flood = (
             change.lt(settings.SAR_FLOOD_CHANGE_DB)
             .And(after.select("VV").lt(settings.SAR_FLOOD_MAX_AFTER_DB))
-            .And(water_class.neq(3)).updateMask(valid)
+            .And(permanent_water.Not()).updateMask(valid)
         )
 
         def bands(image, prefix):
@@ -259,6 +277,7 @@ class SarVerifier:
         areas = (
             area.multiply(flood.unmask(0)).rename("flooded_area_m2")
             .addBands(area.multiply(valid.unmask(0)).rename("observed_area_m2"))
+            .addBands(area.multiply(water_class.mask().unmask(0)).rename("water_map_area_m2"))
             .reduceRegion(reducer=ee.Reducer.sum(), **reduction)
         )
         return {"backscatter": backscatter, "areas": areas, "buffer_area_m2": region.area(1)}
@@ -288,6 +307,9 @@ class SarVerifier:
             return result
         observed_fraction = min(1.0, observed_area / buffer_area)
         result["observed_fraction"] = round(observed_fraction, 6)
+        water_map_area = areas.get("water_map_area_m2")
+        if water_map_area is not None and math.isfinite(float(water_map_area)):
+            result["water_map_coverage_fraction"] = round(min(1.0, max(0.0, float(water_map_area) / buffer_area)), 6)
         if observed_fraction < settings.SAR_MIN_OBSERVED_FRACTION:
             result["reason"] = "Insufficient observed buffer coverage; missing pixels are not treated as dry land."
             return result

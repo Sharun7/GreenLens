@@ -74,6 +74,24 @@ def test_different_orbits_are_not_compared(verifier):
     assert run(verifier)["status"] == "unverifiable"
 
 
+def test_gee_decimal_orbit_keys_match_integer_formatted_keys(verifier, measurements):
+    verifier._evaluator.side_effect = [{
+        "before_orbits": {"165.0": 6}, "after_orbits": {"165": 8}, "water_count": 1,
+    }, measurements]
+    result = run(verifier)
+    assert result["status"] == "verified"
+    assert result["relative_orbit"] == 165
+    assert result["before_scene_count"] == 6
+    assert result["after_scene_count"] == 8
+
+
+def test_fractional_orbit_numbers_are_not_truncated_into_matches(verifier):
+    verifier._evaluator.side_effect = [{
+        "before_orbits": {"42.5": 3}, "after_orbits": {"42.5": 3}, "water_count": 1,
+    }]
+    assert run(verifier)["status"] == "unverifiable"
+
+
 def test_missing_pre_event_water_mask_is_unverifiable(verifier):
     verifier._evaluator.side_effect = [{
         "before_orbits": {"42": 3}, "after_orbits": {"42": 3}, "water_count": 0,
@@ -169,7 +187,9 @@ def test_flood_image_uses_negative_change_and_permanent_water_mask(verifier):
 
     after.select.return_value.subtract.return_value.lt.assert_called_with(-3.0)
     after.select.return_value.lt.assert_called_with(-15.0)
-    water.neq.assert_any_call(3)
+    water.eq.assert_called_once_with(3)
+    water.eq.return_value.unmask.assert_called_once_with(0)
+    water.neq.assert_not_called()
     verifier._ee.Image.pixelArea.assert_called_once()
     verifier._ee.Reducer.sum.assert_called_once()
     region.area.assert_called_once_with(1)
@@ -255,6 +275,15 @@ def test_zero_detected_flood_area_is_distinct_from_missing_data(verifier, measur
     result = run(verifier)
     assert result["status"] == "verified"
     assert result["flooded_fraction"] == 0.0
+
+
+def test_sparse_jrc_water_domain_does_not_discard_valid_sar_land(verifier, measurements):
+    measurements["areas"]["water_map_area_m2"] = 20.0
+    result = run(verifier)
+    assert result["status"] == "verified"
+    assert result["observed_fraction"] == 0.95
+    assert result["water_map_coverage_fraction"] == 0.02
+    assert result["flooded_fraction"] == 0.2
 
 
 def test_invalid_area_measurements_are_not_clipped_into_valid_results(verifier, measurements):

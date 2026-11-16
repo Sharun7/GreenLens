@@ -205,7 +205,8 @@ def bonds_in_viewport(request):
     - Zoom 5-8: Returns bonds with clustering
     - Zoom > 8: Returns individual bonds
     """
-    from django.db.models import Count, Avg
+    from django.db.models import Count, Avg, OuterRef, Subquery
+    from risk_scoring.models import PCRScore
     
     try:
         min_lat = float(request.GET.get('min_lat', -90))
@@ -221,12 +222,15 @@ def bonds_in_viewport(request):
         )
     
     # Filter bonds within viewport
+    latest_score = PCRScore.objects.filter(bond_id=OuterRef("pk")).order_by(
+        "-scored_at", "-pk",
+    ).values("score")[:1]
     bonds_qs = GreenBond.objects.filter(
         lat__gte=min_lat,
         lat__lte=max_lat,
         lon__gte=min_lon,
         lon__lte=max_lon,
-    ).prefetch_related('pcr_scores', 'greenwash_flags', 'pricing_gaps')
+    ).annotate(latest_pcr_score=Subquery(latest_score)).prefetch_related('pcr_scores', 'greenwash_flags', 'pricing_gaps')
     
     # Zoom-based clustering
     if zoom < 5:
@@ -235,7 +239,7 @@ def bonds_in_viewport(request):
             count=Count('id'),
             avg_lat=Avg('lat'),
             avg_lon=Avg('lon'),
-            avg_pcr=Avg('pcr_scores__score'),
+            avg_pcr=Avg('latest_pcr_score'),
         ).order_by('-count')[:100]
         
         return Response({
@@ -251,7 +255,7 @@ def bonds_in_viewport(request):
             count=Count('id'),
             avg_lat=Avg('lat'),
             avg_lon=Avg('lon'),
-            avg_pcr=Avg('pcr_scores__score'),
+            avg_pcr=Avg('latest_pcr_score'),
         ).order_by('-count')[:200]
         
         return Response({

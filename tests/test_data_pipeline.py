@@ -111,6 +111,15 @@ class SatelliteEvidenceTests(SimpleTestCase):
 
 
 class OpticalThumbnailTests(SimpleTestCase):
+    def test_classifier_uses_the_configured_optical_gee_initializer(self):
+        from greenwash_detector.satellite_classifier import SatelliteClassifier
+
+        classifier = SatelliteClassifier.__new__(SatelliteClassifier)
+        module = object()
+        with patch("greenwash_detector.satellite_verifier._init_ee", return_value=module) as initialize:
+            self.assertIs(classifier._init_ee(), module)
+        initialize.assert_called_once_with()
+
     def test_thumbnail_callable_returns_url_without_getinfo_on_a_string(self):
         from greenwash_detector.satellite_verifier import _getinfo_with_timeout
 
@@ -244,6 +253,20 @@ class DataPipelineRealityTests(TestCase):
     def test_data_reliability_api_still_available(self):
         response = self.client.get("/api/data-reliability/")
         self.assertEqual(response.status_code, 200)
+
+    def test_viewport_counts_bonds_once_with_multiple_historical_scores(self):
+        PCRScore.objects.create(
+            bond=self.bond, score=80, flood_contribution=10,
+            heat_contribution=5, drought_contribution=2,
+            model_version="history-test", shap_values={},
+        )
+        for zoom in (2, 6):
+            with self.subTest(zoom=zoom):
+                response = self.client.get("/api/bonds/viewport/", {"zoom": zoom})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["total_bonds"], 1)
+                self.assertEqual(response.json()["clusters"][0]["count"], 1)
+                self.assertEqual(response.json()["clusters"][0]["avg_pcr"], 80)
 
     def test_alerts_do_not_invent_weather_events_for_demo_data(self):
         response = self.client.get("/api/alerts/")

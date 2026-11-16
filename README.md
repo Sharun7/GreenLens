@@ -177,6 +177,41 @@ SECRET_KEY=local-test-only pytest tests/test_earthdata_auth.py -q --ds=greenlens
 
 These authentication tests mock all HTTP calls and require no real token.
 
+### Configured GEE Processing Check
+
+The noncommercial project `ee-auth-project-514903` was successfully checked on
+2026-11-16 using read-only OAuth. No commercial registration or billing setting
+was changed. Set `EE_PROJECT_ID` in your private environment; do not put OAuth
+codes or tokens in source files or chat. Local OAuth credentials belong in the
+Earth Engine CLI's standard private credential store, outside this repository.
+Credentials saved in Codespaces do not automatically transfer to Railway or a
+Windows checkout.
+
+Run this explicitly from a configured Python 3.11/3.12 environment:
+
+```bash
+EE_PROJECT_ID=ee-auth-project-514903 SECRET_KEY=local-test-only python manage.py verify_gee_connection --settings=greenlens.sqlite_settings
+```
+
+It checks real GEE initialization, computes a reference NDVI/SAR comparison,
+and caches two small Sentinel-2 PNG previews and a credential-free receipt under
+ignored `data/cache/gee_connection/`. Signed thumbnail URLs are not stored in
+the receipt or rendered in the page. `/resources/` serves only those cached
+files; page loads do not invoke GEE. The reference location is not associated
+with a bond, and the command never changes registry verification flags or PCRS.
+
+Default comparisons use the last two completed years at 9.5 N, 76.4 E. NDVI
+uses the existing 12-month anchor windows, optical previews use 180-day windows,
+and SAR uses January-March. These different windows are labelled explicitly;
+this is a functional connection check, not fused event evidence or a Kerala
+flood backtest. A heuristic category conflict is displayed honestly, not treated
+as proof of greenwashing. Raw SAR/NISAR products are not downloaded.
+
+The first live run exposed and repaired two defects that mocks had missed:
+GEE's decimal-formatted relative orbit keys (for example `165.0`) are now
+normalized safely, and JRC's sparse water-product mask no longer removes valid
+SAR land observations. The 90% SAR coverage requirement was not lowered.
+
 ### Sentinel-1 SAR Verifier
 
 `greenwash_detector.sar_verifier.SarVerifier` is an offline/batch building block;
@@ -221,6 +256,11 @@ Method:
 	-3 dB) and after-event VV below `SAR_FLOOD_MAX_AFTER_DB` (default -15 dB).
 	Exclude permanent water (`waterClass=3`) using the latest JRC annual map from
 	a calendar year before the comparison. No future-year water map is used.
+	JRC's sparse water-product domain is not used as the SAR observation mask:
+	it can omit valid land. SAR coverage is measured from both SAR bands and both
+	periods. Only known permanent-water pixels are excluded; unmapped JRC pixels
+	are not evidence that permanent water is absent. The separate water-map
+	coverage diagnostic exposes this masking limitation.
 - Sum pixel areas at `SAR_REDUCTION_SCALE_METRES` (default 20 m), then divide
 	flooded area by the full geometric buffer area, including permanent water in
 	the denominator. Also report observed coverage. If coverage is below

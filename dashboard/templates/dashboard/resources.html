@@ -62,6 +62,26 @@
         <p class="resource-note">Metadata and available browse previews only. No raw products downloaded. A catalog footprint does not establish project existence or flood extent.</p>
     </section>
     {% endif %}
+    <section class="gee-reference" aria-labelledby="gee-reference-title">
+        <h2 class="h5" id="gee-reference-title">GEE reference processing check</h2>
+        {% if gee_check %}
+        <p class="resource-note">Last checked {{ gee_check.checked_at }} &middot; Project {{ gee_check.project }} &middot; {{ gee_check.location.latitude }}, {{ gee_check.location.longitude }}</p>
+        <div class="gee-preview-grid">
+            <figure><img src="{% url 'dashboard:gee_preview' period='before' %}" alt="Sentinel-2 reference composite from {{ gee_check.before_year }}" loading="lazy"><figcaption>Sentinel-2 &middot; {{ gee_check.before_year }}</figcaption></figure>
+            <figure><img src="{% url 'dashboard:gee_preview' period='after' %}" alt="Sentinel-2 reference composite from {{ gee_check.after_year }}" loading="lazy"><figcaption>Sentinel-2 &middot; {{ gee_check.after_year }}</figcaption></figure>
+        </div>
+        <dl class="gee-measurements">
+            <div><dt>NDVI before / after</dt><dd>{{ gee_check.ndvi.before_ndvi }} / {{ gee_check.ndvi.after_ndvi }}</dd></div>
+            <div><dt>SAR VV change</dt><dd>{% if gee_check.sar.sar_change_db != None %}{{ gee_check.sar.sar_change_db|floatformat:3 }} dB{% else %}Unavailable{% endif %}</dd></div>
+            <div><dt>Heuristic flood-candidate fraction</dt><dd>{% if gee_check.sar.flooded_fraction != None %}{{ gee_check.sar.flooded_fraction|floatformat:6 }}{% else %}Unavailable{% endif %}</dd></div>
+            <div><dt>SAR observed fraction</dt><dd>{{ gee_check.sar.observed_fraction|default_if_none:"Unavailable" }}</dd></div>
+        </dl>
+        <p class="resource-note">{{ gee_check.purpose }} {{ gee_check.optical_windows }} SAR compares January-March of those years. The test category is water; heuristic disagreement is not a greenwash finding. Water masking excludes known permanent water only. Optical data: ESA/Copernicus via Google Earth Engine.</p>
+        <p class="{% if gee_check.sar.sar_change_db == None %}coverage-unavailable{% else %}resource-note{% endif %}">SAR heuristic screen: {{ gee_check.sar.reason }}</p>
+        {% else %}
+        <div class="bond-image-missing">No saved satellite processing check is available on this deployment.</div>
+        {% endif %}
+    </section>
     <section class="resource-directory" aria-label="Official data and learning resources">
         {% for title, resources in resource_groups %}
         <div class="resource-group">

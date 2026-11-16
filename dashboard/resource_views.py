@@ -4,10 +4,11 @@ import csv
 from datetime import date, timedelta
 
 from django import forms
-from django.http import HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import render
 
 from data_ingestion.asf_search_client import search_sar_metadata
+from greenwash_detector.live_connection import preview_path, read_connection_check
 
 
 RESOURCE_GROUPS = [
@@ -93,4 +94,14 @@ def resources(request):
     return render(request, "dashboard/resources.html", {
         "form": form, "result": result, "resource_groups": RESOURCE_GROUPS,
         "map_position": position, "export_query": export_query.urlencode(),
+        "gee_check": read_connection_check(),
     })
+
+
+def gee_preview(request, period):
+    path = preview_path(period)
+    if path is None:
+        raise Http404("No saved reference preview is available")
+    response = FileResponse(path.open("rb"), content_type="image/png")
+    response["Cache-Control"] = "private, max-age=60"
+    return response

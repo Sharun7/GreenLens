@@ -29,6 +29,7 @@ urlpatterns = [
     path("bond/<str:bond_id>/", views.bond_detail, name="bond_detail"),
     path("verify/", views.location_verify, name="verify"),
     path("resources/", resource_views.resources, name="resources"),
+    path("resources/gee-preview/<str:period>/", resource_views.gee_preview, name="gee_preview"),
     path("pricing/", views.pricing_analysis, name="pricing_analysis"),
     path("portfolio/", views.portfolio_optimizer, name="portfolio"),
     path("about/", views.about, name="about"),

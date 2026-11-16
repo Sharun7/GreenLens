@@ -282,14 +282,9 @@ class SatelliteClassifier:
         return self._synthetic_patch_tensor(lat, lon)
 
     def _init_ee(self):
-        try:
-            import ee
-            ee.Initialize(project="drought-module2")
-            logger.info("GEE initialised for classifier")
-            return ee
-        except Exception as exc:
-            logger.warning("GEE unavailable for classifier: %s", exc)
-            return None
+        from greenwash_detector.satellite_verifier import _init_ee
+
+        return _init_ee()
 
     def _gee_patch_tensor(
         self, lat: float, lon: float, date: str
