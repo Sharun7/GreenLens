@@ -194,8 +194,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-3 mt-2">
+<div class="container-fluid portfolio-shell">
+    <div class="d-flex justify-content-between align-items-center portfolio-header">
         <h2 class="h5 mb-0" style="color: #e6edf3;">Global Bond Portfolio</h2>
         <a href="{% url 'dashboard:export_csv' %}" class="btn btn-sm btn-outline-success">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16">
@@ -227,9 +227,9 @@
         </div>
     </div>
     
-    <div class="row">
+    <div class="row portfolio-layout">
         <!-- Filter Sidebar -->
-        <div class="col-lg-3 col-md-4 mb-3">
+        <div class="col-lg-3 col-md-4 mb-3 portfolio-filters">
             <div class="filter-sidebar">
                 <h6 class="fw-bold mb-3">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-funnel me-2" viewBox="0 0 16 16">
@@ -240,10 +240,10 @@
 
                 <div class="quick-filter-row" aria-label="Fund manager quick views">
                     <button type="button" class="quick-filter-btn" data-quick-filter="mispriced">
-                        Minute 2: show mispriced bonds
+                        Mispriced bonds
                     </button>
                     <button type="button" class="quick-filter-btn" data-quick-filter="high_mispriced">
-                        Minute 3: high risk + mispriced
+                        High risk and mispriced
                     </button>
                     <button type="button" class="quick-filter-btn" data-quick-filter="flagged">
                         Satellite review queue
@@ -344,42 +344,26 @@
         </div>
         
         <!-- Main Content Area -->
-        <div class="col-lg-9 col-md-8">
+        <div class="col-lg-9 col-md-8 portfolio-map">
             <!-- View Toggle -->
-            <div class="mb-2 d-flex gap-2">
-                <button class="btn btn-sm btn-success" id="btn-map-view" onclick="showView('map')">🗺️ Map View</button>
-                <button class="btn btn-sm btn-outline-secondary" id="btn-table-view" onclick="showView('table')">📊 Table View</button>
+            <div class="map-toolbar">
+                <div class="view-switch" role="group" aria-label="Portfolio view">
+                    <button class="btn btn-sm btn-success" id="btn-map-view" onclick="showView('map')"><i class="bi bi-map me-1" aria-hidden="true"></i>Map</button>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-table-view" onclick="showView('table')"><i class="bi bi-table me-1" aria-hidden="true"></i>Table</button>
+                </div>
+                <span class="map-source" id="map-source">Satellite imagery · Esri</span>
             </div>
+            <div id="tile-status" class="tile-status" role="status" hidden></div>
 
             <!-- Map Area -->
             <div id="map-panel">
                 <div class="map-container">
-                    <!-- 3-line Explainer Box (UX Fix) -->
-                    <div style="position: absolute; top: 20px; left: 50px; z-index: 1000; background: rgba(13, 17, 23, 0.9); border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); pointer-events: none;">
-                        <h6 style="color: #a5b4fc; font-size: 0.9rem; margin-bottom: 4px; font-weight: 600;">🌍 Welcome to GreenLens</h6>
-                        <p style="color: #c9d1d9; font-size: 0.8rem; margin: 0; line-height: 1.4;">
-                            {{ stats.total_bonds }} green bonds globally mapped.<br>
-                            Satellite verified project data.<br>
-                            <strong>Click any bond marker</strong> to see its climate risk score.
-                        </p>
-                    </div>
-
                     <!-- Loading Overlay -->
                     <div id="map-loading">
                         <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
                             <span class="visually-hidden">Loading...</span>
                         </div>
                         <p class="loading-text">Loading bond data...</p>
-                    </div>
-
-                    <!-- Climate Alerts Panel (Future Scope Implementation) -->
-                    <div class="map-legend-panel" id="alerts-panel" style="top: 20px; bottom: auto; right: 20px; width: 320px; display: none;">
-                        <div class="legend-title" style="color: #E24B4A; border-bottom: 1px solid #30363d; padding-bottom: 8px;">
-                            🚨 Active Climate Alerts
-                        </div>
-                        <div id="alerts-container" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
-                            <!-- Alerts will be injected here via JS -->
-                        </div>
                     </div>
 
                     <!-- Map -->
@@ -411,6 +395,10 @@
                     </div>
                 </div>
             </div><!-- end map-panel -->
+            <details class="climate-signals" id="alerts-panel" style="display: none;">
+                <summary>Climate screening signals</summary>
+                <div id="alerts-container"></div>
+            </details>
 
             <!-- Table Panel (hidden by default) -->
             <div id="table-panel" style="display:none;">
@@ -484,54 +472,61 @@
         map = L.map('bond-map').setView([20, 0], 2);
 
         // ── Tile layers ────────────────────────────────────────────────────
-        const streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 20
+        const streetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
         });
 
         const satelliteLayer = L.tileLayer(
-            'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-            attribution: 'Map data &copy; Google',
-            maxZoom: 21
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+            maxNativeZoom: 18,
+            maxZoom: 20
         });
 
-        streetLayer.addTo(map);  // default: dark street
+        satelliteLayer.addTo(map);
 
         // ── Layer toggle button ───────────────────────────────────────────
-        let isSatellite = false;
+        let isSatellite = true;
         const toggleBtn = L.control({ position: 'bottomleft' });
         toggleBtn.onAdd = function () {
-            const btn = L.DomUtil.create('button', '');
+            const btn = L.DomUtil.create('button', 'map-layer-toggle');
             btn.id = 'layer-toggle-btn';
-            btn.innerHTML = '🛰️ Satellite View';
-            btn.style.cssText = [
-                'background:#0F6E56', 'color:#fff', 'border:none',
-                'border-radius:6px', 'padding:7px 13px', 'font-size:0.8rem',
-                'font-weight:600', 'cursor:pointer', 'box-shadow:0 2px 8px rgba(0,0,0,0.5)',
-                'transition:background 0.2s'
-            ].join(';');
-            btn.onmouseover = () => btn.style.background = '#0a4d3c';
-            btn.onmouseout  = () => btn.style.background = isSatellite ? '#534AB7' : '#0F6E56';
+            btn.type = 'button';
+            btn.title = 'Change basemap';
+            btn.innerHTML = '<i class="bi bi-layers me-1" aria-hidden="true"></i>Street';
             L.DomEvent.on(btn, 'click', L.DomEvent.stopPropagation);
             L.DomEvent.on(btn, 'click', function () {
-                if (isSatellite) {
-                    map.removeLayer(satelliteLayer);
-                    streetLayer.addTo(map);
-                    btn.innerHTML = '🛰️ Satellite View';
-                    btn.style.background = '#0F6E56';
-                    isSatellite = false;
-                } else {
-                    map.removeLayer(streetLayer);
-                    satelliteLayer.addTo(map);
-                    btn.innerHTML = '🗺️ Street View';
-                    btn.style.background = '#534AB7';
-                    isSatellite = true;
-                }
+                selectBasemap(!isSatellite);
             });
             return btn;
         };
         toggleBtn.addTo(map);
+
+        function selectBasemap(satellite) {
+            map.removeLayer(isSatellite ? satelliteLayer : streetLayer);
+            isSatellite = satellite;
+            (satellite ? satelliteLayer : streetLayer).addTo(map);
+            document.getElementById('layer-toggle-btn').innerHTML = '<i class="bi bi-layers me-1" aria-hidden="true"></i>' + (satellite ? 'Street' : 'Satellite');
+            document.getElementById('map-source').textContent = satellite ? 'Satellite imagery · Esri' : 'Street map · OpenStreetMap';
+        }
+        let satelliteErrors = 0;
+        satelliteLayer.on('tileerror', function () {
+            satelliteErrors += 1;
+            if (satelliteErrors >= 3 && isSatellite) {
+                selectBasemap(false);
+                const status = document.getElementById('tile-status');
+                status.textContent = 'Satellite tiles are unavailable. Street map shown instead.';
+                status.hidden = false;
+            }
+        });
+        streetLayer.on('tileerror', function () {
+            if (!isSatellite) {
+                const status = document.getElementById('tile-status');
+                status.textContent = 'Map tiles could not load. Check your network; bond data remains available in Table view.';
+                status.hidden = false;
+            }
+        });
 
         // Render markers
         renderMarkers();
@@ -918,17 +913,22 @@
                     const container = document.getElementById('alerts-container');
                     panel.style.display = 'block';
                     
-                    let html = '';
+                    container.replaceChildren();
                     data.alerts.forEach(alert => {
-                        html += `
-                        <div style="margin-bottom: 12px; font-size: 0.8rem; border-left: 3px solid ${alert.color}; padding-left: 8px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
-                            <div style="font-weight: 600; color: ${alert.color};">${alert.hazard_type} — ${alert.country}</div>
-                            <div style="color: #c9d1d9; margin: 4px 0;">${alert.description}</div>
-                            <div style="color: #EF9F27; font-weight: 600;">Impact: ${alert.impact}</div>
-                            <div style="color: #8b949e; font-size: 0.75rem; margin-top: 4px;">Affects: ${alert.affected_bonds.slice(0,2).join(', ')}${alert.affected_bonds.length > 2 ? ' +'+(alert.affected_bonds.length-2)+' more' : ''}</div>
-                        </div>`;
+                        const item = document.createElement('article');
+                        item.className = 'review-signal';
+                        const title = document.createElement('h3');
+                        title.textContent = `${alert.hazard_type} - ${alert.country}`;
+                        const description = document.createElement('p');
+                        description.textContent = alert.description;
+                        const impact = document.createElement('p');
+                        impact.textContent = alert.impact;
+                        const link = document.createElement('a');
+                        link.href = `/bond/${encodeURIComponent(alert.bond_id)}/`;
+                        link.textContent = alert.bond_id;
+                        item.append(title, description, impact, link);
+                        container.append(item);
                     });
-                    container.innerHTML = html;
                 }
             })
             .catch(err => console.error("Error fetching alerts:", err));

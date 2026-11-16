@@ -42,9 +42,11 @@ datasets>=2.20.0            # HuggingFace datasets — EuroSAT download
 # Google Earth Engine
 earthengine-api==0.1.410
 google-auth>=2.29.0
+asf_search==14.1.0
 
 # Geocoding
 geopy==2.4.1
+pycountry==24.6.1
 
 # Financial data
 yfinance==0.2.40

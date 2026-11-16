@@ -14,9 +14,11 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+import pycountry
 from sklearn.preprocessing import MinMaxScaler
 
 logger = logging.getLogger("greenlens.feature_pipeline")
+HAZARD_WEIGHTS = {"flood_risk_index": 0.40, "heat_stress_index": 0.35, "drought_severity": 0.25}
 
 # ── Category vulnerability mapping ────────────────────────────────────────────
 CATEGORY_VULNERABILITY: dict[str, float] = {
@@ -99,6 +101,11 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 def is_coastal(lat: float, lon: float, threshold_km: float = COASTAL_THRESHOLD_KM) -> bool:
     """Return True if the coordinate is within threshold_km of a coastline reference point."""
+    from risk_scoring.geography import near_coastline
+
+    measured = near_coastline(lat, lon, threshold_km)
+    if measured is not None:
+        return measured
     if lat == 0.0 and lon == 0.0:
         return False
     for clat, clon in COASTAL_REFERENCE_POINTS:
@@ -134,12 +141,16 @@ class FeatureEngineeringPipeline:
         # Import inside method to allow module-level import without Django setup
         from django.db.models import OuterRef, Subquery
         from data_ingestion.models import GreenBond, ClimateHazardData
+        from data_ingestion.extended_risk_fetcher import ExtendedRiskFetcher
+        from data_ingestion.extended_risk_fetcher import CARBON_INTENSITY, POLICY_RISK, TRANSITION_RISK
         from greenlens.data.worldbank_climate import WorldBankClimateFetcher
 
         wb_fetcher = WorldBankClimateFetcher()
+        extended_fetcher = ExtendedRiskFetcher()
+        self.input_provenance_ = {}
 
         qs = GreenBond.objects.all()
-        if bond_ids:
+        if bond_ids is not None:
             qs = qs.filter(pk__in=bond_ids)
 
         # Build a dict of latest hazard data per bond
@@ -156,37 +167,55 @@ class FeatureEngineeringPipeline:
         records = []
         for bond in qs.iterator(chunk_size=200):
             h = hazard_map.get(bond.pk)
+            iso3 = self._iso3_from_country(bond.country)
+            extended = extended_fetcher.get_all(iso3)
+            metadata = h.raw_metadata if h is not None and isinstance(h.raw_metadata, dict) else {}
+            demo = metadata.get("source") == "deployment_bootstrap" or metadata.get("method") == "synthetic"
+            provenance = {
+                "primary_status": "demo" if demo else ("recorded_unverified" if h is not None else "country_proxy"),
+                "hazard_source": h.source if h is not None else "worldbank_country_proxy",
+                "hazard_date": h.data_date.isoformat() if h is not None else None,
+                "location_confidence": bond.location_confidence,
+                "coordinates": {"lat": bond.lat, "lon": bond.lon},
+                "extended": {},
+            }
+            for field, table in (("carbon_intensity_score", CARBON_INTENSITY),
+                                 ("policy_risk_score", POLICY_RISK),
+                                 ("transition_risk_score", TRANSITION_RISK)):
+                recorded = h is not None and getattr(h, field) is not None
+                provenance["extended"][field] = {
+                    "status": "recorded_unverified" if recorded else (
+                        "embedded_country_proxy" if iso3 in table else "global_default_proxy"
+                    ),
+                }
+            self.input_provenance_[bond.pk] = provenance
 
             if h is not None:
                 flood    = float(h.flood_risk_index)
                 heat     = float(h.heat_stress_index)
                 drought  = float(h.drought_spei)
-                carbon   = float(h.carbon_intensity_score) if h.carbon_intensity_score is not None else 0.35
-                policy   = float(h.policy_risk_score)      if h.policy_risk_score      is not None else 0.45
-                transit  = float(h.transition_risk_score)  if h.transition_risk_score  is not None else 0.40
+                carbon   = float(h.carbon_intensity_score) if h.carbon_intensity_score is not None else extended["carbon_intensity_score"]
+                policy   = float(h.policy_risk_score) if h.policy_risk_score is not None else extended["policy_risk_score"]
+                transit  = float(h.transition_risk_score) if h.transition_risk_score is not None else extended["transition_risk_score"]
             else:
                 # Fallback: WorldBank country-level data
-                iso3 = self._iso3_from_country(bond.country)
                 wb = wb_fetcher.get_all_hazards(iso3)
                 flood   = wb["flood_risk"]
                 heat    = wb["heat_stress"]
                 drought = wb["drought_spei"]
-                from data_ingestion.extended_risk_fetcher import ExtendedRiskFetcher
-                er = ExtendedRiskFetcher()
-                er_scores = er.get_all(iso3)
-                carbon  = er_scores["carbon_intensity_score"]
-                policy  = er_scores["policy_risk_score"]
-                transit = er_scores["transition_risk_score"]
+                carbon  = extended["carbon_intensity_score"]
+                policy  = extended["policy_risk_score"]
+                transit = extended["transition_risk_score"]
 
             records.append({
                 "bond_pk":             bond.pk,
                 "bond_id":             bond.bond_id,
                 "country":             bond.country,
                 "iso3":                self._iso3_from_country(bond.country),
-                "lat":                 float(bond.lat or 0.0),
-                "lon":                 float(bond.lon or 0.0),
+                "lat":                 float(bond.lat) if bond.lat is not None else np.nan,
+                "lon":                 float(bond.lon) if bond.lon is not None else np.nan,
                 "project_category":    bond.project_category,
-                "bond_maturity_years": int(bond.bond_maturity_years or 7),
+                "bond_maturity_years": bond.bond_maturity_years,
                 "flood_risk_index":    flood,
                 "heat_stress_index":   heat,
                 "drought_spei":        drought,
@@ -206,16 +235,34 @@ class FeatureEngineeringPipeline:
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Add derived features to the DataFrame in-place."""
 
+        df = df.copy()
+        bounded = [
+            "flood_risk_index", "heat_stress_index", "carbon_intensity_score",
+            "policy_risk_score", "transition_risk_score",
+        ]
+        for column in bounded + ["drought_spei", "bond_maturity_years", "lat", "lon"]:
+            df[column] = pd.to_numeric(df[column], errors="coerce")
+            if not np.isfinite(df[column].to_numpy(dtype=float)).all():
+                raise ValueError(f"Missing or non-finite PCRS input: {column}")
+        for column in bounded:
+            if not df[column].between(0, 1).all():
+                raise ValueError(f"PCRS input outside [0, 1]: {column}")
+        if not df["lat"].between(-90, 90).all() or not df["lon"].between(-180, 180).all():
+            raise ValueError("Invalid PCRS coordinates")
+        if not (df["bond_maturity_years"] > 0).all():
+            raise ValueError("PCRS maturity must be positive")
+        categories = list(CATEGORY_VULNERABILITY)
+        df["project_category"] = df["project_category"].astype(str).str.strip().str.lower()
+        df.loc[~df["project_category"].isin(categories), "project_category"] = "other"
+
         # 1. Drought severity (SPEI → positive severity, 0 = no drought)
         df["drought_severity"] = df["drought_spei"].apply(
-            lambda s: max(0.0, -s / 3.0)   # SPEI -3 → 1.0; positive SPEI → 0
+            lambda s: min(1.0, max(0.0, -s / 3.0))
         )
 
         # 2. Composite hazard (weighted sum)
-        df["composite_hazard"] = (
-            df["flood_risk_index"] * 0.40
-            + df["heat_stress_index"] * 0.35
-            + df["drought_severity"] * 0.25
+        df["composite_hazard"] = sum(
+            df[feature] * weight for feature, weight in HAZARD_WEIGHTS.items()
         ).clip(0.0, 1.0)
 
         # 3. Is coastal
@@ -292,6 +339,11 @@ class FeatureEngineeringPipeline:
 
         y is synthesised as composite_hazard * 100 (PCRS proxy 0–100).
         """
+        raw, target, feature_cols = self.prepare_training_data(bond_ids)
+        return self.scale_features(raw, fit=True), target, feature_cols
+
+    def prepare_training_data(self, bond_ids=None):
+        """Build unscaled features so training can split before fitting preprocessing."""
         df = self._load_dataframe(bond_ids)
         if df.empty:
             raise ValueError("No bond/hazard data available for training")
@@ -300,20 +352,28 @@ class FeatureEngineeringPipeline:
         df = self._one_hot_category(df)
 
         feature_cols = self.all_feature_cols
-        X_raw = df[feature_cols].fillna(0.0).values.astype(float)
+        X_raw = df[feature_cols].values.astype(float)
         y = (df["composite_hazard"] * 100.0).values.astype(float)
 
-        # Fit and transform numeric features; pass binary/ordinal cols through
-        n_numeric = len(self.NUMERIC_FEATURES)
-        X_numeric = self.scaler.fit_transform(X_raw[:, :n_numeric])
-        X = np.hstack([X_numeric, X_raw[:, n_numeric:]])
-
         self.feature_names_ = feature_cols
-        self._fitted = True
         self._df_index = df["bond_pk"].tolist()
+        self._training_groups = df["iso3"].tolist()
+        self.feature_values_ = {
+            int(row["bond_pk"]): {name: float(row[name]) for name in feature_cols}
+            for row in df.to_dict("records")
+        }
+        return X_raw, y, feature_cols
 
-        logger.info("Pipeline fit_transform: %d samples, %d features", len(X), len(feature_cols))
-        return X, y, feature_cols
+    def scale_features(self, raw, fit=False):
+        n_numeric = len(self.NUMERIC_FEATURES)
+        if fit:
+            numeric = self.scaler.fit_transform(raw[:, :n_numeric])
+            self._fitted = True
+        else:
+            if not self._fitted:
+                raise RuntimeError("Feature scaler has not been fitted")
+            numeric = self.scaler.transform(raw[:, :n_numeric])
+        return np.hstack([numeric, raw[:, n_numeric:]])
 
     def transform_single(self, bond_id: int) -> tuple[np.ndarray, None, list[str]]:
         """
@@ -331,8 +391,9 @@ class FeatureEngineeringPipeline:
         df = self._one_hot_category(df)
 
         feature_cols = self.all_feature_cols
-        X_raw = df[feature_cols].fillna(0.0).values.astype(float)
+        X_raw = df[feature_cols].values.astype(float)
 
+        self.feature_values_ = {bond_id: {name: float(df.iloc[0][name]) for name in feature_cols}}
         n_numeric = len(self.NUMERIC_FEATURES)
         X_numeric = self.scaler.transform(X_raw[:, :n_numeric])
         X = np.hstack([X_numeric, X_raw[:, n_numeric:]])
@@ -393,4 +454,10 @@ class FeatureEngineeringPipeline:
             "bermuda": "BMU", "british virgin islands": "VGB",
         }
         key = (country or "").strip().lower()
-        return name_to_iso.get(key, key[:3].upper() if len(key) >= 3 else "UNK")
+        aliases = {"south korea": "KOR", "north korea": "PRK", "turkey": "TUR", "uk": "GBR", "us": "USA"}
+        if key in name_to_iso or key in aliases:
+            return name_to_iso.get(key) or aliases[key]
+        try:
+            return pycountry.countries.lookup(COUNTRY_NAME_MAP.get(key, key)).alpha_3
+        except LookupError:
+            return "UNK"

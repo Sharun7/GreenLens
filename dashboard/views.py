@@ -1069,54 +1069,57 @@ def about(request):
     """
     stats = {
         "total_bonds": GreenBond.objects.count(),
-        "scored_bonds": PCRScore.objects.count(),
+        "scored_bonds": PCRScore.objects.values("bond_id").distinct().count(),
         "flagged_bonds": GreenwashFlag.objects.filter(is_inconsistent=True).count(),
-        "analyzed_pricing": PricingGap.objects.count(),
+        "analyzed_pricing": PricingGap.objects.values("bond_id").distinct().count(),
     }
     
+    from dashboard.workflow import build_workflow_status
+    from risk_scoring.feature_audit import build_pcrs_feature_audit
+
     context = {
         "stats": stats,
         "version": "1.1.0",
+        "workflow": build_workflow_status(),
+        "pcrs_audit": build_pcrs_feature_audit(),
     }
     
     return render(request, "dashboard/about.html", context)
 
 
+def workflow_status_api(request):
+    from dashboard.workflow import build_workflow_status
+
+    return JsonResponse(build_workflow_status())
+
+
+def pcrs_features_api(request):
+    from risk_scoring.feature_audit import build_pcrs_feature_audit
+
+    result = build_pcrs_feature_audit()
+    bond_id = request.GET.get("bond_id")
+    if bond_id:
+        bond = get_object_or_404(GreenBond, bond_id=bond_id)
+        score = bond.pcr_scores.order_by("-scored_at", "-pk").first()
+        result["bond"] = {
+            "bond_id": bond.bond_id,
+            "score": score.score if score else None,
+            "model_version": score.model_version if score else None,
+            "feature_metadata": score.feature_metadata if score else {},
+            "shap_values": score.shap_values if score else {},
+        }
+    return JsonResponse(result)
+
+
 def live_alerts_api(request):
-    """
-    Simulated Predictive Climate Alert System API.
-    In production, this would query NOAA/IMD APIs and cross-reference with bond GPS.
-    """
-    from django.db.models import Count
-    import random
-    from django.http import JsonResponse
-    
-    # Get top 3 countries with most bonds to simulate alerts for them
-    top_countries = GreenBond.objects.values('country').annotate(count=Count('id')).order_by('-count')[:3]
-    
-    alerts = []
-    hazards = [
-        {"type": "Flood Warning", "impact": "+15 PCRS", "desc": "Severe riverine flooding expected in the next 48 hours.", "color": "#E24B4A"},
-        {"type": "Heatwave Alert", "impact": "+8 PCRS", "desc": "Extreme temperature anomalies detected. Cooling systems risk.", "color": "#EF9F27"},
-        {"type": "Drought Warning", "impact": "+12 PCRS", "desc": "Prolonged SPEI deficit. Hydropower and agriculture risk.", "color": "#EF9F27"}
-    ]
-    
-    for c in top_countries:
-        country_name = c['country']
-        affected_bonds = list(GreenBond.objects.filter(country=country_name)[:3])
-        
-        if affected_bonds:
-            hazard = random.choice(hazards)
-            alerts.append({
-                "country": country_name,
-                "hazard_type": hazard["type"],
-                "impact": hazard["impact"],
-                "description": hazard["desc"],
-                "color": hazard["color"],
-                "affected_bonds": [b.issuer_name for b in affected_bonds]
-            })
-            
-    return JsonResponse({"alerts": alerts})
+    """Return current stored review signals, never simulated weather forecasts."""
+    from dashboard.workflow import build_review_alerts
+
+    return JsonResponse({
+        "alerts": build_review_alerts(),
+        "mode": "stored_evidence_review",
+        "weather_forecasts_connected": False,
+    })
 
 
 def data_reliability_api(request):

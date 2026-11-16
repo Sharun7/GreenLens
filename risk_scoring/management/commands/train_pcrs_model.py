@@ -8,7 +8,7 @@ Usage:
     python manage.py train_pcrs_model
     python manage.py train_pcrs_model --bond-ids 1 2 3   (subset)
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from risk_scoring.ml_engine import train_pcrs_model
 
 
@@ -16,6 +16,9 @@ class Command(BaseCommand):
     help = "Train the PCRS XGBoost model and save artefacts to models/"
 
     def add_arguments(self, parser):
+        parser.add_argument("--output-dir", help="Artifact directory (default: models/pcrs_v2)")
+        parser.add_argument("--no-plot", action="store_true", help="Skip the optional SHAP summary PNG")
+        parser.add_argument("--allow-demo", action="store_true", help="Explicitly allow known demo hazards; output remains a proxy research model")
         parser.add_argument(
             "--bond-ids",
             nargs="+",
@@ -27,10 +30,12 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Starting PCRS model training …")
         try:
-            metrics = train_pcrs_model(bond_ids=options.get("bond_ids"))
+            metrics = train_pcrs_model(
+                bond_ids=options.get("bond_ids"), output_dir=options.get("output_dir"),
+                make_plot=not options["no_plot"], allow_demo=options["allow_demo"],
+            )
         except ValueError as exc:
-            self.stderr.write(self.style.ERROR(f"Training failed: {exc}"))
-            return
+            raise CommandError(f"Training failed: {exc}") from None
 
         self.stdout.write(self.style.SUCCESS("\n── Training complete ──────────────────"))
         self.stdout.write(f"  R²   : {metrics['r2']}")
@@ -42,6 +47,5 @@ class Command(BaseCommand):
         self.stdout.write(f"  Best iteration: {metrics['best_iteration']}")
         self.stdout.write(f"  Model version : {metrics['model_version']}")
         self.stdout.write("────────────────────────────────────────\n")
-        self.stdout.write("  Model → models/pcrs_model_v1.pkl")
-        self.stdout.write("  Scaler → models/pcrs_scaler_v1.pkl")
-        self.stdout.write("  SHAP plot → models/shap_summary.png")
+        self.stdout.write(f"  Artifacts: {metrics['artifact_dir']}")
+        self.stdout.write("  Target: hazard-derived proxy; metrics are not observed-loss validation.")

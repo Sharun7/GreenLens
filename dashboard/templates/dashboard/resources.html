@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Data & Resources | GreenLens{% endblock %}
+{% block content %}
+<div class="container-fluid portfolio-shell resource-shell">
+    <div class="portfolio-header d-flex justify-content-between align-items-center">
+        <h1 class="h4 mb-0">Earth observation resources</h1>
+        <span class="resource-tag">NASA Earthdata / ASF</span>
+    </div>
+    <section class="resource-workspace" aria-labelledby="discovery-heading">
+        <div>
+            <h2 class="h6" id="discovery-heading">Find SAR acquisitions</h2>
+            <form method="get" class="resource-form">
+                <input type="hidden" name="search" value="1">
+                {{ form.non_field_errors }}
+                <div class="row g-3">
+                    {% for field in form %}
+                    <div class="col-6">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}{{ field.errors }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <button class="btn btn-gl mt-3" type="submit"><i class="bi bi-search me-2" aria-hidden="true"></i>Search catalog</button>
+            </form>
+            {% if result %}
+            <div class="resource-query-status" role="status">
+                {% if result.cached %}Cached ASF response{% else %}ASF response{% endif %}
+                &middot; {{ result.granules|length }} granules
+            </div>
+            {% endif %}
+        </div>
+        <div id="resource-map" aria-label="Satellite map of search location"></div>
+    </section>
+    {% if result %}
+    <section class="resource-results" aria-labelledby="results-heading">
+        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+            <h2 id="results-heading" class="h5 mb-0">Acquisitions</h2>
+            {% if result.granules %}<a class="btn btn-sm btn-gl-outline" href="?{{ export_query }}"><i class="bi bi-download me-2" aria-hidden="true"></i>Metadata CSV</a>{% endif %}
+        </div>
+        <div class="resource-coverage">
+            {% for dataset in result.datasets %}
+            <p class="coverage-state coverage-{{ dataset.status }}"><strong>{{ dataset.name }}</strong> &middot; {{ dataset.reason }}</p>
+            {% endfor %}
+        </div>
+        {% if result.granules %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Browse</th><th>Dataset</th><th>Acquisition UTC</th><th>Granule</th><th>Catalog</th></tr></thead>
+                <tbody>
+                {% for granule in result.granules %}
+                <tr>
+                    <td>{% if granule.browse_url %}<a href="{{ granule.browse_url }}" target="_blank" rel="noopener noreferrer"><img class="granule-preview" src="{{ granule.browse_url }}" alt="{{ granule.dataset }} browse preview" loading="lazy" onerror="this.hidden=true; this.parentElement.nextElementSibling.hidden=false;"></a><span class="browse-missing" hidden>Browse unavailable</span>{% else %}<span class="browse-missing">No browse supplied</span>{% endif %}</td>
+                    <td>{{ granule.dataset }}</td><td>{{ granule.acquired_at|default:"Not supplied" }}</td>
+                    <td class="granule-id">{{ granule.granule_id }}</td>
+                    <td><a href="{{ granule.catalog_url }}" target="_blank" rel="noopener noreferrer" class="resource-link" aria-label="Open granule in ASF Vertex"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        <p class="resource-note">Metadata and available browse previews only. No raw products downloaded. A catalog footprint does not establish project existence or flood extent.</p>
+    </section>
+    {% endif %}
+    <section class="resource-directory" aria-label="Official data and learning resources">
+        {% for title, resources in resource_groups %}
+        <div class="resource-group">
+            <h2 class="h6">{{ title }}</h2>
+            {% for name, url, purpose in resources %}
+            <a class="resource-row" href="{{ url }}" target="_blank" rel="noopener noreferrer">
+                <span><strong>{{ name }}</strong><small>{{ purpose }}</small></span>
+                <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+            </a>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </section>
+    <p class="resource-note">External resources are subject to their own access conditions and data-use terms. NASA does not endorse GreenLens. Linked tools are not all integrated into GreenLens.</p>
+</div>
+{{ map_position|json_script:"resource-map-position" }}
+{% endblock %}
+{% block extra_js %}
+<script>
+    const position = JSON.parse(document.getElementById('resource-map-position').textContent);
+    const resourceMap = L.map('resource-map', {scrollWheelZoom: false}).setView(position, 9);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics', maxNativeZoom: 18, maxZoom: 20
+    }).addTo(resourceMap);
+    L.circleMarker(position, {radius: 7, color: '#ffffff', fillColor: '#65e0bd', fillOpacity: 1}).addTo(resourceMap);
+</script>
+{% endblock %}

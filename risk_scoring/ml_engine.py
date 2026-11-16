@@ -15,6 +15,10 @@ Inference (programmatic):
 """
 import logging
 import os
+import hashlib
+import json
+from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -23,7 +27,7 @@ import numpy as np
 import shap
 import xgboost as xgb
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit
 
 from risk_scoring.feature_pipeline import FeatureEngineeringPipeline
 
@@ -39,15 +43,16 @@ SCALER_PATH = MODEL_DIR / "pcrs_scaler_v1.pkl"
 SHAP_PLOT   = MODEL_DIR / "shap_summary.png"
 
 MODEL_VERSION = "v1.0.0"
+VERSIONED_MODEL_DIR = MODEL_DIR / "pcrs_v2"
 
 
 # ── Training ──────────────────────────────────────────────────────────────────
 
-def train_pcrs_model(bond_ids: Optional[list[int]] = None) -> dict:
+def train_pcrs_model(bond_ids: Optional[list[int]] = None, output_dir=None, make_plot=True, allow_demo=False) -> dict:
     """
     Full training pipeline:
-    1. Feature engineering (fit+transform)
-    2. 70/15/15 stratified split
+    1. Unscaled feature engineering
+    2. Country-held-out split; scaler fitted on training rows only
     3. XGBoost fit with early stopping
     4. Evaluation metrics
     5. SHAP summary plot
@@ -59,8 +64,14 @@ def train_pcrs_model(bond_ids: Optional[list[int]] = None) -> dict:
 
     # ── 1. Feature engineering ────────────────────────────────────────────────
     pipeline = FeatureEngineeringPipeline()
-    X, y, feature_names = pipeline.fit_transform(bond_ids)
+    X, y, feature_names = pipeline.prepare_training_data(bond_ids)
     logger.info("Training data: %d samples × %d features", *X.shape)
+    input_status = dict(Counter(
+        item.get("primary_status", "unknown")
+        for item in getattr(pipeline, "input_provenance_", {}).values()
+    )) or {"unknown": len(X)}
+    if input_status.get("demo", 0) and not allow_demo:
+        raise ValueError("Demo hazard inputs detected. Use --allow-demo only for an explicitly labelled research run.")
 
     if len(X) < 20:
         raise ValueError(
@@ -68,16 +79,22 @@ def train_pcrs_model(bond_ids: Optional[list[int]] = None) -> dict:
             "Load more bond data before training."
         )
 
-    # ── 2. Stratified split (70 / 15 / 15) ───────────────────────────────────
-    # Stratify by PCRS quintile so each split has similar score distribution
-    y_strat = np.digitize(y, bins=np.percentile(y, [20, 40, 60, 80]))
-
-    X_train, X_tmp, y_train, y_tmp, s_train, s_tmp = train_test_split(
-        X, y, y_strat, test_size=0.30, random_state=42, stratify=y_strat
-    )
-    X_val, X_test, y_val, y_test = train_test_split(
-        X_tmp, y_tmp, test_size=0.50, random_state=42
-    )
+    groups = np.asarray(pipeline._training_groups)
+    if len(set(groups)) < 4:
+        raise ValueError("Country-held-out training requires at least four distinct country groups")
+    training, remaining = next(GroupShuffleSplit(
+        n_splits=1, test_size=0.30, random_state=42,
+    ).split(X, y, groups=groups))
+    validation_relative, testing_relative = next(GroupShuffleSplit(
+        n_splits=1, test_size=0.50, random_state=42,
+    ).split(X[remaining], y[remaining], groups=groups[remaining]))
+    validation, testing = remaining[validation_relative], remaining[testing_relative]
+    if min(len(training), len(validation), len(testing)) < 2:
+        raise ValueError("Each country-held-out split requires at least two samples")
+    X_train = pipeline.scale_features(X[training], fit=True)
+    X_val = pipeline.scale_features(X[validation])
+    X_test = pipeline.scale_features(X[testing])
+    y_train, y_val, y_test = y[training], y[validation], y[testing]
     logger.info(
         "Split: train=%d  val=%d  test=%d", len(X_train), len(X_val), len(X_test)
     )
@@ -92,7 +109,7 @@ def train_pcrs_model(bond_ids: Optional[list[int]] = None) -> dict:
         reg_alpha=0.1,
         reg_lambda=1.0,
         random_state=42,
-        n_jobs=-1,
+        n_jobs=2,
         eval_metric="rmse",
         early_stopping_rounds=50,
         verbosity=0,
@@ -121,11 +138,49 @@ def train_pcrs_model(bond_ids: Optional[list[int]] = None) -> dict:
         "n_val":   len(X_val),
         "n_test":  len(X_test),
         "best_iteration": int(model.best_iteration),
-        "model_version": MODEL_VERSION,
+        "model_version": "v2.0.0-proxy",
+        "target_kind": "hazard_derived_proxy",
+        "validation_kind": "country_held_out_proxy_fit_not_loss_backtest",
+        "scaler_fit": "training_split_only",
+        "feature_names": feature_names,
+        "mean_abs_shap": dict(zip(feature_names, np.abs(shap.TreeExplainer(model).shap_values(X_test)).mean(axis=0).astype(float).tolist())),
+        "input_status_counts": input_status,
+        "hyperparameters": {name: model.get_params()[name] for name in (
+            "n_estimators", "max_depth", "learning_rate", "subsample", "colsample_bytree",
+            "reg_alpha", "reg_lambda", "random_state", "n_jobs", "early_stopping_rounds",
+        )},
+        "countries": {
+            "train": sorted(set(groups[training])),
+            "validation": sorted(set(groups[validation])),
+            "test": sorted(set(groups[testing])),
+        },
     }
     logger.info("Test metrics: R²=%.4f  RMSE=%.4f  MAE=%.4f", r2, rmse, mae)
 
-    # ── 5. SHAP summary plot ──────────────────────────────────────────────────
+    artifact_dir = Path(output_dir) if output_dir is not None else VERSIONED_MODEL_DIR
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    if make_plot:
+        _save_shap_plot(model, X_test, feature_names, artifact_dir / "shap_summary.png")
+    model_path, scaler_path = artifact_dir / "model.pkl", artifact_dir / "scaler.pkl"
+    joblib.dump(model, model_path)
+    joblib.dump(pipeline.scaler, scaler_path)
+    from risk_scoring.geography import coastline_status
+
+    metadata = {
+        **metrics, "trained_at": datetime.now(timezone.utc).isoformat(),
+        "feature_schema": "pcrs-20-v2",
+        "coastline": coastline_status(),
+        "model_sha256": hashlib.sha256(model_path.read_bytes()).hexdigest(),
+        "scaler_sha256": hashlib.sha256(scaler_path.read_bytes()).hexdigest(),
+        "warning": "Proxy fit does not establish loss prediction or independent extended-risk effects.",
+    }
+    temporary = artifact_dir / "metadata.json.part"
+    temporary.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    temporary.replace(artifact_dir / "metadata.json")
+    return {**metrics, "artifact_dir": str(artifact_dir)}
+
+
+def _save_shap_plot(model, X_test, feature_names, destination):
     try:
         import matplotlib
         matplotlib.use("Agg")   # non-interactive backend
@@ -141,20 +196,11 @@ def train_pcrs_model(bond_ids: Optional[list[int]] = None) -> dict:
             show=False, plot_type="bar",
         )
         plt.tight_layout()
-        plt.savefig(str(SHAP_PLOT), dpi=120)
+        plt.savefig(str(destination), dpi=120)
         plt.close("all")
-        logger.info("SHAP summary plot saved → %s", SHAP_PLOT)
+        logger.info("SHAP summary plot saved → %s", destination)
     except Exception as exc:
         logger.warning("SHAP plot failed (non-fatal): %s", exc)
-
-    # ── 6. Persist artefacts ──────────────────────────────────────────────────
-    joblib.dump(model,           MODEL_PATH)
-    joblib.dump(pipeline.scaler, SCALER_PATH)
-    logger.info("Model saved → %s", MODEL_PATH)
-    logger.info("Scaler saved → %s", SCALER_PATH)
-
-    return metrics
-
 
 # ── SHAP explanation ──────────────────────────────────────────────────────────
 
@@ -163,13 +209,10 @@ def explain_prediction(bond_pk: int, model=None, pipeline=None) -> dict[str, flo
     Returns {feature_name: shap_value} for a single bond prediction,
     sorted by absolute impact (largest first).
     """
-    if model is None:
-        model = joblib.load(MODEL_PATH)
-    if pipeline is None:
-        from sklearn.preprocessing import MinMaxScaler
-        scaler = joblib.load(SCALER_PATH)
-        pipeline = FeatureEngineeringPipeline(scaler=scaler)
-        pipeline._fitted = True
+    if model is None or pipeline is None:
+        predictor = PCRSPredictor()
+        model = predictor.model if model is None else model
+        pipeline = predictor.pipeline if pipeline is None else pipeline
 
     X, _, feature_names = pipeline.transform_single(bond_pk)
 
@@ -197,21 +240,44 @@ class PCRSPredictor:
         # → {"score": 67.3, "risk_band": "High", "shap_values": {...}, ...}
     """
 
-    def __init__(self):
-        if not MODEL_PATH.exists():
+    def __init__(self, artifact_dir=None):
+        directory = Path(artifact_dir) if artifact_dir is not None else VERSIONED_MODEL_DIR
+        metadata_path = directory / "metadata.json"
+        self.metadata = {}
+        if artifact_dir is not None or metadata_path.is_file():
+            self.metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            model_path, scaler_path = directory / "model.pkl", directory / "scaler.pkl"
+            for path, key in ((model_path, "model_sha256"), (scaler_path, "scaler_sha256")):
+                if hashlib.sha256(path.read_bytes()).hexdigest() != self.metadata.get(key):
+                    raise ValueError("PCRS model/scaler checksum mismatch; publish a complete artifact set")
+            if self.metadata.get("feature_names") != FeatureEngineeringPipeline().all_feature_cols:
+                raise ValueError("PCRS artifact feature schema does not match the installed pipeline")
+            from risk_scoring.geography import coastline_status
+
+            expected_geography = self.metadata.get("coastline", {}).get("method")
+            if expected_geography and expected_geography != coastline_status()["method"]:
+                raise ValueError("PCRS coastline preprocessing differs from training. Prepare the matching coastline dataset or retrain.")
+        else:
+            model_path, scaler_path = MODEL_PATH, SCALER_PATH
+            logger.warning("Using legacy PCRS artifacts without a versioned training manifest")
+        if not model_path.exists():
             raise FileNotFoundError(
-                f"Model not found at {MODEL_PATH}. "
+                f"Model not found at {model_path}. "
                 "Run: python manage.py train_pcrs_model"
             )
-        self.model   = joblib.load(MODEL_PATH)
-        self.scaler  = joblib.load(SCALER_PATH)
+        self.model   = joblib.load(model_path)
+        self.scaler  = joblib.load(scaler_path)
+        self.artifact_sha256 = hashlib.sha256(model_path.read_bytes()).hexdigest()
+        self.model_version = self.metadata.get("model_version", MODEL_VERSION)
+        if self.model.n_features_in_ != len(FeatureEngineeringPipeline().all_feature_cols):
+            raise ValueError("PCRS model input dimension does not match the feature pipeline")
 
         from sklearn.preprocessing import MinMaxScaler
         self.pipeline = FeatureEngineeringPipeline(scaler=self.scaler)
         self.pipeline._fitted = True
 
         self._explainer = shap.TreeExplainer(self.model)
-        logger.info("PCRSPredictor loaded model version %s", MODEL_VERSION)
+        logger.info("PCRSPredictor loaded model version %s", self.model_version)
 
     def predict(self, bond_pk: int) -> dict:
         """
@@ -240,6 +306,8 @@ class PCRSPredictor:
 
         # Predict
         raw_score = float(self.model.predict(X)[0])
+        if not np.isfinite(raw_score):
+            raise ValueError("PCRS model produced a non-finite prediction")
         score     = max(0.0, min(100.0, raw_score))
 
         # SHAP
@@ -253,17 +321,31 @@ class PCRSPredictor:
         flood_shap   = shap_dict.get("flood_risk_index", 0.0)
         heat_shap    = shap_dict.get("heat_stress_index", 0.0)
         drought_shap = shap_dict.get("drought_severity", 0.0)
+        from risk_scoring.geography import coastline_status
+
+        feature_metadata = {
+            "features": self.pipeline.feature_values_[bond_pk],
+            "provenance": self.pipeline.input_provenance_[bond_pk],
+            "coastline": coastline_status(),
+            "base_value": float(np.asarray(self._explainer.expected_value).reshape(-1)[0]),
+            "raw_score": raw_score,
+            "clipping_adjustment": score - raw_score,
+            "target_kind": "hazard_derived_proxy",
+            "artifact_status": "manifest_checked" if self.metadata else "legacy_unverified",
+            "model_sha256": self.artifact_sha256,
+        }
 
         # Persist to DB (update latest score for this bond)
         score_obj, _ = PCRScore.objects.update_or_create(
             bond=bond,
-            model_version=MODEL_VERSION,
+            model_version=self.model_version,
             defaults={
                 "score":                round(score, 2),
                 "flood_contribution":   round(flood_shap, 4),
                 "heat_contribution":    round(heat_shap, 4),
                 "drought_contribution": round(drought_shap, 4),
                 "shap_values":          shap_dict,
+                "feature_metadata":     feature_metadata,
             },
         )
 
@@ -284,7 +366,8 @@ class PCRSPredictor:
             "flood_contribution":   round(flood_shap, 4),
             "heat_contribution":    round(heat_shap, 4),
             "drought_contribution": round(drought_shap, 4),
-            "model_version":        MODEL_VERSION,
+            "model_version":        self.model_version,
+            "feature_metadata":     feature_metadata,
         }
 
     def predict_batch(self, bond_pks: list[int]) -> list[dict]:

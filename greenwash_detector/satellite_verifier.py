@@ -62,6 +62,7 @@ def _init_ee():
         return None
 
     token = os.getenv("EARTHENGINE_TOKEN")
+    project = os.getenv("EE_PROJECT_ID", "").strip() or GEE_PROJECT
 
     if token:
         # ── Render / production: use service-account JSON from env var ──────
@@ -71,28 +72,27 @@ def _init_ee():
                 info,
                 scopes=["https://www.googleapis.com/auth/earthengine"],
             )
-            ee.Initialize(credentials, project=info.get("project_id", GEE_PROJECT))
+            ee.Initialize(credentials, project=project)
             logger.info("GEE initialised via EARTHENGINE_TOKEN service account")
             return ee
         except Exception as exc:
             logger.warning("GEE service-account init failed (%s) — synthetic NDVI will be used", exc)
             return None
     else:
-        # ── Local dev: try existing credentials / interactive auth ───────────
+        # ── Local credentials or configured service account ────────────────
         try:
-            ee.Initialize(project=GEE_PROJECT)
-            logger.info("GEE initialised (local credentials, project=%s)", GEE_PROJECT)
+            account = os.getenv("EE_SERVICE_ACCOUNT", "").strip()
+            key_file = os.getenv("EE_PRIVATE_KEY_FILE", "").strip()
+            if account and key_file:
+                credentials = ee.ServiceAccountCredentials(account, key_file)
+                ee.Initialize(credentials, project=project)
+            else:
+                ee.Initialize(project=project)
+            logger.info("GEE initialised (configured credentials, project=%s)", project)
             return ee
         except ee.EEException:
-            try:
-                logger.info("GEE credentials absent — running ee.Authenticate() for local dev")
-                ee.Authenticate()
-                ee.Initialize(project=GEE_PROJECT)
-                logger.info("GEE initialised after local authentication")
-                return ee
-            except Exception as exc:
-                logger.warning("GEE local auth failed (%s) — synthetic NDVI will be used", exc)
-                return None
+            logger.warning("GEE credentials unavailable. Authenticate explicitly outside web requests; satellite evidence remains unavailable.")
+            return None
         except Exception as exc:
             logger.warning("GEE initialisation failed (%s) — synthetic NDVI will be used", exc)
             return None
@@ -133,14 +133,17 @@ def _write_cache(path: Path, data: dict) -> None:
 
 
 def _getinfo_with_timeout(ee_obj, timeout: float = GEE_TIMEOUT):
-    """Wrap GEE .getInfo() with a thread-pool timeout (Windows-safe)."""
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        future = pool.submit(ee_obj.getInfo)
-        try:
-            return future.result(timeout=timeout)
-        except TimeoutError:
-            logger.warning("GEE .getInfo() timed out after %.1fs", timeout)
-            raise
+    """Evaluate a GEE object or callable without waiting again after a timeout."""
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        operation = ee_obj if callable(ee_obj) else ee_obj.getInfo
+        future = pool.submit(operation)
+        return future.result(timeout=timeout)
+    except TimeoutError:
+        logger.warning("GEE operation timed out after %.1fs", timeout)
+        raise
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def get_dynamic_radius(project_category: str) -> float:
@@ -328,7 +331,7 @@ class SatelliteVerifier:
                 if int(_getinfo_with_timeout(col.size())) == 0:
                     return ""
                 median_img = col.median().clip(roi)
-                return _getinfo_with_timeout(median_img.getThumbURL({
+                return _getinfo_with_timeout(lambda: median_img.getThumbURL({
                     "min": 0, "max": 3000, 
                     "bands": ["B4", "B3", "B2"], 
                     "dimensions": 500,
@@ -413,7 +416,7 @@ class SatelliteVerifier:
                     )
                     return None
                 composite = col.median().clip(region)
-                url = _getinfo_with_timeout(composite.getThumbURL(thumb_params))
+                url = _getinfo_with_timeout(lambda: composite.getThumbURL(thumb_params))
                 return url if url else None
 
             before_url = _thumb(b_start, b_end)
@@ -474,7 +477,7 @@ class SatelliteVerifier:
         Return the dominant ESA WorldCover 10 m land cover class at a location.
 
         Uses ESA/WorldCover/v200 (2021 map) from GEE.
-        Falls back to a latitude-based heuristic when GEE is unavailable.
+        Returns unknown when GEE land-cover observations are unavailable.
 
         Returns one of: forest, shrubland, grassland, cropland, built-up,
                         bare, water, wetland, mangrove, snow_ice, unknown.
@@ -483,7 +486,7 @@ class SatelliteVerifier:
             result = self._gee_worldcover(lat, lon)
             if result is not None:
                 return result
-        return self._heuristic_land_use(lat)
+        return "unknown"
 
     def _gee_worldcover(self, lat: float, lon: float) -> Optional[str]:
         cache = _read_cache(_cache_path("wc", lat, lon))
@@ -582,7 +585,7 @@ class SatelliteVerifier:
                     ndvi = ndvi_val.get("NDVI")
                     
                     # Generate thumbnail URL
-                    thumb_url = _getinfo_with_timeout(composite.clip(roi).getThumbURL({
+                    thumb_url = _getinfo_with_timeout(lambda: composite.clip(roi).getThumbURL({
                         "min": 0, "max": 3000, 
                         "bands": ["B4", "B3", "B2"], 
                         "dimensions": 500,

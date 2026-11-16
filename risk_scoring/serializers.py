@@ -27,7 +27,7 @@ class PCRScoreSerializer(serializers.ModelSerializer):
             "risk_label", "confidence_interval", "main_risk_driver",
             "why_risky", "shap_factors",
             "flood_contribution", "heat_contribution", "drought_contribution",
-            "model_version", "scored_at", "shap_values",
+            "model_version", "scored_at", "shap_values", "feature_metadata",
         ]
 
     def get_why_risky(self, obj):

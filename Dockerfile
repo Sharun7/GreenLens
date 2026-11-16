@@ -23,6 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN python -c "from risk_scoring.geography import download_coastline; download_coastline()"
+
 EXPOSE 8000
 
 # Run migrations, collect static, then start gunicorn.

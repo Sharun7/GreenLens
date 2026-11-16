@@ -72,6 +72,10 @@ class PCRScore(models.Model):
         blank=True,
         help_text="Full SHAP values dict for all features",
     )
+    feature_metadata = models.JSONField(
+        default=dict, blank=True,
+        help_text="Input values, provenance, SHAP baseline and artifact status for this prediction",
+    )
 
     class Meta:
         ordering = ["-scored_at"]

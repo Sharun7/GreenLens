@@ -714,12 +714,12 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollWheelZoom: true,
     });
 
-    // Google Satellite Hybrid Tiles — free, high resolution, no key required
     L.tileLayer(
-        'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         {
-            attribution: 'Map data &copy; Google',
-            maxZoom: 21,
+            attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics',
+            maxNativeZoom: 18,
+            maxZoom: 20,
         }
     ).addTo(map);
 

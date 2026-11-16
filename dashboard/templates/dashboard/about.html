@@ -155,26 +155,39 @@
         <h2>⚡ How It Works</h2>
         <div class="how-it-works" id="how-it-works">
             <div class="how-step" style="transition-delay: 0s;">
-                <div class="how-step-icon">🛰️</div>
+                <div class="how-step-icon"><i class="bi bi-globe-americas" aria-hidden="true"></i></div>
                 <h6>Satellite Scan</h6>
-                <p>We look from space. ESA Sentinel-2 imagery verifies what's actually on the ground.</p>
+                <span class="workflow-status">{{ workflow.satellite.label }}</span>
+                <p>Sentinel-2 NDVI and available CNN imagery screen land-cover claims. Missing data stays unverifiable.</p>
+                <p class="workflow-count">{{ workflow.satellite.observed_count }} / {{ workflow.total_bonds }} records with real satellite evidence</p>
+                <a href="{% url 'dashboard:resources' %}">Explore available acquisitions <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
             </div>
             <div class="how-step" style="transition-delay: 0.3s;">
-                <div class="how-step-icon">🤖</div>
+                <div class="how-step-icon"><i class="bi bi-cpu" aria-hidden="true"></i></div>
                 <h6>AI Risk Score</h6>
-                <p>XGBoost calculates a Physical Climate Risk Score (0–100) from 20+ features.</p>
+                <span class="workflow-status">{{ workflow.risk.label }}</span>
+                <p>XGBoost estimates PCRS (0–100) using {{ workflow.risk.feature_count }} features and SHAP. Targets are hazard-derived proxies, not observed losses.</p>
+                <p class="workflow-count">{{ workflow.risk.non_demo_count }} non-demo scores &middot; {{ workflow.risk.demo_count }} demo estimates</p>
+                <a href="{% url 'dashboard:model_trust' %}">Inspect model evidence <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
             </div>
             <div class="how-step" style="transition-delay: 0.6s;">
-                <div class="how-step-icon">💰</div>
+                <div class="how-step-icon"><i class="bi bi-graph-up" aria-hidden="true"></i></div>
                 <h6>Price Check</h6>
-                <p>Compare bond yield spread to our model's predicted fair value.</p>
+                <span class="workflow-status">{{ workflow.pricing.label }}</span>
+                <p>Compare estimated credit spreads with trained regression. These are not observed bond-market yields.</p>
+                <p class="workflow-count">{{ workflow.pricing.stored_count }} records with stored spread estimates</p>
+                <a href="{% url 'dashboard:pricing_analysis' %}">Inspect pricing gaps <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
             </div>
             <div class="how-step" style="transition-delay: 0.9s;">
-                <div class="how-step-icon">🚨</div>
+                <div class="how-step-icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></div>
                 <h6>Alert</h6>
-                <p>Flag any inconsistency — mispriced bonds or greenwashing claims.</p>
+                <span class="workflow-status">{{ workflow.alerts.label }}</span>
+                <p>Review saved pricing anomalies and observed satellite conflicts. These are review signals, not forecasts or proof of greenwashing.</p>
+                <p class="workflow-count">{{ workflow.alerts.review_count }} current review signals (up to 10 shown)</p>
+                <a href="{% url 'dashboard:api_alerts' %}">Inspect stored review signals <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
             </div>
         </div>
+        <p class="workflow-automation" role="status">{{ workflow.automation_note }}</p>
     </div>
 
     <!-- Overview -->
@@ -194,120 +207,7 @@
     </div>
 
     <!-- PCRS Model Parameters -->
-    <div class="content-section">
-        <h2>🤖 PCRS Model — All Parameters & Features</h2>
-        <p>The Physical Climate Risk Score (0–100) is computed by an <strong style="color:#e6edf3;">XGBoost ensemble model</strong> trained on <strong style="color:#e6edf3;">20 features</strong> across 4 categories:</p>
-
-        <div class="row g-3 mt-2">
-            <!-- Primary Hazard Inputs -->
-            <div class="col-md-6">
-                <div style="background:#0d1117; border:1px solid #1D9E75; border-radius:8px; padding:1.25rem;">
-                    <h6 style="color:#1D9E75; margin-bottom:0.75rem;">🌊 Primary Hazard Inputs (World Bank API)</h6>
-                    <ul style="color:#8b949e; font-size:0.875rem; margin:0; padding-left:1.2rem;">
-                        <li><strong style="color:#c9d1d9;">Flood Risk Index</strong> — normalised 0–1 per project GPS coordinate</li>
-                        <li><strong style="color:#c9d1d9;">Heat Stress Index</strong> — normalised 0–1 per GPS coordinate</li>
-                        <li><strong style="color:#c9d1d9;">Drought Severity (SPEI)</strong> — Standardised Precipitation-Evapotranspiration Index</li>
-                    </ul>
-                </div>
-            </div>
-            <!-- Extended Risk Inputs -->
-            <div class="col-md-6">
-                <div style="background:#0d1117; border:1px solid #EF9F27; border-radius:8px; padding:1.25rem;">
-                    <h6 style="color:#EF9F27; margin-bottom:0.75rem;">🌍 Extended Risk Inputs (Multi-source)</h6>
-                    <ul style="color:#8b949e; font-size:0.875rem; margin:0; padding-left:1.2rem;">
-                        <li><strong style="color:#c9d1d9;">Carbon Intensity Score</strong> — EDGAR v8.0 CO₂ per GDP (60+ countries)</li>
-                        <li><strong style="color:#c9d1d9;">Policy Risk Score</strong> — World Bank Governance Indicators (Rule of Law + Gov. Effectiveness)</li>
-                        <li><strong style="color:#c9d1d9;">Transition Risk Score</strong> — Climate Action Tracker NDC + IEA fossil fuel dependency</li>
-                    </ul>
-                </div>
-            </div>
-            <!-- Derived/Engineered Features -->
-            <div class="col-md-6">
-                <div style="background:#0d1117; border:1px solid #a5b4fc; border-radius:8px; padding:1.25rem;">
-                    <h6 style="color:#a5b4fc; margin-bottom:0.75rem;">⚙️ Derived / Engineered Features</h6>
-                    <ul style="color:#8b949e; font-size:0.875rem; margin:0; padding-left:1.2rem;">
-                        <li><strong style="color:#c9d1d9;">Composite Hazard</strong> = Flood×0.40 + Heat×0.35 + Drought×0.25</li>
-                        <li><strong style="color:#c9d1d9;">Maturity Exposure</strong> = log(maturity_years) × composite_hazard</li>
-                        <li><strong style="color:#c9d1d9;">Hazard × Vulnerability</strong> = composite_hazard × category_vulnerability</li>
-                        <li><strong style="color:#c9d1d9;">Coastal Flood Interaction</strong> = is_coastal × flood_risk_index</li>
-                        <li><strong style="color:#c9d1d9;">Climate Trend</strong> — IPCC AR6 ordinal (1=low warming, 5=very high)</li>
-                        <li><strong style="color:#c9d1d9;">Is Coastal</strong> — proximity to coastline within 200km</li>
-                    </ul>
-                </div>
-            </div>
-            <!-- Bond Characteristics -->
-            <div class="col-md-6">
-                <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1.25rem;">
-                    <h6 style="color:#c9d1d9; margin-bottom:0.75rem;">📋 Bond Characteristics + Output</h6>
-                    <ul style="color:#8b949e; font-size:0.875rem; margin:0; padding-left:1.2rem;">
-                        <li><strong style="color:#c9d1d9;">Project Category</strong> — Solar, Wind, Water, Transport, Building, Reforestation (one-hot encoded)</li>
-                        <li><strong style="color:#c9d1d9;">Category Vulnerability</strong> — per-category base risk (Water: 0.70, Transport: 0.60...)</li>
-                        <li><strong style="color:#c9d1d9;">Bond Maturity Years</strong> — longer maturity = higher cumulative climate exposure</li>
-                        <li style="margin-top:0.5rem;"><strong style="color:#1D9E75;">OUTPUT: PCRS Score 0–100</strong> with SHAP decomposition per feature</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- Risk Coverage Table -->
-        <h3 class="mt-4">📊 Risk Coverage — Strength Assessment</h3>
-        <div class="table-responsive mt-2">
-            <table class="table" style="color:#c9d1d9; border-color:#30363d;">
-                <thead style="background:#0d1117;">
-                    <tr style="color:#8b949e; font-size:0.8rem; text-transform:uppercase;">
-                        <th style="border-color:#30363d;">Risk Dimension</th>
-                        <th style="border-color:#30363d;">Coverage</th>
-                        <th style="border-color:#30363d;">Source</th>
-                        <th style="border-color:#30363d; text-align:center;">Strength</th>
-                    </tr>
-                </thead>
-                <tbody style="font-size:0.875rem;">
-                    <tr style="border-color:#30363d;">
-                        <td style="border-color:#30363d;">Physical Climate Risk (Flood/Heat/Drought)</td>
-                        <td style="border-color:#30363d;">All 1,345 bonds</td>
-                        <td style="border-color:#30363d;">World Bank API + NASA</td>
-                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
-                    </tr>
-                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
-                        <td style="border-color:#30363d;">Carbon Emission Risk</td>
-                        <td style="border-color:#30363d;">60+ countries</td>
-                        <td style="border-color:#30363d;">EDGAR v8.0 CO₂ Intensity</td>
-                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
-                    </tr>
-                    <tr style="border-color:#30363d;">
-                        <td style="border-color:#30363d;">Country / Governance Risk</td>
-                        <td style="border-color:#30363d;">All bond countries</td>
-                        <td style="border-color:#30363d;">World Bank Governance Indicators</td>
-                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
-                    </tr>
-                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
-                        <td style="border-color:#30363d;">Policy Risk</td>
-                        <td style="border-color:#30363d;">All bond countries</td>
-                        <td style="border-color:#30363d;">World Bank Rule of Law Index</td>
-                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
-                    </tr>
-                    <tr style="border-color:#30363d;">
-                        <td style="border-color:#30363d;">Transition Risk</td>
-                        <td style="border-color:#30363d;">All bond countries</td>
-                        <td style="border-color:#30363d;">Climate Action Tracker + IEA NDC</td>
-                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
-                    </tr>
-                    <tr style="border-color:#30363d; background:rgba(255,255,255,0.02);">
-                        <td style="border-color:#30363d;">Financial Performance</td>
-                        <td style="border-color:#30363d;">1,345 bonds</td>
-                        <td style="border-color:#30363d;">Yahoo Finance (Live) + PCRS-predicted spread</td>
-                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
-                    </tr>
-                    <tr style="border-color:#30363d;">
-                        <td style="border-color:#30363d;">Greenwash / Satellite Verification</td>
-                        <td style="border-color:#30363d;">Post-2015 bonds</td>
-                        <td style="border-color:#30363d;">ESA Sentinel-2 + ResNet-18 CNN</td>
-                        <td style="border-color:#30363d; text-align:center;"><span style="color:#1D9E75; font-weight:600;">✅ Strong</span></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    {% include "dashboard/pcrs_parameters.html" %}
 
     <!-- Differentiation — Full Competitor Analysis -->
     <div class="content-section">

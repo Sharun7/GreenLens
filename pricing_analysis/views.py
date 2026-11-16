@@ -31,7 +31,7 @@ from data_ingestion.models import GreenBond
 from .models import PricingGap
 from .serializers import PricingGapSerializer
 from .pricing_fetcher import BondPricingFetcher
-from .tasks import _detect_currency, _predicted_spread_from_pcr
+from .tasks import refresh_bond_pricing
 
 logger = logging.getLogger("greenlens.pricing_views")
 
@@ -60,29 +60,7 @@ def _compute_gap_for_bond(bond, fetcher: BondPricingFetcher):
     Returns (PricingGap, error_str_or_None).
     """
     try:
-        maturity_years = float(bond.bond_maturity_years or 7)
-        currency = _detect_currency(bond.country)
-
-        actual_spread = None
-        is_live = False
-
-        if bond.bond_id:
-            actual_spread = fetcher.get_yield_spread(bond.bond_id, maturity_years, currency)
-            if actual_spread is not None:
-                is_live = True
-
-        if actual_spread is None:
-            actual_spread = fetcher.get_synthetic_spread(
-                "BBB", maturity_years, bond.country or ""
-            )
-
-        predicted_spread = _predicted_spread_from_pcr(bond, maturity_years)
-        gap = fetcher.save_pricing_gap(
-            bond=bond,
-            actual_spread_bps=actual_spread,
-            predicted_spread_bps=predicted_spread,
-            is_live=is_live,
-        )
+        gap = refresh_bond_pricing(bond, fetcher)
         return gap, None
     except Exception as exc:
         logger.error("gap compute error bond %s: %s", bond.pk, exc, exc_info=True)

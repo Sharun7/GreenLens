@@ -17,6 +17,95 @@ GreenLens is an AI-powered climate intelligence platform that independently veri
 
 ## Project Verification
 
+### PCRS Parameters And Feature Audit
+
+`/about/#pcrs-model-parameters` is generated from the actual 20-input schema:
+three hazard features, three extended country-context features, seven derived
+features, and seven one-hot categories. Maturity and raw SPEI are transformed
+inputs, not additional model columns. The section reports current source
+availability and shows an actual saved input/SHAP snapshot when one exists.
+
+`/api/pcrs/features/` returns the same catalog and coverage audit. Append
+`?bond_id=YOUR_BOND_ID` to inspect that bond's saved inputs, source/fallback
+status, coordinates, model fingerprint, raw score, SHAP baseline and clipping
+adjustment. Older score rows retain an empty metadata object; no audit history
+is fabricated for them.
+
+Pipeline safeguards include real ISO3 resolution, country-specific extended
+fallbacks, preserved recorded zeros, finite/domain validation, bounded drought
+severity, and exact one-hot category encoding. Missing coordinates and invalid
+maturity are not replaced by zero coordinates or a seven-year maturity.
+
+Prepare Natural Earth's public 1:50m coastline archive once for geometry-based
+200 km coastal features. The small archive is cached under `data/cache/`; it
+is never downloaded during a page request. Without it, the explicitly labelled
+legacy reference-point approximation remains available. The generalized map
+is not a site boundary, floodplain, or guarantee of coastal protection. Docker
+and the build script prepare the data before serving the app.
+
+New training splits by country before preprocessing and fits the scaler on
+training rows only. Country sample sizes need not be exactly 70/15/15. At least
+20 rows and four country groups are required. Artifacts go to `models/pcrs_v2/`
+as `model.pkl`, `scaler.pkl`, and `metadata.json`. The manifest records actual
+hyperparameters, split countries, sample counts, source status, proxy-fit
+metrics, mean held-out absolute SHAP values, and file checksums. The predictor
+prefers a complete v2 manifest, rejects checksum/schema/preprocessing mismatches,
+and identifies older artifacts as unverified legacy artifacts.
+
+**Scientific boundary:** the target is still `100 * composite_hazard`, and that
+composite is itself an input feature. A high proxy-fit R-squared is not evidence
+that the model predicts real floods, losses, defaults, or independent effects
+of carbon/governance/transition context. The embedded country tables and climate
+ordinals are not verified live EDGAR, CAT, IEA, or CMIP6 feeds. This implementation
+does not claim otherwise. Actual future validation needs sourced observations,
+precise project locations, and independent outcome labels.
+
+Windows PowerShell, from the updated project directory:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:SECRET_KEY = "local-development-only"
+.\.venv\Scripts\python.exe manage.py migrate --settings=greenlens.sqlite_settings
+.\.venv\Scripts\python.exe manage.py prepare_pcrs_geography --settings=greenlens.sqlite_settings
+.\.venv\Scripts\python.exe -m pytest tests/test_pcrs_model.py -q --ds=greenlens.sqlite_settings
+```
+
+For an explicitly labelled local research run on the current demo hazards:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py train_pcrs_model --allow-demo --no-plot --settings=greenlens.sqlite_settings
+.\.venv\Scripts\python.exe manage.py batch_score_bonds --only-missing --settings=greenlens.sqlite_settings
+```
+
+Omit `--allow-demo` when training on non-demo inputs. This is a guard against
+known demo data, not certification of other inputs. Batch resume is per model
+version, so bootstrap or older versions do not prevent new inference. New
+scores preserve demo-input labels even when XGBoost computed them. Training
+outputs and local databases are not automatically published to Railway; deploy
+the complete audited artifact set and compatible database migration together.
+
+### How It Works: Runtime Status
+
+The four-step section on `/about/` now reports the current database state;
+`/api/workflow/status/` exposes the same counts. It distinguishes stored
+satellite observations from missing evidence and bootstrap estimates from
+non-bootstrap scores. Counts use the latest record per bond.
+
+The alert endpoint no longer invents random weather warnings or PCRS increases.
+`/api/alerts/` returns only current saved pricing-review signals (explicitly
+estimated) and satellite inconsistencies with genuine GEE provenance. No NOAA/IMD
+weather forecast feed, email delivery, or automatic scheduler is claimed.
+
+Optical thumbnail generation now evaluates the URL-producing call correctly;
+missing land cover stays unknown rather than becoming a latitude-based guess.
+GEE login is never launched interactively by this workflow. Configure authorized
+GEE credentials separately: an Earthdata token does not grant GEE access.
+
+Single-bond, API, and bulk pricing refreshes now share the supported estimator
+and fitted pricing regression. A live risk-free benchmark does not turn an
+estimated credit spread into an observed bond yield. Missing risk scores or an
+unfitted regression produce an error rather than a fabricated prediction.
+
 Repository review on 2026-11-15 found the main application modules implemented,
 but the completion checklist should not be interpreted as independent validation
 of the underlying financial or satellite results.
@@ -170,6 +259,45 @@ SECRET_KEY=local-test-only pytest tests/test_sar_verifier.py -q --ds=greenlens.s
 ```
 
 ## 🛠️ Tech Stack
+
+### Maps And Official Resource Discovery
+
+The dashboard, location-verification view, and bond-site maps use Esri World
+Imagery with attribution. The homepage defaults to satellite imagery and falls
+back to OpenStreetMap when satellite tiles fail. Neither basemap requires an
+Earthdata token or a client-side map API key in this configuration. These are
+third-party basemaps, not NASA observations or dated evidence for a bond project;
+provider terms, availability, and imagery age still apply.
+
+The shared interface uses translucent glass surfaces with opaque fallbacks,
+keyboard focus states, reduced-motion support, and a mobile map-first layout.
+The active bond template now shows stored optical images when available and
+explicit placeholders otherwise. Missing satellite evidence is not labelled as
+a successful verification.
+
+Visit `/resources/` for user-initiated ASF acquisition discovery, optional browse
+previews, and CSV metadata export. The client queries `NISAR-SCIENCE-PRODUCTS`
+(not the broader catalog that also includes ancillary weather files) and
+Sentinel-1 at the requested coordinates. It returns at most six granules per
+dataset, caches successful queries for 15 minutes and failures for one minute,
+and uses bounded HTTP timeouts. It does not download or process raw SAR products.
+No heavy GEE processing runs for this search.
+
+Public catalog queries work without credentials. If `EARTHDATA_TOKEN` is set,
+the ASF session sends it server-side only; it is not rendered into templates,
+cached in results, or placed in browser URLs. Replace any exposed token before
+configuring it. A search failure means coverage is unknown, not that no NISAR
+observations exist. A granule footprint is not a project or flood verification.
+
+The resource directory links to NASA Earthdata, ASF, NISAR guides, Giovanni,
+AppEEARS, GES DISC hydrology, NOAA, ARSET, UAVSAR, KNMI, CSA, and CONAE. Those
+external tools have distinct access workflows and data-use conditions; listing
+them does not mean they are all integrated. NASA does not endorse GreenLens.
+
+```bash
+pip install -r requirements.txt
+SECRET_KEY=local-test-only pytest tests/test_asf_search_client.py -q --ds=greenlens.sqlite_settings
+```
 
 Django 5 · PostgreSQL + PostGIS · XGBoost · PyTorch  
 Google Earth Engine · World Bank API · Yahoo Finance · Leaflet.js

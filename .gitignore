@@ -16,6 +16,7 @@ test_ee.py
 # Trained ML models (large files)
 models/*.pkl
 models/*.pt
+models/pcrs_v2/
 ai_features/trained_mlp_model.pkl
 
 # Python cache

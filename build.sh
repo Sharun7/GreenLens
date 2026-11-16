@@ -5,6 +5,9 @@ echo "Installing dependencies..."
 pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 
+echo "Preparing offline PCRS coastline data..."
+python manage.py prepare_pcrs_geography
+
 echo "Running migrations..."
 python manage.py migrate
 

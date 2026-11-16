@@ -11,7 +11,7 @@ Usage:
 """
 import logging
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 logger = logging.getLogger("greenlens.batch_score_bonds")
 
@@ -30,7 +30,7 @@ class Command(BaseCommand):
             "--only-missing",
             action="store_true",
             default=False,
-            help="Skip bonds that already have a PCRScore record.",
+            help="Skip bonds that already have a score for the active model version.",
         )
 
     def handle(self, *args, **options):
@@ -40,19 +40,21 @@ class Command(BaseCommand):
 
         try:
             predictor = PCRSPredictor()
-        except FileNotFoundError as exc:
-            self.stderr.write(self.style.ERROR(str(exc)))
-            self.stderr.write("Run: python manage.py train_pcrs_model")
-            return
+        except (FileNotFoundError, ValueError) as exc:
+            raise CommandError(str(exc)) from None
 
         qs = GreenBond.objects.all().order_by("pk")
 
         if options["only_missing"]:
-            scored_pks = set(PCRScore.objects.values_list("bond_id", flat=True))
+            scored_pks = set(PCRScore.objects.filter(
+                model_version=predictor.model_version,
+            ).values_list("bond_id", flat=True))
             qs = qs.exclude(pk__in=scored_pks)
             self.stdout.write(f"Skipping {len(scored_pks)} already-scored bonds.")
 
-        if options["limit"]:
+        if options["limit"] is not None:
+            if options["limit"] < 0:
+                raise CommandError("--limit must be non-negative")
             qs = qs[: options["limit"]]
 
         total = qs.count()

@@ -6,6 +6,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from . import resource_views
 
 app_name = "dashboard"
 
@@ -27,6 +28,7 @@ urlpatterns = [
     path("", views.index, name="index"),
     path("bond/<str:bond_id>/", views.bond_detail, name="bond_detail"),
     path("verify/", views.location_verify, name="verify"),
+    path("resources/", resource_views.resources, name="resources"),
     path("pricing/", views.pricing_analysis, name="pricing_analysis"),
     path("portfolio/", views.portfolio_optimizer, name="portfolio"),
     path("about/", views.about, name="about"),
@@ -42,6 +44,8 @@ urlpatterns = [
     
     # API endpoints
     path("api/alerts/", views.live_alerts_api, name="api_alerts"),
+    path("api/workflow/status/", views.workflow_status_api, name="api_workflow_status"),
+    path("api/pcrs/features/", views.pcrs_features_api, name="api_pcrs_features"),
     path("api/data-reliability/", views.data_reliability_api, name="api_data_reliability"),
     path("api/model-depth/", views.model_depth_api, name="api_model_depth"),
     path("api/dashboard/stats/", views.dashboard_stats, name="stats"),

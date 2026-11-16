@@ -1,0 +1,71 @@
+<section class="content-section" id="pcrs-model-parameters" aria-labelledby="pcrs-parameters-title">
+    <h2 id="pcrs-parameters-title"><i class="bi bi-cpu me-2" aria-hidden="true"></i>PCRS Model - All Parameters &amp; Features</h2>
+    <p>XGBoost estimates a score from 0 to 100 using <strong>{{ pcrs_audit.feature_count }} model inputs: 13 numeric features and 7 category indicators</strong>. Raw maturity and SPEI are transformed before entering the model.</p>
+    <div class="pcrs-status-line">
+        <span>{{ pcrs_audit.precise_locations }} / {{ pcrs_audit.total_bonds }} records with precise locations</span>
+        <span>{{ pcrs_audit.coastline.method }}</span>
+        <a href="{% url 'dashboard:api_pcrs_features' %}"><i class="bi bi-code-slash me-1" aria-hidden="true"></i>Feature audit API</a>
+    </div>
+    <div class="pcrs-feature-grid">
+        {% for group in pcrs_audit.groups %}
+        <article class="pcrs-feature-group">
+            <h3>{{ group.title }} <span>{{ group.features|length }} inputs</span></h3>
+            <dl>
+                {% for feature in group.features %}
+                <div class="pcrs-feature-row">
+                    <dt>{{ feature.label }} <code>{{ feature.name }}</code></dt>
+                    <dd>{{ feature.definition }}<small>{{ feature.variation }}{% if feature.mean_abs_shap != None %} &middot; Mean |SHAP|: {{ feature.mean_abs_shap|floatformat:3 }}{% endif %}</small></dd>
+                </div>
+                {% endfor %}
+            </dl>
+        </article>
+        {% endfor %}
+    </div>
+    <p class="resource-note">Category vulnerability coefficients: {% for category, coefficient in pcrs_audit.assumptions.category_vulnerability.items %}<code>{{ category }}={{ coefficient }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}. These are configured research assumptions, not observed probabilities.</p>
+    {% if pcrs_audit.sample %}
+    <details class="pcrs-sample">
+        <summary>Saved prediction: {{ pcrs_audit.sample.bond_id }} &middot; score {{ pcrs_audit.sample.score|floatformat:2 }} &middot; input status: {{ pcrs_audit.sample.primary_status }}</summary>
+        <p class="resource-note">Model {{ pcrs_audit.sample.model_version }} &middot; SHAP base {{ pcrs_audit.sample.base_value|floatformat:4 }} &middot; raw score {{ pcrs_audit.sample.raw_score|floatformat:4 }}. Values below are the actual saved inputs, not live observations.</p>
+        <div class="table-responsive">
+            <table class="table">
+                <thead><tr><th>Feature</th><th>Saved input</th><th>SHAP contribution</th></tr></thead>
+                <tbody>{% for row in pcrs_audit.sample.rows %}<tr><td>{{ row.label }} <code>{{ row.name }}</code></td><td>{{ row.value|floatformat:4 }}</td><td>{{ row.shap|floatformat:4 }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+        <a href="{% url 'dashboard:api_pcrs_features' %}?bond_id={{ pcrs_audit.sample.bond_id|urlencode }}">Full input and provenance audit <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+    </details>
+    {% endif %}
+    <h3 class="h6 mt-4">Risk Coverage - Measured Availability</h3>
+    <p class="resource-note">Stored values and country-table entries are not evidence of accuracy, live access, or independent source validation. Governance and policy share one context feature.</p>
+    <div class="table-responsive">
+        <table class="table pcrs-coverage-table">
+            <thead><tr><th>Dimension</th><th>Available / total</th><th>Input basis</th><th>Evidence assessment</th></tr></thead>
+            <tbody>
+                {% for row in pcrs_audit.coverage %}
+                <tr><td>{{ row.dimension }}</td><td>{{ row.available }} / {{ pcrs_audit.total_bonds }}</td><td>{{ row.basis }}</td><td>{{ row.assessment }}</td></tr>
+                {% endfor %}
+                <tr><td>Financial spread analysis</td><td>{{ workflow.pricing.stored_count }} / {{ pcrs_audit.total_bonds }}</td><td>Estimated spreads and regression</td><td>Observed bond-market yields are not connected</td></tr>
+                <tr><td>Satellite evidence</td><td>{{ workflow.satellite.observed_count }} / {{ pcrs_audit.total_bonds }}</td><td>Stored genuine GEE observations only</td><td>{{ workflow.satellite.label }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="pcrs-training-summary">
+        <h3 class="h6">Training And Explanation Audit</h3>
+        <p>{{ pcrs_audit.model.message }}</p>
+        {% if pcrs_audit.model.status == 'manifest_checked' %}
+        <div class="pcrs-status-line">
+            <span>Model {{ pcrs_audit.model.model_version }}</span>
+            <span>Train {{ pcrs_audit.model.n_train }} / validation {{ pcrs_audit.model.n_val }} / test {{ pcrs_audit.model.n_test }}</span>
+            <span>Country-held-out proxy fit: R&sup2; {{ pcrs_audit.model.r2 }} / RMSE {{ pcrs_audit.model.rmse }} / MAE {{ pcrs_audit.model.mae }}</span>
+        </div>
+        {% if pcrs_audit.model.hyperparameters %}
+        <details class="pcrs-sample">
+            <summary>Trained model hyperparameters</summary>
+            <dl class="pcrs-hyperparameters">{% for name, value in pcrs_audit.model.hyperparameters.items %}<div><dt>{{ name }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+        </details>
+        {% endif %}
+        {% endif %}
+        <p><strong>Target: {{ pcrs_audit.target_formula }}.</strong> {{ pcrs_audit.limitation }}</p>
+        <p>SHAP contributions are learned explanations, not the fixed 40/35/25 target weights. The base value plus all contributions reconstructs the raw prediction; any 0-100 clipping is recorded separately. Extended context can have zero contribution.</p>
+    </div>
+</section>

@@ -241,6 +241,7 @@ class GreenwashDetector:
             land_use  = self._verifier.classify_land_use(
                 float(bond.lat), float(bond.lon), issue_dt.isoformat()
             )
+            land_use = {"built-up": "urban", "bare": "bare_soil"}.get(land_use, land_use)
 
             return NDVIResult(
                 pre_ndvi=pre_ndvi,
@@ -251,6 +252,7 @@ class GreenwashDetector:
                 land_use=land_use,
                 source="gee",
                 raw_metadata={
+                    "source": "gee",
                     "pre_ndvi":       pre_ndvi,
                     "post_ndvi":      post_ndvi,
                     "roi_buffer_m":   int(dynamic_radius * 1000),
@@ -376,7 +378,7 @@ class GreenwashDetector:
 
         # Rule 3: Land use inconsistent with expected land-use types
         expected = rules["land_use_expected"]
-        if expected and ndvi.land_use not in expected:
+        if expected and ndvi.land_use != "unknown" and ndvi.land_use not in expected:
             reasons.append(
                 f"Observed land use '{ndvi.land_use}' not expected for {category} "
                 f"(expected: {expected})"

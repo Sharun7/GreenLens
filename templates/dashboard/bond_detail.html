@@ -48,6 +48,7 @@
 {% endblock %}
 
 {% block content %}
+<div class="portfolio-shell">
 <a href="{% url 'dashboard:index' %}" class="btn btn-sm btn-outline-secondary mb-3">← Back to map</a>
 
 <h4 class="mb-1">{{ bond.issuer_name }}</h4>
@@ -111,7 +112,10 @@
   <div class="col-md-4">
     <div class="stat-card h-100">
       <div class="text-muted small mb-1">Greenwash Check</div>
-      {% if flag %}
+      {% if flag.verification_status == 'unverifiable' %}
+        <div class="value text-muted">Unverifiable</div>
+        <p class="text-muted small mb-0">No verified satellite evidence is available for this record.</p>
+      {% elif flag %}
         <div class="value {% if flag.is_inconsistent %}text-danger{% else %}text-success{% endif %}">
           {% if flag.is_inconsistent %}⚠ Flagged{% else %}✓ Consistent{% endif %}
         </div>
@@ -131,6 +135,29 @@
     </div>
   </div>
 </div>
+
+<section class="bond-satellite-section mb-4" aria-labelledby="bond-imagery-heading">
+  <h2 id="bond-imagery-heading" class="h6 mb-3">Satellite evidence</h2>
+  <div class="bond-imagery-grid">
+    <div>
+      <h3 class="small text-muted">Before</h3>
+      {% if flag.before_image_url %}
+      <img class="bond-optical-image" src="{{ flag.before_image_url }}" alt="Stored pre-project optical composite" loading="lazy">
+      {% else %}<div class="bond-image-missing">No pre-project optical image has been stored.</div>{% endif %}
+    </div>
+    <div>
+      <h3 class="small text-muted">After</h3>
+      {% if flag.after_image_url %}
+      <img class="bond-optical-image" src="{{ flag.after_image_url }}" alt="Stored post-project optical composite" loading="lazy">
+      {% else %}<div class="bond-image-missing">No post-project optical image has been stored.</div>{% endif %}
+    </div>
+    <div>
+      <h3 class="small text-muted">Location imagery &middot; Esri</h3>
+      <div id="bond-location-map" class="bond-location-map" aria-label="Satellite basemap for the recorded location"></div>
+    </div>
+  </div>
+  <p class="resource-note">Basemap imagery is contextual, not a dated verification result. Country-level coordinates may not identify the financed project site.</p>
+</section>
 
 {% if pcr and pcr.shap_values %}
 <!-- SHAP Feature Importance Chart -->
@@ -166,10 +193,22 @@
   </table>
 </div>
 {% endif %}
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+const siteLatitude = {{ bond.lat|default_if_none:"null" }};
+const siteLongitude = {{ bond.lon|default_if_none:"null" }};
+if (siteLatitude !== null && siteLongitude !== null) {
+  const siteMap = L.map('bond-location-map', {scrollWheelZoom: false}).setView([siteLatitude, siteLongitude], 9);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics', maxNativeZoom: 18, maxZoom: 20
+  }).addTo(siteMap);
+  L.circleMarker([siteLatitude, siteLongitude], {radius: 7, color: '#ffffff', fillColor: '#65e0bd', fillOpacity: 1}).addTo(siteMap);
+} else {
+  document.getElementById('bond-location-map').textContent = 'No coordinates are available for this record.';
+}
 const BOND_PK = {{ bond.pk }};
 const BOND_ID = "{{ bond.bond_id }}";
 
