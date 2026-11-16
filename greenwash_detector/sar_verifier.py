@@ -114,7 +114,7 @@ class SarVerifier:
 
     def verify(
         self, lat, lon, before_start, before_end, after_start, after_end,
-        claimed_category,
+        claimed_category, boundary=None,
     ):
         """Dates are ISO dates; starts are inclusive and ends are exclusive."""
         result = {
@@ -140,6 +140,17 @@ class SarVerifier:
             },
             "method": "Heuristic SAR consistency screen, not proof of project existence or greenwashing.",
         }
+        if boundary is not None:
+            from django.core.exceptions import ValidationError
+            from data_ingestion.pilot import boundary_hash
+
+            try:
+                result["boundary_sha256"] = boundary_hash(boundary)
+            except (ValidationError, TypeError, ValueError):
+                result["reason"] = "Invalid project polygon; no point-buffer fallback was substituted."
+                return result
+            result["buffer_m"] = None
+            result["geometry_kind"] = "project_polygon"
         try:
             latitude, longitude = float(lat), float(lon)
             if not (math.isfinite(latitude) and math.isfinite(longitude)
@@ -175,7 +186,7 @@ class SarVerifier:
 
         try:
             ee = self._ee
-            region = ee.Geometry.Point([longitude, latitude]).buffer(BUFFER_METRES)
+            region = ee.Geometry(boundary, proj="EPSG:4326", geodesic=False) if boundary is not None else ee.Geometry.Point([longitude, latitude]).buffer(BUFFER_METRES)
             collection = (
                 ee.ImageCollection(COLLECTION).filterBounds(region)
                 .filter(ee.Filter.eq("instrumentMode", "IW"))

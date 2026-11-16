@@ -327,6 +327,9 @@
 
     {% block extra_css %}{% endblock %}
     <link href="{% static 'css/glass.css' %}" rel="stylesheet">
+    <link href="{% static 'css/workbench.css' %}?v=20261116-2" rel="stylesheet">
+    <link href="{% static 'css/cinematic.css' %}?v=2" rel="stylesheet">
+    <script src="{% static 'js/cinematic.js' %}?v=2" defer></script>
     
     {% block extra_head %}{% endblock %}
 </head>
@@ -335,7 +338,7 @@
     <!-- Loading Overlay — shown on cold starts (Render free tier) -->
     <div id="loading-overlay" style="
         position: fixed; inset: 0; background: #060D0A;
-        display: flex; flex-direction: column;
+        display: none; flex-direction: column;
         align-items: center; justify-content: center;
         z-index: 99999; font-family: var(--font-body);
     ">
@@ -344,8 +347,8 @@
             <div style="position:absolute;inset:12px;border-radius:50%;border:2px solid rgba(0,212,170,0.4);animation:gl-ripple 1.6s ease-out 0.4s infinite;"></div>
             <div style="position:absolute;inset:24px;border-radius:50%;background:linear-gradient(135deg,#0F6E56,#00D4AA);display:flex;align-items:center;justify-content:center;font-size:1.6rem;box-shadow:0 0 40px rgba(0,212,170,0.4);">🌿</div>
         </div>
-        <p style="color:#E8F5F0;font-size:1.2rem;font-weight:700;margin:0 0 6px;letter-spacing:-0.3px;">GreenLens</p>
-        <p style="color:rgba(232,245,240,0.4);font-size:0.78rem;margin:0;">Climate Intelligence · Loading...</p>
+          <p style="color:#E8F5F0;font-size:1.2rem;font-weight:700;margin:0 0 6px;letter-spacing:-0.3px;">GreenLens</p>
+          <p style="color:#A8C4B7;font-size:0.8rem;margin:0;">Climate Intelligence · Loading...</p>
         <div style="margin-top:28px;width:200px;height:2px;background:rgba(0,212,170,0.1);border-radius:99px;overflow:hidden;">
             <div style="height:100%;background:linear-gradient(90deg,var(--gl-primary),var(--gl-accent));border-radius:99px;animation:gl-progress 2.4s ease-in-out infinite;"></div>
         </div>
@@ -367,7 +370,7 @@
     <!-- Navigation -->
     <nav class="gl-nav" role="navigation" aria-label="Main navigation">
         <a class="gl-nav-brand" href="{% url 'dashboard:index' %}">
-            <div class="gl-nav-brand-icon">🌿</div>
+            <div class="gl-nav-brand-icon"><i class="bi bi-globe-americas" aria-hidden="true"></i></div>
             <div>
                 <div class="gl-nav-brand-text">GreenLens</div>
                 <div class="gl-nav-brand-sub">Climate Intelligence for Green Finance</div>
@@ -376,23 +379,14 @@
 
         <button class="gl-nav-toggle" onclick="const expanded = document.getElementById('gl-nav-menu').classList.toggle('show'); this.setAttribute('aria-expanded', expanded);" aria-controls="gl-nav-menu" aria-expanded="false" aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
 
-        <ul class="gl-nav-links" id="gl-nav-menu">
-            <li><a href="{% url 'dashboard:index' %}" class="{% if request.path == '/' %}active{% endif %}">🗺️ Map</a></li>
-            <li><a href="{% url 'dashboard:verify' %}" class="{% if 'verify' in request.path %}active{% endif %}">🔍 Verify</a></li>
-            <li><a href="{% url 'dashboard:resources' %}" class="{% if 'resources' in request.path %}active{% endif %}"><i class="bi bi-database" aria-hidden="true"></i> Resources</a></li>
-            <li><a href="{% url 'dashboard:pricing_analysis' %}" class="{% if 'pricing' in request.path %}active{% endif %}">📊 Pricing</a></li>
-            <li><a href="{% url 'dashboard:portfolio' %}" class="{% if 'portfolio' in request.path %}active{% endif %}">💼 Portfolio</a></li>
-            <li><a href="{% url 'dashboard:model_bias' %}" class="{% if 'model-bias' in request.path %}active{% endif %}">Model Bias</a></li>
-            <li><a href="{% url 'dashboard:risk_management' %}" class="{% if 'risk-management' in request.path %}active{% endif %}">Risk Shield</a></li>
-            <li><a href="{% url 'dashboard:about' %}" class="{% if 'about' in request.path %}active{% endif %}">ℹ About</a></li>
-            <li><a href="{% url 'dashboard:terms' %}" class="{% if 'terms' in request.path %}active{% endif %}">Terms</a></li>
-            <li><a href="https://github.com/Sharun7/GreenLens" target="_blank" rel="noopener noreferrer">GitHub ↗</a></li>
-        </ul>
-
-        <div class="gl-nav-ticker d-none d-xl-flex">
-            <span><strong id="tick-bonds">0</strong> bonds</span>
-            <span><strong id="tick-mispriced">0</strong> mispriced</span>
-            <span><strong id="tick-flagged">0</strong> flagged</span>
+        <div class="gl-nav-links workbench-nav" id="gl-nav-menu">
+            <details class="nav-group"><summary>Explore <i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div class="nav-dropdown"><a href="{% url 'dashboard:index' %}"><i class="bi bi-map" aria-hidden="true"></i> Global map</a><a href="{% url 'dashboard:project_pilot' %}"><i class="bi bi-bounding-box" aria-hidden="true"></i> Project evidence pilot</a><a href="{% url 'dashboard:resources' %}"><i class="bi bi-database" aria-hidden="true"></i> Data catalogue</a></div></details>
+            <details class="nav-group"><summary>Analytics <i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div class="nav-dropdown"><a href="{% url 'dashboard:pricing_analysis' %}">Pricing intelligence</a><a href="{% url 'dashboard:portfolio' %}">Portfolio exposure</a><a href="{% url 'ai_features:portfolio_optimizer' %}">Portfolio optimizer</a></div></details>
+            <details class="nav-group"><summary>Verification <i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div class="nav-dropdown"><a href="{% url 'dashboard:verify' %}">Verify a location</a><a href="{% url 'ai_features:alerts_feed' %}">Risk alerts</a><a href="{% url 'ai_features:regulatory_monitor' %}">Regulatory intelligence</a></div></details>
+            <details class="nav-group"><summary>Trust &amp; AI <i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div class="nav-dropdown"><a href="{% url 'dashboard:model_trust' %}">Model trust</a><a href="{% url 'dashboard:model_bias' %}">Bias &amp; fairness</a><a href="{% url 'dashboard:data_pipeline' %}">Data pipeline</a><a href="{% url 'dashboard:risk_management' %}">Risk management</a><a href="{% url 'dashboard:decision_impact' %}">Decision impact</a><a href="{% url 'ai_features:predictions_dashboard' %}">AI predictions</a><a href="{% url 'dashboard:future_innovations' %}">Research roadmap</a></div></details>
+            <a class="nav-direct" href="{% url 'dashboard:resources' %}">Resources</a>
+            <details class="nav-group nav-more"><summary>More <i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div class="nav-dropdown"><a href="{% url 'dashboard:about' %}">About &amp; methodology</a><a href="{% url 'dashboard:terms' %}">Terms</a><a href="https://github.com/Sharun7/GreenLens" target="_blank" rel="noopener noreferrer">GitHub <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></div></details>
+            <form class="nav-search" action="{% url 'dashboard:index' %}" method="get" role="search"><label class="visually-hidden" for="global-search">Search bond ID, issuer or country</label><i class="bi bi-search" aria-hidden="true"></i><input id="global-search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search bonds" autocomplete="off"></form>
         </div>
     </nav>
     
@@ -406,7 +400,7 @@
         <div class="gl-footer-grid">
             <div>
                 <h6>About GreenLens</h6>
-                <p>An open-source climate risk intelligence platform that independently verifies green bond claims using satellite imagery, machine learning, and live financial data. Built by Sharun Tomy.</p>
+                <p>A source-available climate-risk research prototype combining bond registry records, climate indicators, and satellite-analysis tools. Coverage and verification vary by record; outputs are not investment advice.</p>
             </div>
             <div>
                 <h6>Data Sources</h6>
@@ -470,10 +464,10 @@
             }
             requestAnimationFrame(step);
         }
-        document.addEventListener('DOMContentLoaded', function() {
-            glCountUp(document.getElementById('tick-bonds'), '{% firstof stats.total_bonds total_bonds "0" %}', 1200);
-            glCountUp(document.getElementById('tick-mispriced'), '{% firstof stats.mispriced_count mispriced_count "0" %}', 1000);
-            glCountUp(document.getElementById('tick-flagged'), '{% firstof stats.flagged_count flagged_count "0" %}', 800);
+        document.addEventListener('click', function(event) {
+            document.querySelectorAll('.nav-group[open]').forEach(function(group) {
+                if (!group.contains(event.target)) group.open = false;
+            });
         });
 
         // ── Scroll to top ─────────────────────────────────
@@ -708,8 +702,8 @@
     </style>
 
     <!-- Chat Bubble -->
-    <button id="gl-chat-bubble" onclick="glChatToggle()" aria-label="Open AI Chat Assistant">
-        <span id="gl-chat-icon">🤖</span>
+    <button id="gl-chat-bubble" onclick="glChatToggle()" aria-label="Open research assistant" aria-controls="gl-chat-panel" aria-expanded="false">
+        <i id="gl-chat-icon" class="bi bi-chat-square-dots" aria-hidden="true"></i>
         <span id="gl-chat-badge"></span>
     </button>
 
@@ -717,25 +711,25 @@
     <div id="gl-chat-panel" role="dialog" aria-label="GreenLens AI Assistant">
         <!-- Header -->
         <div class="gl-chat-header">
-            <div class="gl-chat-avatar">🌿</div>
+            <div class="gl-chat-avatar"><i class="bi bi-stars" aria-hidden="true"></i></div>
             <div class="gl-chat-header-info">
                 <div class="gl-chat-header-name">GreenLens AI</div>
                 <div class="gl-chat-header-status">
                     <div class="gl-chat-status-dot"></div>
-                    Powered by Gemini · Live bond data
+                    Stored research snapshot
                 </div>
             </div>
-            <button class="gl-chat-close" onclick="glChatToggle()" aria-label="Close chat">✕</button>
+            <button class="gl-chat-close" onclick="glChatToggle()" aria-label="Close chat"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
         </div>
 
         <!-- Suggested Questions -->
         <div class="gl-chat-suggestions" id="gl-suggestions">
-            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">🌊 Highest flood risk bonds?</button>
-            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">💰 Most mispriced bonds?</button>
-            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">🛰️ Greenwash flagged bonds</button>
-            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">🌍 Southeast Asia risk</button>
-            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">📊 Average PCRS score</button>
-            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)">☀️ Solar bonds in Europe</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)"><i class="bi bi-activity" aria-hidden="true"></i>High risk records</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)"><i class="bi bi-graph-up" aria-hidden="true"></i>Most mispriced bonds?</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)"><i class="bi bi-broadcast-pin" aria-hidden="true"></i>Satellite review flags</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)"><i class="bi bi-globe-asia-australia" aria-hidden="true"></i>Southeast Asia risk</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)"><i class="bi bi-bar-chart" aria-hidden="true"></i>Average PCRS score</button>
+            <button class="gl-chat-suggestion" onclick="glChatSuggest(this)"><i class="bi bi-sun" aria-hidden="true"></i>Solar bonds in Europe</button>
         </div>
 
         <!-- Messages -->
@@ -743,9 +737,8 @@
             <div class="gl-msg">
                 <div class="gl-msg-avatar gl-msg-avatar-bot">🌿</div>
                 <div class="gl-msg-bubble gl-msg-bot">
-                    <strong>Hello! I'm GreenLens AI</strong> 👋<br><br>
-                    I have live access to <strong>1,275+ green bonds</strong> with satellite verification, PCRS climate risk scores, and pricing gap analysis.<br><br>
-                    Ask me anything — <em>"Which bonds in India are most at risk from floods?"</em> or <em>"Show me the most mispriced bonds."</em>
+                    <strong>Research, grounded in evidence.</strong><br><br>
+                    Stored registry records, model outputs, and their source limitations. Missing satellite evidence remains unverifiable.
                 </div>
             </div>
         </div>
@@ -760,9 +753,9 @@
                 oninput="glChatAutoResize(this)"
                 aria-label="Chat message"
             ></textarea>
-            <button id="gl-chat-send" onclick="glChatSend()" aria-label="Send message">➤</button>
+            <button id="gl-chat-send" onclick="glChatSend()" aria-label="Send message"><i class="bi bi-send" aria-hidden="true"></i></button>
         </div>
-        <div class="gl-chat-footer">Gemini 1.5 Flash · Research use only · Not financial advice</div>
+        <div class="gl-chat-footer">Research data · Not financial advice</div>
     </div>
 
     <script>
@@ -780,17 +773,18 @@
             const panel  = document.getElementById('gl-chat-panel');
             const icon   = document.getElementById('gl-chat-icon');
             const badge  = document.getElementById('gl-chat-badge');
+            document.getElementById('gl-chat-bubble').setAttribute('aria-expanded', String(glChatOpen));
 
             if (glChatOpen) {
                 panel.style.display = 'flex';
                 requestAnimationFrame(() => panel.classList.add('open'));
-                icon.textContent = '✕';
+                icon.className = 'bi bi-x-lg';
                 badge.style.display = 'none';
                 setTimeout(() => document.getElementById('gl-chat-input').focus(), 280);
             } else {
                 panel.classList.remove('open');
                 setTimeout(() => { panel.style.display = 'none'; }, 250);
-                icon.textContent = '🤖';
+                icon.className = 'bi bi-chat-square-dots';
             }
         };
 

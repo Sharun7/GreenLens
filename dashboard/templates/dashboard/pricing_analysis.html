@@ -236,10 +236,10 @@
     <!-- Scatter Plot -->
     <div class="chart-card">
         <div class="chart-header">
-            <h5 class="chart-title">📊 Fitted vs Actual Yield Spread</h5>
+            <h5 class="chart-title">📊 Modelled vs Stored Spread (bps)</h5>
             <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-secondary active">All</button>
-                <button class="btn btn-outline-secondary">Mispriced Only</button>
+                <button type="button" id="pricing-all" class="btn btn-outline-secondary active" aria-pressed="true">All</button>
+                <button type="button" id="pricing-flagged" class="btn btn-outline-secondary" aria-pressed="false">Potential Gaps Only</button>
             </div>
         </div>
         <div class="chart-container">
@@ -281,11 +281,11 @@
     
     const ctx = document.getElementById('pricingScatterChart').getContext('2d');
     
-    new Chart(ctx, {
+    const pricingChart = new Chart(ctx, {
         type: 'scatter',
         data: {
             datasets: [{
-                label: 'Fairly Priced',
+                label: 'Below model flag threshold',
                 data: scatterData.filter(d => !d.is_mispriced),
                 backgroundColor: 'rgba(29, 158, 117, 0.6)',
                 borderColor: '#1D9E75',
@@ -293,7 +293,7 @@
                 pointRadius: 5,
                 pointHoverRadius: 7
             }, {
-                label: 'Mispriced',
+                label: 'Potential pricing gap',
                 data: scatterData.filter(d => d.is_mispriced),
                 backgroundColor: 'rgba(226, 75, 74, 0.6)',
                 borderColor: '#E24B4A',
@@ -330,8 +330,8 @@
                             return [
                                 `Bond: ${d.bond_id}`,
                                 `Country: ${d.country}`,
-                                `Fitted: ${d.x.toFixed(2)}%`,
-                                `Actual: ${d.y.toFixed(2)}%`,
+                                `Modelled: ${d.x.toFixed(2)} bps`,
+                                `Stored: ${d.y.toFixed(2)} bps`,
                                 `Gap: ${d.gap_bps.toFixed(1)} bps`,
                                 d.is_mispriced ? 'Status: Mispriced' : 'Status: Fair'
                             ];
@@ -343,27 +343,27 @@
                 x: {
                     title: {
                         display: true,
-                        text: 'Fitted Yield (%)',
+                        text: 'Modelled spread (bps)',
                         font: { weight: 'bold' },
                         color: '#8b949e'
                     },
                     grid: { color: 'rgba(48,54,61,0.8)' },
                     ticks: {
                         color: '#8b949e',
-                        callback: function(v) { return v.toFixed(2) + '%'; }
+                        callback: function(v) { return v.toFixed(0) + ' bps'; }
                     }
                 },
                 y: {
                     title: {
                         display: true,
-                        text: 'Actual Yield (%)',
+                        text: 'Stored spread (bps; may be estimated)',
                         font: { weight: 'bold' },
                         color: '#8b949e'
                     },
                     grid: { color: 'rgba(48,54,61,0.8)' },
                     ticks: {
                         color: '#8b949e',
-                        callback: function(v) { return v.toFixed(2) + '%'; }
+                        callback: function(v) { return v.toFixed(0) + ' bps'; }
                     }
                 }
             },
@@ -388,5 +388,16 @@
             }
         }
     });
+    for (const mode of ['all', 'flagged']) {
+        document.getElementById(`pricing-${mode}`).addEventListener('click', () => {
+            pricingChart.setDatasetVisibility(0, mode === 'all');
+            pricingChart.update();
+            for (const candidate of ['all', 'flagged']) {
+                const button = document.getElementById(`pricing-${candidate}`);
+                button.classList.toggle('active', candidate === mode);
+                button.setAttribute('aria-pressed', String(candidate === mode));
+            }
+        });
+    }
 </script>
 {% endblock %}

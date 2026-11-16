@@ -233,6 +233,14 @@ def test_api_bonds_returns_200():
 
 
 @pytest.mark.django_db
+def test_empty_paginated_bond_list_does_not_return_unfiltered_records():
+    client = APIClient()
+    response = client.get('/api/bonds/?category=solar')
+    assert response.status_code == 200
+    assert response.data['results']['results'] == []
+
+
+@pytest.mark.django_db
 def test_pricing_refresh_uses_regression_and_preserves_estimated_provenance(mock_bond, monkeypatch):
     from pricing_analysis.pricing_fetcher import BondPricingFetcher
     from pricing_analysis.views import _compute_gap_for_bond

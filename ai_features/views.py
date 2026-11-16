@@ -4,6 +4,7 @@
 
 """ai_features/views.py"""
 import json, random
+import math
 import re
 import logging
 from datetime import datetime, timedelta
@@ -155,86 +156,32 @@ def _generate_real_alerts():
     # We don't generate them here to avoid duplicates
 
 
-def _generate_real_portfolio():
-    """Build portfolio using ACTUAL bonds + PCRS scores with deterministic optimization."""
-    if PortfolioOptimization.objects.filter(portfolio_name="GreenLens Optimized Portfolio").exists():
-        return
-    bonds = list(GreenBond.objects.exclude(pcr_scores=None).all()[:100])
-    if len(bonds) < 20:
-        return
-    # Current: take top 20 by issuance amount (simulated from bond size)
-    current = sorted(bonds, key=lambda b: float(b.amount_millions or 0), reverse=True)[:20]
-    current_holdings, total_cur = [], 0
-    for i, b in enumerate(current):
-        amt = 2.5 + (i % 5) * 0.5  # deterministic allocation
-        total_cur += amt
-        pcr = b.pcr_scores.order_by("-scored_at").first()
-        current_holdings.append({"bond_id": b.bond_id, "issuer": b.issuer_name,
-                                 "amount_eur": amt, "pcrs": round(pcr.score, 1),
-                                 "country": b.country})
-    cur_pcrs = sum(h["amount_eur"] * h["pcrs"] for h in current_holdings) / total_cur
-    # Optimized: sort by PCRS ascending (lowest risk first), top 20
-    sorted_bonds = sorted(bonds, key=lambda b: b.pcr_scores.order_by("-scored_at").first().score)
-    optimized = sorted_bonds[:20]
-    opt_holdings, total_opt = [], 0
-    for i, b in enumerate(optimized):
-        amt = 2.5 + (i % 5) * 0.5
-        total_opt += amt
-        pcr = b.pcr_scores.order_by("-scored_at").first()
-        opt_holdings.append({"bond_id": b.bond_id, "issuer": b.issuer_name,
-                             "amount_eur": amt, "pcrs": round(pcr.score, 1),
-                             "country": b.country})
-    opt_pcrs = sum(h["amount_eur"] * h["pcrs"] for h in opt_holdings) / total_opt
-    # Sell: current portfolio bonds with PCRS > 60
-    sell_recs = [{"bond_id": h["bond_id"], "issuer": h["issuer"],
-                  "current_pcrs": h["pcrs"], "sell_amount": h["amount_eur"],
-                  "reason": f"PCRS {h['pcrs']} exceeds risk threshold (60). Reduce exposure."}
-                 for h in current_holdings if h["pcrs"] > 60]
-    existing_ids = {h["bond_id"] for h in current_holdings}
-    # Buy: optimized portfolio bonds not already held, with PCRS < 40
-    buy_recs = [{"bond_id": h["bond_id"], "issuer": h["issuer"],
-                 "target_pcrs": h["pcrs"], "buy_amount": 3.0,
-                 "reason": f"PCRS {h['pcrs']} — climate resilient addition"}
-                for h in opt_holdings if h["pcrs"] < 40 and h["bond_id"] not in existing_ids]
-    PortfolioOptimization.objects.create(
-        portfolio_name="GreenLens Optimized Portfolio",
-        portfolio_description="Rebalanced portfolio using actual bond PCRS scores from database. Sells high-risk bonds, buys low-risk alternatives.",
-        current_bonds=current_holdings, current_pcrs=round(cur_pcrs, 1),
-        current_return=4.5,
-        optimized_bonds=opt_holdings, optimized_pcrs=round(opt_pcrs, 1),
-        optimized_return=4.2,
-        sell_recommendations=sell_recs, buy_recommendations=buy_recs,
-        min_return_target=4.2, max_single_bond_allocation=5.0,
-        geographic_diversification_required=True, status="generated",
-    )
-
-
 def _latest_pcrs_score(bond):
     latest = bond.pcr_scores.order_by("-scored_at").first()
     return round(latest.score, 1) if latest else None
 
 
-def _latest_return_pct(bond):
-    latest_gap = bond.pricing_gaps.order_by("-checked_at").first()
-    if latest_gap and latest_gap.actual_spread_bps is not None:
-        # Convert basis points to a simple percentage proxy for optimization display.
-        return round(latest_gap.actual_spread_bps / 100.0, 2)
-    return 4.5
-
-
 def _parse_portfolio_input(raw_text):
-    holdings = []
+    holdings_by_id = {}
     errors = []
-    for index, raw_line in enumerate((raw_text or "").splitlines(), start=1):
+    lines = (raw_text or "").splitlines()
+    if len(lines) > 500:
+        return [], ["Submit no more than 500 holding lines per scenario."]
+    for index, raw_line in enumerate(lines, start=1):
         line = raw_line.strip()
         if not line:
             continue
-        parts = [part.strip() for part in re.split(r"[,|\t]+", line) if part.strip()]
+        parts = [part.strip() for part in re.split(r"[,|\t]", line)]
+        if len(parts) != 2 or not all(parts):
+            errors.append(f"Line {index}: use bond_id, amount.")
+            continue
         bond_id = parts[0] if parts else ""
         if not bond_id:
             continue
         try:
-            amount = float(parts[1]) if len(parts) > 1 else 1.0
+            amount = float(parts[1])
+            if not math.isfinite(amount) or not 0 < amount <= 1e12:
+                raise ValueError
         except ValueError:
             errors.append(f"Line {index}: invalid amount '{parts[1]}'. Use numbers like 2.5")
             continue
@@ -246,8 +193,11 @@ def _parse_portfolio_input(raw_text):
         if pcrs is None:
             errors.append(f"Line {index}: bond '{bond_id}' has no PCRS score yet.")
             continue
-        holdings.append({"bond": bond, "amount_eur": max(amount, 0.1), "pcrs": pcrs})
-    return holdings, errors
+        if bond.pk in holdings_by_id:
+            holdings_by_id[bond.pk]["amount_eur"] += amount
+        else:
+            holdings_by_id[bond.pk] = {"bond": bond, "amount_eur": amount, "pcrs": pcrs}
+    return list(holdings_by_id.values()), errors
 
 
 def _build_portfolio_optimization(
@@ -258,47 +208,41 @@ def _build_portfolio_optimization(
     max_single_bond_allocation,
     geographic_diversification_required,
 ):
+    if not math.isfinite(max_single_bond_allocation) or not 1 <= max_single_bond_allocation <= 100:
+        raise ValueError("Maximum allocation must be a finite number between 1 and 100 percent.")
     total_current = sum(item["amount_eur"] for item in holdings)
-    if total_current <= 0:
-        total_current = float(len(holdings) or 1)
+    if not math.isfinite(total_current) or total_current <= 0:
+        raise ValueError("The submitted portfolio must have a positive, finite total amount.")
 
     current_bonds = []
-    current_return_numerator = 0.0
     current_pcrs_numerator = 0.0
     for item in holdings:
         bond = item["bond"]
         amount = float(item["amount_eur"])
-        est_return = _latest_return_pct(bond)
         current_bonds.append({
             "bond_id": bond.bond_id,
             "issuer": bond.issuer_name,
-            "amount_eur": round(amount, 2),
+            "amount_eur": amount,
             "pcrs": item["pcrs"],
             "country": bond.country,
-            "estimated_return": est_return,
         })
-        current_return_numerator += amount * est_return
         current_pcrs_numerator += amount * item["pcrs"]
 
-    current_return = round(current_return_numerator / total_current, 2)
     current_pcrs = round(current_pcrs_numerator / total_current, 1)
 
-    target_count = len(current_bonds)
-    max_amount_per_bond = round(total_current * (max_single_bond_allocation / 100.0), 2)
-    equal_weight_amount = round(total_current / max(target_count, 1), 2)
-    default_amount = min(equal_weight_amount, max_amount_per_bond) if max_amount_per_bond > 0 else equal_weight_amount
+    required_count = math.ceil(100.0 / max_single_bond_allocation)
+    target_count = max(len(current_bonds), required_count)
 
     candidate_bonds = []
-    for bond in GreenBond.objects.exclude(pcr_scores=None).all():
+    for bond in GreenBond.objects.exclude(pcr_scores=None).distinct():
         pcrs = _latest_pcrs_score(bond)
         if pcrs is None:
             continue
         candidate_bonds.append({
             "bond": bond,
             "pcrs": pcrs,
-            "estimated_return": _latest_return_pct(bond),
         })
-    candidate_bonds.sort(key=lambda row: (row["pcrs"], -row["estimated_return"], row["bond"].bond_id))
+    candidate_bonds.sort(key=lambda row: (row["pcrs"], row["bond"].bond_id))
 
     optimized_bonds = []
     country_counts = {}
@@ -309,18 +253,24 @@ def _build_portfolio_optimization(
         optimized_bonds.append({
             "bond_id": candidate["bond"].bond_id,
             "issuer": candidate["bond"].issuer_name,
-            "amount_eur": round(default_amount, 2),
+            "amount_eur": 0.0,
             "pcrs": candidate["pcrs"],
             "country": country,
-            "estimated_return": candidate["estimated_return"],
         })
         country_counts[country] = country_counts.get(country, 0) + 1
         if len(optimized_bonds) >= target_count:
             break
 
-    total_optimized = sum(item["amount_eur"] for item in optimized_bonds) or 1.0
+    if len(optimized_bonds) < required_count:
+        raise ValueError(
+            f"Scenario infeasible: at least {required_count} distinct scored records are required "
+            f"for a {max_single_bond_allocation:g}% allocation cap under the selected geography setting. "
+            "Increase the allocation cap or relax geographic diversification."
+        )
+    for holding in optimized_bonds:
+        holding["amount_eur"] = total_current / len(optimized_bonds)
+    total_optimized = sum(item["amount_eur"] for item in optimized_bonds)
     optimized_pcrs = round(sum(item["amount_eur"] * item["pcrs"] for item in optimized_bonds) / total_optimized, 1)
-    optimized_return = round(sum(item["amount_eur"] * item["estimated_return"] for item in optimized_bonds) / total_optimized, 2)
 
     optimized_ids = {item["bond_id"] for item in optimized_bonds}
     current_ids = {item["bond_id"] for item in current_bonds}
@@ -347,8 +297,8 @@ def _build_portfolio_optimization(
                 "target_pcrs": item["pcrs"],
                 "buy_amount": item["amount_eur"],
                 "reason": (
-                    f"Lower PCRS ({item['pcrs']}) with estimated return "
-                    f"{item['estimated_return']}% improves portfolio resilience."
+                    f"Lower stored PCRS ({item['pcrs']}) in this illustrative basket. "
+                    "Financial return and investment suitability have not been evaluated."
                 ),
             })
 
@@ -357,10 +307,10 @@ def _build_portfolio_optimization(
         portfolio_description=portfolio_description,
         current_bonds=current_bonds,
         current_pcrs=current_pcrs,
-        current_return=current_return,
+        current_return=None,
         optimized_bonds=optimized_bonds,
         optimized_pcrs=optimized_pcrs,
-        optimized_return=max(min_return_target, optimized_return),
+        optimized_return=None,
         sell_recommendations=sell_recommendations[:10],
         buy_recommendations=buy_recommendations[:10],
         min_return_target=min_return_target,
@@ -390,7 +340,8 @@ def _generate_demo_regulations():
 # ── HTML Views ────────────────────────────────────────────────────────────────
 
 def predictions_dashboard(request):
-    _generate_real_predictions()
+    from dashboard.workbench import annotated_bonds
+
     # Group predictions by bond: pick 6mo, 12mo, 24mo per bond
     from collections import defaultdict
     preds_by_bond = defaultdict(dict)
@@ -432,10 +383,11 @@ def predictions_dashboard(request):
         "bonds_predicted": PCRSPrediction.objects.values("bond").distinct().count(),
     }
     # Level 2: Market prediction from real database aggregation
-    region_stats = GreenBond.objects.values("country").annotate(
-        avg_pcrs=Avg("pcr_scores__score"),
-        bond_count=Count("id"),
-        high_risk=Count("pcr_scores__score", filter=Q(pcr_scores__score__gt=60))
+    current_bonds = annotated_bonds()
+    region_stats = current_bonds.values("country").annotate(
+        avg_pcrs=Avg("current_score"),
+        bond_count=Count("pk"),
+        high_risk=Count("pk", filter=Q(current_score__gt=60))
     ).filter(avg_pcrs__isnull=False).order_by("-high_risk", "-avg_pcrs")[:3]
     top_region = region_stats[0] if region_stats else None
     top_region_name = top_region["country"] if top_region else "No scored region yet"
@@ -445,39 +397,39 @@ def predictions_dashboard(request):
     market_pred = {
         "region": top_region_name,
         "prediction": (
-            f"Over the next 12 months, {top_region_name} bonds show elevated physical risk "
-            f"(avg PCRS {top_region_avg:.1f}). {top_region_high_risk} of {top_region_count} "
-            "bonds exceed threshold."
+            f"The stored snapshot for {top_region_name} has average PCRS {top_region_avg:.1f}. "
+            f"{top_region_high_risk} of {top_region_count} records exceed the screening threshold (60). "
+            "This is a current model-score summary, not a forecast."
             if top_region
             else "No region has enough scored bonds yet to generate a market-level prediction."
         ),
-        "confidence": min(95, int(top_region_avg)) if top_region else 0,
+        "record_count": top_region_count,
         "recommended_action": (
-            f"12-month rebalancing: Reduce concentration in {top_region_name}. Shift into lower-PCRS regions."
+            "Review input provenance, location precision, and hazard evidence before drawing an investment conclusion."
             if top_region
             else "Complete hazard and PCRS initialization first, then regenerate predictions."
         ),
-        "timeframe": "12 months",
+        "timeframe": "Stored snapshot",
     }
     # Level 3: Systemic from actual portfolio-wide stats
-    total_bonds = GreenBond.objects.count()
-    high_risk_count = GreenBond.objects.filter(pcr_scores__score__gt=60).count()
+    total_bonds = current_bonds.filter(current_score__isnull=False).count()
+    high_risk_count = current_bonds.filter(current_score__gt=60).count()
     unviable_pct = round((high_risk_count / total_bonds) * 100, 1) if total_bonds else 0
     worst_region = top_region_name if top_region else "N/A"
     systemic = {
-        "scenario": "24-month systemic stress test",
+        "scenario": "Latest-score concentration screen, not a systemic stress test",
         "unviable_pct": unviable_pct,
-        "stranded_assets_eur": round(unviable_pct * 5, 0),  # rough proxy
+        "scored_count": total_bonds,
         "highest_concentration": worst_region,
-        "regulatory_use": "SFDR Article 8/9 Principal Adverse Impact disclosure",
-        "timeframe": "24 months",
+        "regulatory_use": "Research context only; not a compliance determination",
+        "timeframe": "Stored snapshot",
     }
     sc_data = []
     for sc in ClimateScenario.objects.all():
         preds = list(PCRSPrediction.objects.filter(scenario=sc).values_list("predicted_pcrs", flat=True))
-        avg = sum(preds) / len(preds) if preds else 0
+        avg = round(sum(preds) / len(preds), 1) if preds else None
         sc_data.append({"name": sc.get_scenario_type_display(), "warming_2050": sc.warming_by_2050,
-                        "avg_predicted_pcrs": round(avg, 1)})
+                "avg_predicted_pcrs": avg})
     return render(request, "ai_features/predictions_dashboard.html", {
         "stats": stats, "bond_rows": bond_rows,
         "market_prediction": market_pred, "systemic_prediction": systemic,
@@ -495,8 +447,6 @@ def alerts_feed(request):
     3. Pricing - Mispriced bonds
     4. Regulatory - New regulations from EU SFDR and SEBI (auto-generated)
     """
-    _generate_real_alerts()
-    
     alert_type = request.GET.get("type", "")
     status_filter = request.GET.get("status", "")
     
@@ -563,8 +513,6 @@ def alerts_feed(request):
 
 
 def portfolio_optimizer(request):
-    if not PortfolioOptimization.objects.exists():
-        _generate_real_portfolio()
     form_error = ""
     form_message = ""
     latest = None
@@ -573,11 +521,9 @@ def portfolio_optimizer(request):
         portfolio_name = (request.POST.get("portfolio_name") or "Uploaded Portfolio").strip()
         portfolio_description = (
             request.POST.get("portfolio_description")
-            or "User-uploaded portfolio optimized against GreenLens climate risk."
+            or "Illustrative PCRS comparison; not an investment recommendation."
         ).strip()
         raw_holdings = request.POST.get("portfolio_input", "")
-        min_return_target = float(request.POST.get("min_return_target") or 4.2)
-        max_single_bond_allocation = float(request.POST.get("max_single_bond_allocation") or 5.0)
         geographic_diversification_required = request.POST.get("geographic_diversification_required") == "on"
 
         holdings, errors = _parse_portfolio_input(raw_holdings)
@@ -586,17 +532,26 @@ def portfolio_optimizer(request):
         elif not holdings:
             form_error = "Add at least one valid bond line using: bond_id, amount"
         else:
-            latest = _build_portfolio_optimization(
-                portfolio_name=portfolio_name,
-                portfolio_description=portfolio_description,
-                holdings=holdings,
-                min_return_target=min_return_target,
-                max_single_bond_allocation=max_single_bond_allocation,
-                geographic_diversification_required=geographic_diversification_required,
-            )
-            form_message = f"Portfolio '{latest.portfolio_name}' optimized successfully."
+            try:
+                max_single_bond_allocation = float(request.POST.get("max_single_bond_allocation") or 5.0)
+                latest = _build_portfolio_optimization(
+                    portfolio_name=portfolio_name,
+                    portfolio_description=portfolio_description,
+                    holdings=holdings,
+                    min_return_target=0.0,
+                    max_single_bond_allocation=max_single_bond_allocation,
+                    geographic_diversification_required=geographic_diversification_required,
+                )
+            except (ValueError, OverflowError) as exc:
+                form_error = str(exc)
+            else:
+                scenario_ids = request.session.get("portfolio_scenario_ids", [])
+                request.session["portfolio_scenario_ids"] = [latest.pk, *scenario_ids][:10]
+                form_message = f"Scenario report created for '{latest.portfolio_name}'."
 
-    portfolios = PortfolioOptimization.objects.all().order_by("-created_at")[:10]
+    portfolios = PortfolioOptimization.objects.filter(
+        pk__in=request.session.get("portfolio_scenario_ids", []),
+    ).order_by("-created_at")[:10]
     latest = latest or portfolios.first()
     region_data = {}
     if latest and latest.current_bonds:
@@ -620,33 +575,16 @@ def portfolio_optimizer(request):
 
 def regulatory_monitor(request):
     """
-    Regulatory monitor view - Shows REAL regulatory updates from EU SFDR and SEBI.
-    
-    Data is fetched daily at 6 AM via Celery task and cached in Redis for 24 hours.
+    Show stored regulatory updates and the last successful collection timestamp.
     """
     from django.core.cache import cache
-    from ai_features.regulatory_fetcher import fetch_and_save_regulatory_updates
-    
-    # Get last update timestamp from cache
     last_updated = cache.get("regulatory_last_updated")
-    
-    # If no data exists, fetch now
-    if not RegulatoryMonitor.objects.exists():
-        logger.info("No regulatory data found. Fetching now...")
-        try:
-            result = fetch_and_save_regulatory_updates()
-            if result["success"]:
-                last_updated = result["last_updated"]
-                cache.set("regulatory_last_updated", last_updated, timeout=None)
-        except Exception as e:
-            logger.error(f"Failed to fetch regulatory updates: {e}")
-    
-    # Query regulations from database
     regulations = RegulatoryMonitor.objects.all().order_by("-announcement_date")
+    total_regulations = regulations.count()
     
     # Calculate stats
     stats = {
-        "total": RegulatoryMonitor.objects.count(),
+        "total": total_regulations,
         "compliance_required": RegulatoryMonitor.objects.filter(compliance_required=True).count(),
         "upcoming": RegulatoryMonitor.objects.filter(effective_date__gt=datetime.now().date()).count(),
         "affected_bonds": RegulatoryMonitor.objects.exclude(affected_bonds_count=None).aggregate(
@@ -655,7 +593,10 @@ def regulatory_monitor(request):
     }
     
     # Determine data freshness
-    if last_updated:
+    if not total_regulations:
+        data_status = "empty"
+        data_label = "No regulatory records collected"
+    elif last_updated:
         time_since_update = timezone.now() - last_updated
         if time_since_update.total_seconds() > 86400:  # More than 24 hours
             data_status = "stale"
@@ -665,7 +606,7 @@ def regulatory_monitor(request):
             data_label = f"Last updated: {last_updated.strftime('%b %d, %Y %H:%M UTC')}"
     else:
         data_status = "unknown"
-        data_label = "Update status unknown"
+        data_label = "Collection timestamp unavailable"
     
     return render(request, "ai_features/regulatory_monitor.html", {
         "regulations": regulations,
@@ -729,7 +670,10 @@ class AlertViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class PortfolioViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = PortfolioOptimization.objects.all()
+    def get_queryset(self):
+        return PortfolioOptimization.objects.filter(
+            pk__in=self.request.session.get("portfolio_scenario_ids", []),
+        )
 
     def get_serializer_class(self):
         from rest_framework import serializers

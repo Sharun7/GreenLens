@@ -70,7 +70,7 @@ class GreenBondViewSet(viewsets.ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         qs         = self.filter_queryset(self.get_queryset())
         page       = self.paginate_queryset(qs)
-        serializer = self.get_serializer(page or qs, many=True)
+        serializer = self.get_serializer(page if page is not None else qs, many=True)
         data       = serializer.data
         if page is not None:
             return self.get_paginated_response({"meta": _META(), "results": data})

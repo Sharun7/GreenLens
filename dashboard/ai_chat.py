@@ -44,13 +44,14 @@ def _get_gemini_model():
 
 _SYSTEM_PROMPT = """
 You are GreenLens AI, an expert climate risk intelligence assistant embedded 
-inside GreenLens — a satellite-verified green bond analysis platform.
+inside GreenLens, a climate-risk research prototype.
 
 Your role:
 - Answer questions about green bonds, climate risk (PCRS scores), greenwashing, 
   pricing gaps, and ESG investing.
-- Use the LIVE DATABASE CONTEXT provided in each message to give accurate, 
-  data-driven answers referencing real bond IDs, scores, and countries.
+- Use only the STORED DATABASE CONTEXT provided in each message. Registry rows may
+    be aggregate-derived, scores may use demo inputs, and spreads may be estimated.
+- Never present a score as validated loss prediction or an unverified record as satellite-verified.
 - Be concise but insightful. Use bullet points. Highlight key numbers.
 - Always mention: PCRS score, main risk driver, and any greenwash/mispricing flag.
 - If asked about a specific bond, give full details.
@@ -164,100 +165,36 @@ def _parse_intent(question: str) -> dict:
 
 def _build_db_context(intent: dict) -> str:
     """Query the real database and return a formatted context string."""
-    from data_ingestion.models import GreenBond, ClimateHazardData
-    from risk_scoring.models import PCRScore
-    from pricing_analysis.models import PricingGap
-    from greenwash_detector.models import GreenwashFlag
+    from dashboard.workbench import annotated_bonds, observed_satellite
 
-    lines = []
-
-    # ── Global stats ──
-    total = GreenBond.objects.count()
-    scored = PCRScore.objects.values("bond").distinct().count()
-    mispriced = PricingGap.objects.filter(is_mispriced=True).count()
-    flagged = GreenwashFlag.objects.filter(flag_raised=True).count()
-    avg_pcrs = PCRScore.objects.aggregate(a=Avg("pcr_score"))["a"] or 0
-
-    lines.append("=== GREENLENS LIVE DATABASE SUMMARY ===")
-    lines.append(f"Total bonds: {total} | Scored: {scored} | Avg PCRS: {avg_pcrs:.1f}")
-    lines.append(f"Mispriced: {mispriced} | Greenwash flags: {flagged}")
-    lines.append("")
-
-    # ── Specific bond lookup ──
+    query = annotated_bonds()
+    stats = query.aggregate(total=Count("pk"), scored=Count("current_score"), average=Avg("current_score"))
+    lines = [
+        "Stored research snapshot (not live market data or validated loss predictions).",
+        f"Registry records: {stats['total']} | Scored: {stats['scored']} | Average PCRS: {stats['average'] or 0:.1f}",
+        "PCRS is a physical climate risk research score, not a probability of default. Demo and estimated inputs may apply.",
+    ]
     if intent.get("specific_bond"):
-        try:
-            bond = GreenBond.objects.get(bond_id__iexact=intent["specific_bond"])
-            _append_bond_detail(lines, bond)
-            return "\n".join(lines)
-        except GreenBond.DoesNotExist:
-            lines.append(f"Bond {intent['specific_bond']} not found in database.")
-
-    # ── Build queryset ──
-    qs = GreenBond.objects.prefetch_related("pcr_scores", "hazard_data",
-                                            "pricing_gaps", "greenwash_flags")
-
-    if intent["countries"]:
-        qs = qs.filter(country__in=intent["countries"])
-        lines.append(f"Filtering by countries: {', '.join(intent['countries'])}")
-
-    if intent["category"]:
-        qs = qs.filter(project_category=intent["category"])
-        lines.append(f"Filtering by category: {intent['category']}")
-
-    # Join with PCRScore for ordering
-    bond_ids_with_scores = (
-        PCRScore.objects
-        .filter(bond__in=qs)
-        .order_by("-pcr_score" if intent["want_high_risk"] else "pcr_score")
-        .values_list("bond_id", flat=True)
-        .distinct()[:20]
-    )
-
-    if intent["want_mispriced"]:
-        mispriced_bond_ids = PricingGap.objects.filter(
-            is_mispriced=True, bond__in=qs
-        ).values_list("bond_id", flat=True)
-        qs = qs.filter(id__in=mispriced_bond_ids)
-        bond_ids_with_scores = list(mispriced_bond_ids)[:20]
-
-    if intent["want_greenwash"]:
-        flagged_bond_ids = GreenwashFlag.objects.filter(
-            flag_raised=True, bond__in=qs
-        ).values_list("bond_id", flat=True)
-        qs = qs.filter(id__in=flagged_bond_ids)
-        bond_ids_with_scores = list(flagged_bond_ids)[:20]
-
-    # Fetch top N bonds
-    limit = intent["limit"]
-    if bond_ids_with_scores:
-        # Preserve ordering
-        bonds_map = {b.id: b for b in qs.filter(id__in=list(bond_ids_with_scores))}
-        bonds = [bonds_map[bid] for bid in bond_ids_with_scores if bid in bonds_map][:limit]
+        query = query.filter(bond_id__iexact=intent["specific_bond"])
+    if intent.get("countries"):
+        query = query.filter(country__in=intent["countries"])
+    if intent.get("category"):
+        query = query.filter(project_category=intent["category"])
+    if intent.get("want_mispriced"):
+        query = query.filter(price_flag=True)
+    query = query.order_by("-current_score" if intent.get("want_high_risk") else "current_score", "bond_id")
+    if intent.get("want_greenwash"):
+        query = query.filter(satellite_flag=True, satellite_status="verifiable")
+        bonds = [bond for bond in query[:500] if observed_satellite(
+            bond.satellite_source, bond.satellite_status, bond.satellite_model,
+        )][:intent["limit"]]
     else:
-        bonds = list(qs[:limit])
-
-    lines.append(f"\n=== RELEVANT BONDS ({len(bonds)} shown) ===")
+        bonds = list(query[:intent["limit"]])
+    lines.append(f"Matching records shown: {len(bonds)}")
     for bond in bonds:
         _append_bond_detail(lines, bond)
-
-    # ── Hazard-specific context ──
-    if intent["hazard_field"] and intent["countries"]:
-        hf = intent["hazard_field"]
-        try:
-            top_hazard = (
-                ClimateHazardData.objects
-                .filter(bond__country__in=intent["countries"])
-                .order_by(f"-{hf}")
-                .select_related("bond")[:3]
-            )
-            if top_hazard:
-                lines.append(f"\n=== TOP BONDS BY {hf.upper()} ===")
-                for h in top_hazard:
-                    val = getattr(h, hf, None)
-                    lines.append(f"  {h.bond.bond_id} ({h.bond.country}): {hf}={val:.2f}" if val else "")
-        except Exception:
-            pass
-
+    if not bonds:
+        lines.append("No matching records with the requested evidence are available.")
     return "\n".join(lines)
 
 
@@ -266,21 +203,23 @@ def _append_bond_detail(lines: list, bond) -> None:
     from risk_scoring.models import PCRScore
     from pricing_analysis.models import PricingGap
     from greenwash_detector.models import GreenwashFlag
+    from dashboard.workbench import observed_satellite
 
     # Latest PCRS
     score_obj = (PCRScore.objects.filter(bond=bond)
                  .order_by("-scored_at").first())
-    pcrs = f"{score_obj.pcr_score:.1f}" if score_obj else "N/A"
+    pcrs = f"{score_obj.score:.1f}" if score_obj else "N/A"
     band = score_obj.risk_band if score_obj else "—"
-    driver = score_obj.main_risk_driver if score_obj else "—"
+    driver = score_obj.main_risk_driver.get("label", "Unavailable") if score_obj else "Unavailable"
 
     # Pricing gap
-    pg = PricingGap.objects.filter(bond=bond).order_by("-computed_at").first()
-    gap_str = f"{pg.pricing_gap_bps:+.0f} bps ({'MISPRICED' if pg.is_mispriced else 'fair'})" if pg else "N/A"
+    pg = PricingGap.objects.filter(bond=bond).order_by("-checked_at").first()
+    gap_str = f"{pg.gap_bps:+.0f} bps ({'stored market source' if pg.is_live else 'estimated spread'})" if pg else "N/A"
 
     # Greenwash
     gw = GreenwashFlag.objects.filter(bond=bond).order_by("-checked_at").first()
-    gw_str = "⚠ FLAGGED" if (gw and gw.flag_raised) else "✓ Clear"
+    observed = bool(gw and observed_satellite(gw.raw_ee_metadata, gw.verification_status, gw.model_version))
+    gw_str = "Observed inconsistency: review required" if observed and gw.is_inconsistent else "Observed screen, not proof of project completion" if observed else "Unverifiable"
 
     lines.append(
         f"\n• {bond.bond_id} | {bond.issuer_name} | {bond.country}"
@@ -305,22 +244,18 @@ def get_ai_response(user_message: str, chat_history: list | None = None) -> str:
     Returns:
         The assistant's response as a string.
     """
-    try:
-        model = _get_gemini_model()
-    except EnvironmentError as e:
-        return (
-            "⚠️ AI assistant is not configured. "
-            "Please set the `GEMINI_API_KEY` environment variable on Render. "
-            f"Details: {e}"
-        )
-
     # Build live database context
     try:
         intent = _parse_intent(user_message)
         db_context = _build_db_context(intent)
     except Exception as exc:
         logger.warning("DB context build failed: %s", exc)
-        db_context = "⚠️ Database context unavailable — answering from general knowledge."
+        return "Stored research data is temporarily unavailable. No bond-specific answer can be verified."
+
+    try:
+        model = _get_gemini_model()
+    except EnvironmentError:
+        return "Local data lookup (external AI is not configured).\n\n" + db_context
 
     # Compose the full message with context
     full_message = f"""
@@ -345,8 +280,4 @@ def get_ai_response(user_message: str, chat_history: list | None = None) -> str:
         return response.text
     except Exception as exc:
         logger.error("Gemini API error: %s", exc)
-        return (
-            "I encountered an error while processing your request. "
-            "Please try again in a moment. If the problem persists, "
-            "the Gemini API key may need to be refreshed."
-        )
+        return "Local data lookup (external AI is unavailable).\n\n" + db_context

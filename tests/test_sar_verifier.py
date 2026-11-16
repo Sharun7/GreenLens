@@ -67,6 +67,22 @@ def test_empty_collection_is_unverifiable(verifier):
     assert verifier._evaluator.call_count == 1
 
 
+def test_project_polygon_replaces_the_point_buffer(verifier):
+    boundary = {"type": "Polygon", "coordinates": [[[76, 9], [76.01, 9], [76.01, 9.01], [76, 9.01], [76, 9]]]}
+    result = run(verifier, boundary=boundary)
+    assert result["geometry_kind"] == "project_polygon"
+    assert result["buffer_m"] is None
+    assert len(result["boundary_sha256"]) == 64
+    verifier._ee.Geometry.assert_called_once_with(boundary, proj="EPSG:4326", geodesic=False)
+    verifier._ee.Geometry.Point.assert_not_called()
+
+
+def test_invalid_project_polygon_does_not_fall_back_to_point(verifier):
+    result = run(verifier, boundary={"type": "Point", "coordinates": [76, 9]})
+    assert result["status"] == "unverifiable"
+    verifier._evaluator.assert_not_called()
+
+
 def test_different_orbits_are_not_compared(verifier):
     verifier._evaluator.side_effect = [{
         "before_orbits": {"42": 3}, "after_orbits": {"43": 3}, "water_count": 1,

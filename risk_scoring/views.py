@@ -14,7 +14,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action, api_view
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from .models import ModelFeedback, PCRScore
@@ -108,7 +108,7 @@ class PCRScoreViewSet(viewsets.ReadOnlyModelViewSet):
         })
 
     @action(detail=False, methods=["post"], url_path="predict",
-            permission_classes=[AllowAny])
+            permission_classes=[IsAdminUser])
     def predict(self, request):
         """
         POST /api/risk/scores/predict/
@@ -143,7 +143,7 @@ class PCRScoreViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({"meta": _META(), "result": result}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["post"], url_path="batch_predict",
-            permission_classes=[AllowAny])
+            permission_classes=[IsAdminUser])
     def batch_predict(self, request):
         """
         POST /api/risk/scores/batch_predict/
@@ -208,7 +208,7 @@ class ModelFeedbackViewSet(viewsets.ModelViewSet):
     """
     queryset = ModelFeedback.objects.select_related("bond", "pcr_score").order_by("-created_at")
     serializer_class = ModelFeedbackSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAdminUser]
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["created_at", "outcome_date", "realized_loss_bps", "pcr_score_at_decision"]
 
@@ -292,10 +292,13 @@ def bias_detection_api(request):
     detector = BiasDetector()
     results = detector.run_full_analysis()
     
-    return Response({
+    response = Response({
         "meta": _META(),
         "results": results,
     })
+    if request.query_params.get("download") == "1":
+        response["Content-Disposition"] = 'attachment; filename="greenlens_bias_report.json"'
+    return response
 
 
 @api_view(["GET"])

@@ -64,6 +64,10 @@ class DecisionImpactTests(TestCase):
         self.assertContains(response, self.bond.bond_id)
 
     def test_feedback_submission_enters_review_flow(self):
+        from django.contrib.auth import get_user_model
+
+        staff = get_user_model().objects.create_user(username="feedback-reviewer", is_staff=True)
+        self.client.force_login(staff)
         response = self.client.post(
             "/api/risk/feedback/",
             data={

@@ -198,7 +198,7 @@ class PortfolioOptimization(models.Model):
         help_text="List of current bond holdings with amounts",
     )
     current_pcrs = models.FloatField()
-    current_return = models.FloatField(help_text="Expected return %")
+    current_return = models.FloatField(null=True, blank=True, help_text="Externally evidenced return %, if available")
     
     # Optimized state
     optimized_bonds = models.JSONField(
@@ -206,7 +206,7 @@ class PortfolioOptimization(models.Model):
         help_text="List of optimized bond holdings with amounts",
     )
     optimized_pcrs = models.FloatField()
-    optimized_return = models.FloatField(help_text="Expected return %")
+    optimized_return = models.FloatField(null=True, blank=True, help_text="Externally evidenced scenario return %, if available")
     
     # Recommendations
     sell_recommendations = models.JSONField(

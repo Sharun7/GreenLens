@@ -6,7 +6,7 @@
 import math
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Avg, Case, CharField, Count, Q, Value, When
+from django.db.models import Avg, Case, CharField, Count, Max, Q, Value, When
 from django.http import JsonResponse
 from django.views.decorators.cache import cache_page
 from rest_framework.decorators import api_view, action
@@ -562,50 +562,22 @@ def index(request):
     Main dashboard: interactive Leaflet map + table toggle + summary statistics.
     Renders greenlens_map.html with bond data and stats.
     """
-    stats = {
-        "total_bonds": GreenBond.objects.count(),
-        "avg_pcr_score": PCRScore.objects.aggregate(avg=Avg("score"))["avg"] or 0,
-        "mispriced_count": PricingGap.objects.filter(is_mispriced=True).count(),
-        "flagged_count": GreenwashFlag.objects.filter(is_inconsistent=True).count(),
-    }
+    from dashboard.workbench import annotated_bonds
 
-    # Build bond list for both map markers and table rows
-    bonds_qs = GreenBond.objects.select_related().prefetch_related(
-        "pcr_scores", "greenwash_flags", "pricing_gaps"
-    ).order_by("-issuance_date")
-
-    bonds = []
-    countries_set = set()
-    for bond in bonds_qs:
-        latest_pcr = bond.pcr_scores.order_by("-scored_at").first()
-        latest_flag = bond.greenwash_flags.order_by("-checked_at").first()
-        latest_gap = bond.pricing_gaps.order_by("-checked_at").first()
-        reliability = build_bond_reliability(bond)
-        explanation = build_prediction_explanation(bond, latest_pcr)
-        
-        countries_set.add(bond.country)
-        bonds.append({
-            "bond": bond,
-            "pcr_score": latest_pcr.score if latest_pcr else None,
-            "risk_band": latest_pcr.risk_band if latest_pcr else None,
-            "risk_label": latest_pcr.three_band_label if latest_pcr else "Not Scored",
-            "pcr_confidence_margin": latest_pcr.confidence_margin if latest_pcr else None,
-            "main_risk_driver": explanation.get("main_driver", {}).get("label", "Not available"),
-            "why_risky_popup": explanation.get("popup", "PCRS not available yet."),
-            "is_flagged": latest_flag.is_inconsistent if latest_flag else False,
-            "is_mispriced": latest_gap.is_mispriced if latest_gap else False,
-            "gap_bps": latest_gap.gap_bps if latest_gap else None,
-            "data_reliability_score": reliability["overall_score"],
-            "data_reliability_label": reliability["overall_label"],
-        })
-
-    countries = sorted(countries_set)
-
-    return render(request, "dashboard/greenlens_map.html", {
-        "stats": stats,
-        "bonds": bonds,
-        "countries": countries,
-    })
+    current = annotated_bonds()
+    stats = current.aggregate(
+        total_bonds=Count("pk"),
+        mispriced_count=Count("pk", filter=Q(price_flag=True)),
+        flagged_count=Count("pk", filter=Q(satellite_flag=True, satellite_status="verifiable") &
+            (Q(satellite_source__source="gee") | Q(satellite_source__collection="COPERNICUS/S2_SR_HARMONIZED")) &
+            ~Q(satellite_model__startswith="bootstrap") & ~Q(satellite_source__method="synthetic") &
+            ~Q(satellite_source__source__in=["synthetic", "deployment_bootstrap"])),
+        last_scored=Max("score_updated"),
+        last_pricing=Max("price_updated"),
+        last_satellite=Max("satellite_updated"),
+    )
+    countries = GreenBond.objects.order_by("country").values_list("country", flat=True).distinct()
+    return render(request, "dashboard/workbench_home.html", {"stats": stats, "countries": countries})
 
 
 def bond_detail(request, bond_id):
@@ -617,12 +589,17 @@ def bond_detail(request, bond_id):
     - Greenwash analysis (NDVI change, satellite evidence)
     - Historical PCRS trend if available
     """
+    from .workbench import observed_satellite
+
     bond = get_object_or_404(GreenBond, bond_id=bond_id)
     
     # Get latest records
     pcr = bond.pcr_scores.order_by("-scored_at").first()
     gap = bond.pricing_gaps.order_by("-checked_at").first()
     flag = bond.greenwash_flags.order_by("-checked_at").first()
+    satellite_observed = bool(flag and observed_satellite(
+        flag.raw_ee_metadata, flag.verification_status, flag.model_version,
+    ))
     hazards = bond.hazard_data.order_by("-data_date")[:12]
     latest_hazard = bond.hazard_data.order_by("-data_date").first()
     
@@ -742,6 +719,7 @@ def bond_detail(request, bond_id):
         "pcr": pcr,
         "gap": gap,
         "flag": flag,
+        "satellite_observed": satellite_observed,
         "hazards": hazards,
         "extended_risk": extended_risk,
         "shap_data": json.dumps(shap_data),
@@ -761,10 +739,23 @@ def bond_detail(request, bond_id):
     return render(request, "dashboard/bond_detail.html", context)
 
 
+def _write_csv_row(writer, values):
+    writer.writerow([
+        "'" + value if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")) else value
+        for value in values
+    ])
+
+
 def export_bonds_csv(request):
     """
-    Exports all bonds to a CSV file along with their PCRS and Greenwash info.
+    Export records matching the workbench filters with their saved analysis.
     """
+    from .workbench import _filtered
+
+    try:
+        bonds = _filtered(request).prefetch_related('pcr_scores', 'pricing_gaps', 'greenwash_flags')
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="greenlens_bonds.csv"'
 
@@ -780,15 +771,13 @@ def export_bonds_csv(request):
         'Greenwash Inconsistent', 'Greenwash Confidence'
     ])
 
-    bonds = GreenBond.objects.prefetch_related('pcr_scores', 'pricing_gaps', 'greenwash_flags').all()
-
     for bond in bonds:
         pcr = bond.pcr_scores.order_by('-scored_at').first()
         gap = bond.pricing_gaps.order_by('-checked_at').first()
         gw = bond.greenwash_flags.order_by('-checked_at').first()
         reliability = build_bond_reliability(bond)
 
-        writer.writerow([
+        _write_csv_row(writer, [
             bond.bond_id,
             bond.issuer_name,
             bond.country,
@@ -817,10 +806,7 @@ def export_bonds_csv(request):
 
 def export_sfdr_report(request):
     """
-    Export SFDR Article 9 / TCFD-aligned regulatory report as CSV.
-    Includes: bond identifiers, climate hazard breakdown, PCRS score,
-    carbon intensity, policy risk, transition risk, greenwash flag,
-    and data provenance - structured for EU SFDR mandatory disclosure.
+    Export a research evidence worksheet, not a certified regulatory filing.
     """
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="greenlens_sfdr_tcfd_report.csv"'
@@ -846,6 +832,7 @@ def export_sfdr_report(request):
         # Provenance
         'Data Source', 'Last Synced At', 'Location Confidence',
         'Report Generated',
+        'Report Status', 'Pricing Source', 'Pricing Is Live', 'Hazard Input Status',
     ])
 
     from datetime import datetime
@@ -862,9 +849,11 @@ def export_sfdr_report(request):
         hazard = bond.hazard_data.order_by('-data_date').first()
         reliability = build_bond_reliability(bond)
 
-        writer.writerow([
+        metadata = hazard.raw_metadata if hazard and isinstance(hazard.raw_metadata, dict) else {}
+        estimated_hazard = bool(metadata.get("fallback") or metadata.get("method") == "synthetic" or metadata.get("source") == "deployment_bootstrap")
+        _write_csv_row(writer, [
             bond.bond_id,
-            bond.bond_id,  # ISIN placeholder (same as bond_id in CBI data)
+            '',
             bond.issuer_name,
             bond.country,
             bond.project_category,
@@ -885,9 +874,9 @@ def export_sfdr_report(request):
             round(hazard.heat_stress_index, 4) if hazard else '',
             round(hazard.drought_spei, 4) if hazard else '',
             # Extended risk
-            round(hazard.carbon_intensity_score, 4) if hazard and hazard.carbon_intensity_score else '',
-            round(hazard.policy_risk_score, 4) if hazard and hazard.policy_risk_score else '',
-            round(hazard.transition_risk_score, 4) if hazard and hazard.transition_risk_score else '',
+            round(hazard.carbon_intensity_score, 4) if hazard and hazard.carbon_intensity_score is not None else '',
+            round(hazard.policy_risk_score, 4) if hazard and hazard.policy_risk_score is not None else '',
+            round(hazard.transition_risk_score, 4) if hazard and hazard.transition_risk_score is not None else '',
             # Pricing
             round(gap.gap_bps, 2) if gap else '',
             gap.is_mispriced if gap else '',
@@ -902,6 +891,10 @@ def export_sfdr_report(request):
             bond.last_synced_at.strftime('%Y-%m-%d') if bond.last_synced_at else '',
             bond.location_confidence or '',
             now,
+            'Research worksheet; not a certified SFDR/TCFD filing',
+            gap.data_source if gap else '',
+            gap.is_live if gap else '',
+            'Demo / fallback estimate' if estimated_hazard else 'Stored source; not independently verified' if hazard else 'Unavailable',
         ])
 
     return response
@@ -918,16 +911,13 @@ def portfolio_optimizer(request):
     Allows user to select multiple bonds and view aggregate climate risk,
     geographic/sector concentration, and automated rebalancing suggestions.
     """
-    # For prototype, we randomly select 10 bonds to represent the "User's Portfolio"
-    # In a real app, this would be tied to User Profile and saved portfolios.
-    import random
-    from django.db.models import Avg
+    from .workbench import annotated_bonds
 
-    all_bonds = list(GreenBond.objects.prefetch_related('pcr_scores').all()[:200])
+    all_bonds = list(annotated_bonds().filter(current_score__isnull=False).order_by("bond_id")[:10])
     if not all_bonds:
-        return render(request, "dashboard/portfolio.html", {"error": "No bonds available"})
+        return render(request, "dashboard/portfolio.html", {"error": "No scored records are available for an exposure demonstration."})
         
-    portfolio_bonds = random.sample(all_bonds, min(10, len(all_bonds)))
+    portfolio_bonds = all_bonds
     
     # Calculate portfolio metrics
     portfolio_data = []
@@ -940,10 +930,9 @@ def portfolio_optimizer(request):
     high_risk_bonds = []
     
     for bond in portfolio_bonds:
-        pcr = bond.pcr_scores.order_by('-scored_at').first()
-        score = pcr.score if pcr else 0
+        score = bond.current_score
         
-        amount = float(bond.amount_millions or 100)
+        amount = 1.0
         total_amount += amount
         total_pcrs_weighted += (score * amount)
         
@@ -960,7 +949,7 @@ def portfolio_optimizer(request):
             'country': country,
             'category': cat,
             'amount': amount,
-            'currency': bond.currency,
+            'currency': 'sample unit',
             'score': round(score, 1)
         }
         portfolio_data.append(bond_dict)
@@ -973,18 +962,17 @@ def portfolio_optimizer(request):
     # Generate Rebalancing Suggestions (find lower risk bonds in same category)
     rebalancing_suggestions = []
     for hr_bond in high_risk_bonds:
-        alternatives = GreenBond.objects.filter(
+        alternatives = annotated_bonds().filter(
             project_category=next((k for k, v in GreenBond.ProjectCategory.choices if v == hr_bond['category']), 'other'),
-            pcr_scores__score__lt=30
-        ).order_by('pcr_scores__score').distinct()[:2]
+            current_score__lt=30,
+        ).exclude(bond_id=hr_bond['id']).order_by('current_score', 'bond_id')[:2]
         
         alts = []
         for alt in alternatives:
-            alt_pcr = alt.pcr_scores.order_by('-scored_at').first()
             alts.append({
                 'id': alt.bond_id,
                 'issuer': alt.issuer_name,
-                'score': round(alt_pcr.score, 1) if alt_pcr else 0,
+                'score': round(alt.current_score, 1),
                 'country': alt.country
             })
             
@@ -1005,6 +993,7 @@ def portfolio_optimizer(request):
         'portfolio_bonds': portfolio_data,
         'total_amount': total_amount,
         'avg_pcrs': round(avg_pcrs, 1),
+        'high_risk_count': len(high_risk_bonds),
         'sector_labels': json.dumps(sector_labels),
         'sector_values': json.dumps(sector_values),
         'country_labels': json.dumps(country_labels),
@@ -1020,15 +1009,17 @@ def pricing_analysis(request):
     Pricing gap analysis page with scatter plot showing
     all bonds' fitted vs actual yields.
     """
-    # Summary stats
-    total_gaps = PricingGap.objects.count()
-    mispriced_count = PricingGap.objects.filter(is_mispriced=True).count()
-    avg_gap_bps = PricingGap.objects.aggregate(
+    from django.db.models import OuterRef, Subquery
+
+    latest_gap = PricingGap.objects.filter(bond_id=OuterRef("bond_id")).order_by("-checked_at", "-pk")
+    gaps = PricingGap.objects.filter(pk=Subquery(latest_gap.values("pk")[:1])).select_related("bond")
+    total_gaps = gaps.count()
+    mispriced_count = gaps.filter(is_mispriced=True).count()
+    avg_gap_bps = gaps.aggregate(
         avg_gap=Avg("gap_bps")
     )["avg_gap"] or 0
     
     # Data for scatter plot
-    gaps = PricingGap.objects.select_related('bond').all()
     scatter_data = []
     for gap in gaps:
         scatter_data.append({
@@ -1042,7 +1033,7 @@ def pricing_analysis(request):
         })
     
     # Distribution of pricing gaps
-    distribution = PricingGap.objects.aggregate(
+    distribution = gaps.aggregate(
         underpriced=Count("id", filter=Q(gap_bps__lt=-10)),
         fairly_priced=Count("id", filter=Q(gap_bps__gte=-10, gap_bps__lte=10)),
         overpriced=Count("id", filter=Q(gap_bps__gt=10)),
@@ -1551,8 +1542,16 @@ def ai_chat_api(request):
     """
     try:
         body = json.loads(request.body)
-        user_message = str(body.get("message", "")).strip()
+        if not isinstance(body, dict) or not isinstance(body.get("message", ""), str):
+            return JsonResponse({"error": "Send a JSON object with a text message."}, status=400)
+        user_message = body.get("message", "").strip()
         history = body.get("history", [])
+        if (not isinstance(history, list) or len(history) > 20
+                or any(not isinstance(message, dict)
+                       or message.get("role") not in ("user", "model")
+                       or not isinstance(message.get("content", ""), str)
+                       or len(message.get("content", "")) > 4000 for message in history)):
+            return JsonResponse({"error": "History must contain at most 20 user/model text messages."}, status=400)
 
         if not user_message:
             return JsonResponse({"error": "Empty message."}, status=400)
@@ -1591,31 +1590,44 @@ def location_verify(request):
     """
     import math as _math
 
-    query = request.GET.get("q", "").strip()
+    query = request.GET.get("q", "").strip()[:200]
     if not query:
         return render(request, "dashboard/verify.html", {"query": ""})
 
     # ── Step 1: Geocode ───────────────────────────────────────────────────────
-    try:
-        from geopy.geocoders import Nominatim
-        from geopy.exc import GeocoderTimedOut, GeocoderServiceError
-        geolocator = Nominatim(user_agent="greenlens-verify/1.0")
-        location = geolocator.geocode(query, timeout=10, language="en")
-    except Exception as exc:
-        return render(request, "dashboard/verify.html", {
-            "query": query,
-            "error": f"Geocoding service error: {exc}",
-        })
-
-    if not location:
-        return render(request, "dashboard/verify.html", {
-            "query": query,
-            "error": f'Location "{query}" could not be found. Try a more specific name.',
-        })
-
-    lat = float(location.latitude)
-    lon = float(location.longitude)
-    location_name = location.address
+    import re
+    coordinates = re.fullmatch(
+        r"\s*([+-]?\d+(?:\.\d+)?)\s*[,; ]\s*([+-]?\d+(?:\.\d+)?)\s*",
+        query,
+    )
+    if coordinates:
+        lat, lon = map(float, coordinates.groups())
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            return render(request, "dashboard/verify.html", {
+                "query": query,
+                "error": "Coordinates must be within latitude ±90 and longitude ±180 degrees.",
+            })
+        location_name = f"Coordinate search ({lat:.5f}, {lon:.5f})"
+        location_confidence = "user_coordinates"
+    else:
+        try:
+            from geopy.geocoders import Nominatim
+            location = Nominatim(user_agent="greenlens-verify/1.0").geocode(
+                query, timeout=10, language="en",
+            )
+        except Exception:
+            return render(request, "dashboard/verify.html", {
+                "query": query,
+                "error": "Place search is temporarily unavailable. Enter latitude, longitude to search by coordinates.",
+            })
+        if not location:
+            return render(request, "dashboard/verify.html", {
+                "query": query,
+                "error": f'Location "{query}" could not be found. Try a more specific name or enter latitude, longitude.',
+            })
+        lat, lon = float(location.latitude), float(location.longitude)
+        location_name = location.address
+        location_confidence = "geocoded_place"
 
     # ── Step 2: Fetch NASA climate hazards ────────────────────────────────────
     try:
@@ -1680,13 +1692,22 @@ def location_verify(request):
     heat_pct    = round(heat  * 100, 1)
     drought_pct = round(drought_severity * 100, 1)
 
-    # ── Step 4: Find nearby bonds (within ~200 km bounding box) ──────────────
-    # 1 degree lat ≈ 111 km → 2 degrees ≈ 222 km bounding box
-    bbox_deg = 1.8   # slightly < 2 to stay within 200 km at equator
-    nearby_raw = GreenBond.objects.filter(
-        lat__range=(lat - bbox_deg, lat + bbox_deg),
-        lon__range=(lon - bbox_deg, lon + bbox_deg),
-    ).prefetch_related("pcr_scores", "pricing_gaps")[:30]
+    # ── Step 4: Find nearby registry records within 200 km ────────────────────
+    latitude_radius = 200 / 110.574
+    nearby_query = GreenBond.objects.filter(
+        lat__range=(max(-90, lat - latitude_radius), min(90, lat + latitude_radius)),
+    )
+    longitude_scale = math.cos(_math.radians(lat))
+    longitude_radius = 180 if longitude_scale < 1e-6 else min(180, 200 / (111.32 * longitude_scale))
+    if longitude_radius < 180:
+        west, east = lon - longitude_radius, lon + longitude_radius
+        if west < -180:
+            nearby_query = nearby_query.filter(Q(lon__gte=west + 360) | Q(lon__lte=east))
+        elif east > 180:
+            nearby_query = nearby_query.filter(Q(lon__gte=west) | Q(lon__lte=east - 360))
+        else:
+            nearby_query = nearby_query.filter(lon__range=(west, east))
+    nearby_raw = nearby_query.prefetch_related("pcr_scores", "pricing_gaps")[:30]
 
     def _haversine(lat1, lon1, lat2, lon2):
         R = 6371.0
@@ -1733,7 +1754,7 @@ def location_verify(request):
         "main_driver_pct": int(main_driver_pct),
         "contributions": contributions,
         "nearby_bonds": nearby_bonds,
-        "source": hazards.get("source", "nasa_cmr"),
+        "source": hazards.get("source", "unknown"),
     })
 
 

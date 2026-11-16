@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Project Evidence Pilot | GreenLens{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/project_pilot.css' %}">{% endblock %}
+{% block content %}
+<div class="wb-shell pilot-shell">
+    <header class="wb-heading"><div><div class="wb-eyebrow">REAL PROJECT COHORT / TEXAS SOLAR</div><h1>Project evidence pilot</h1><p>USGS-mapped solar-array boundaries. No green-bond linkage or independent damage labels asserted.</p></div><a class="wb-outline" href="https://doi.org/10.5066/P9IA3TUS" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Source release</a></header>
+    <section class="wb-kpis" aria-label="Pilot readiness">
+        <div class="wb-kpi"><div class="wb-kpi-label">SOURCE-MAPPED PROJECTS</div><strong>{{ summary.projects }}</strong><span>Texas / ground-mounted solar</span></div>
+        <div class="wb-kpi"><div class="wb-kpi-label">OPTICAL + SAR OBSERVED</div><strong>{{ summary.both_observed }}</strong><span>Quality-gated polygon measurements</span></div>
+        <div class="wb-kpi"><div class="wb-kpi-label">REVIEWED BOUNDARIES</div><strong>{{ summary.reviewed_boundaries }}</strong><span>Human analyst approval</span></div>
+        <div class="wb-kpi"><div class="wb-kpi-label">INDEPENDENT OUTCOMES</div><strong>{{ summary.reviewed_outcomes }}</strong><span>Not generated from model predictions</span></div>
+    </section>
+    <div class="pilot-workspace">
+        <section aria-label="Project boundaries and cohort"><div id="pilot-map" aria-label="Map of actual solar-array polygons"></div><div class="pilot-records table-responsive"><table class="table"><thead><tr><th>Project</th><th>County</th><th>Evidence</th><th>Boundary</th></tr></thead><tbody>{% for project in projects %}<tr><td><button class="pilot-project" type="button" data-project="{{ project.id }}">{{ project.name }}<small>{{ project.source_id }}</small></button></td><td>{{ project.county }}</td><td>{{ project.status }}</td><td>{{ project.review }}</td></tr>{% empty %}<tr><td colspan="4">No official project cohort has been imported.</td></tr>{% endfor %}</tbody></table></div></section>
+        <aside class="pilot-inspector" aria-label="Selected project evidence" aria-live="polite"><div class="wb-eyebrow">PROJECT DOSSIER</div><h2 id="pilot-name">No project selected</h2><div id="pilot-detail"></div>
+            {% if request.user.is_staff %}
+            <form method="post" action="{% url 'dashboard:pilot_review' %}" id="pilot-review-form">{% csrf_token %}<input type="hidden" name="source_id" id="pilot-review-source"><input type="hidden" name="boundary_sha256" id="pilot-review-hash"><h3>Boundary review</h3><label for="pilot-review-notes">Evidence and decision notes</label><textarea id="pilot-review-notes" name="notes" rows="3" minlength="10" maxlength="4000" required class="form-control"></textarea><div class="pilot-review-actions"><button type="submit" class="btn btn-gl" name="review_status" value="approved"><i class="bi bi-check2-circle" aria-hidden="true"></i> Approve boundary</button><button type="submit" class="wb-outline" name="review_status" value="rejected"><i class="bi bi-x-circle" aria-hidden="true"></i> Reject</button></div></form>
+            {% else %}<p class="pilot-note">Boundary and outcome approvals require an authorized analyst account.</p>{% endif %}
+        </aside>
+    </div>
+    <section class="pilot-gates" aria-labelledby="pilot-validation"><h2 id="pilot-validation">Validation gates</h2><dl><div><dt>XGBoost + conformal evaluation</dt><dd>{{ pilot.evaluation }}</dd></div><div><dt>ResNet / Prithvi / SatMAE benchmark</dt><dd>{{ pilot.encoder_benchmark }}</dd></div><div><dt>Climate projections</dt><dd>{{ pilot.climate_scenarios }}</dd></div><div><dt>Financial optimization</dt><dd>{{ pilot.financial_optimization }}</dd></div></dl><p class="pilot-note">A measured NDVI or radar change is not a damage label, proof of additionality, or greenwashing finding. Partial sensor coverage remains partial. Approval of a boundary does not approve any outcome label.</p></section>
+    <section class="pilot-ingestion"><h2>Ingestion monitor</h2><div class="table-responsive"><table class="table"><thead><tr><th>Started UTC</th><th>Completed UTC</th><th>Status</th></tr></thead><tbody>{% for run in pilot.ingestion %}<tr><td>{{ run.started_at|date:"Y-m-d H:i" }}</td><td>{{ run.completed_at|date:"Y-m-d H:i"|default:"Pending" }}</td><td>{{ run.status }}</td></tr>{% empty %}<tr><td colspan="3">No ingestion runs recorded.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
+{{ pilot|json_script:"pilot-data" }}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/project_pilot.js' %}" defer></script>{% endblock %}

@@ -17,6 +17,20 @@ GreenLens is an AI-powered climate intelligence platform that independently veri
 
 ## Project Verification
 
+### Real Project Evidence Pilot
+
+The separate `/pilot/` workspace contains source-mapped solar facility polygons,
+not automatically linked or certified green bonds. The initial local cohort is
+30 Texas facilities from USGS/LBNL USPVDB v4.0. Seasonal polygon processing returned
+real Sentinel-2 measurements for all 30 and same-orbit Sentinel-1 measurements
+for 15; missing radar evidence remains unavailable. No independent damage labels
+or validation performance numbers were invented.
+
+[Project Pilot Protocol](PROJECT_PILOT.md) documents ingestion, staff review,
+independent-label requirements, geographic/time holdouts, split-conformal coverage,
+encoder prediction-artifact benchmarking, and reviewed-data gates for climate
+scenarios and CVXPY optimization. The existing PCRS proxy artifacts are unchanged.
+
 ### PCRS Parameters And Feature Audit
 
 `/about/#pcrs-model-parameters` is generated from the actual 20-input schema:

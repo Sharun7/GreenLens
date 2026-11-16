@@ -1,0 +1,22 @@
+.pilot-workspace { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 24px; align-items: start; }
+.pilot-workspace > * { min-width: 0; }
+#pilot-map { height: 420px; background: #1b292d; border: 1px solid #344a49; border-radius: 8px; }
+.pilot-records { margin-top: 16px; max-height: 410px; overflow-y: auto; }
+.pilot-records td,.pilot-records th { font-size: .74rem; padding: 10px; }
+.pilot-project { border: 0; padding: 0; background: none; color: #c3eadb; text-align: left; font-weight: 600; overflow-wrap: anywhere; }
+.pilot-project small { display: block; margin-top: 4px; color: #aabcb8; font-weight: 400; }
+.pilot-project[aria-pressed="true"] { color: #fff; text-decoration: underline; }
+.pilot-inspector { padding: 4px 0 16px 22px; border-left: 1px solid #344a49; }
+.pilot-inspector h2 { font-size: 1.25rem; margin: 12px 0 16px; overflow-wrap: anywhere; }
+.pilot-inspector h3,.pilot-gates h2,.pilot-ingestion h2 { font-size: 1rem; margin: 24px 0 14px; }
+.pilot-inspector dl > div,.pilot-gates dl > div { padding: 9px 0; border-bottom: 1px solid #293b3e; }
+.pilot-inspector dt,.pilot-gates dt { color: #aabcb8; font-size: .73rem; font-weight: 500; }
+.pilot-inspector dd,.pilot-gates dd { color: #ecf4f1; font-size: .78rem; margin: 5px 0 0; overflow-wrap: anywhere; }
+.pilot-note { color: #aabcb8; font-size: .76rem; line-height: 1.65; margin-top: 18px; }
+.pilot-inspector label { color: #b8cbc4; font-size: .76rem; margin-bottom: 8px; }
+.pilot-review-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pilot-review-actions button { font-size: .74rem; }
+.pilot-gates,.pilot-ingestion { padding-top: 18px; margin-top: 24px; border-top: 1px solid #344a49; }
+.pilot-gates dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.pilot-ingestion th,.pilot-ingestion td { font-size: .76rem; }
+@media (max-width: 767px) { .pilot-workspace { grid-template-columns: minmax(0, 1fr); }.pilot-inspector { border-left: 0; border-top: 1px solid #344a49; padding: 20px 0 0; }#pilot-map { height: 330px; }.pilot-gates dl { grid-template-columns: minmax(0, 1fr); gap: 8px; } }

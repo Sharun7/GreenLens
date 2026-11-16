@@ -12,22 +12,22 @@
 .rec-sell { border-left-color:#E24B4A; }
 .rec-buy { border-left-color:#1D9E75; }
 .region-pie { height:250px; }
-.constraint-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:0.75rem; background:#e0e7ff; color:#534AB7; margin-right:6px; }
+.constraint-tag { display:inline-block; padding:3px 10px; border:1px solid #385b4d; border-radius:12px; font-size:0.75rem; background:#1b332d; color:#bfeedd; margin-right:6px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">Portfolio Optimization</h2>
-        <span class="badge bg-primary">AI-Powered Rebalancing</span>
+        <h2 class="mb-0">Portfolio Risk Scenario</h2>
+        <span class="badge bg-secondary">Experimental · PCRS-ranked</span>
     </div>
 
     <div class="portfolio-card">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
             <div>
-                <h5 class="mb-1">Portfolio Upload</h5>
-                <p class="text-muted small mb-0">Paste bond IDs with holding amounts to generate a portfolio-specific climate optimization report.</p>
+                <h5 class="mb-1">Compare Submitted Holdings</h5>
+                <p class="text-muted small mb-0">Compare your records with a PCRS-ranked illustrative basket. This is not an investment recommendation or return forecast.</p>
             </div>
             <span class="badge bg-light text-dark">Format: <code>bond_id, amount</code></span>
         </div>
@@ -41,35 +41,32 @@
 
         <form method="post" class="row g-3">
             {% csrf_token %}
-            <div class="col-lg-4">
+            <div class="col-lg-6">
                 <label class="form-label">Portfolio Name</label>
                 <input type="text" class="form-control" name="portfolio_name" value="Uploaded Portfolio">
             </div>
-            <div class="col-lg-4">
-                <label class="form-label">Min Return Target (%)</label>
-                <input type="number" class="form-control" step="0.1" min="0" name="min_return_target" value="4.2">
-            </div>
-            <div class="col-lg-4">
+            <div class="col-lg-6">
                 <label class="form-label">Max Single Bond Allocation (%)</label>
                 <input type="number" class="form-control" step="0.1" min="1" max="100" name="max_single_bond_allocation" value="5.0">
             </div>
             <div class="col-12">
                 <label class="form-label">Portfolio Notes</label>
-                <input type="text" class="form-control" name="portfolio_description" value="User-uploaded portfolio optimized against GreenLens climate risk.">
+                <input type="text" class="form-control" name="portfolio_description" value="Illustrative PCRS comparison; not an investment recommendation.">
             </div>
             <div class="col-12">
                 <label class="form-label">Bond Holdings</label>
                 <textarea class="form-control" name="portfolio_input" rows="6" spellcheck="false">{{ request.POST.portfolio_input|default:sample_portfolio_input }}</textarea>
-                <div class="form-text">One bond per line. Example:<br><code>{{ sample_portfolio_input|linebreaksbr }}</code></div>
+                <div class="form-text">One registry ID and assumed amount per line. Example amounts are illustrative:<br><code>{{ sample_portfolio_input|linebreaksbr }}</code></div>
             </div>
             <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="geographic_diversification_required" id="geoConstraint" checked>
                     <label class="form-check-label" for="geoConstraint">Require geographic diversification</label>
                 </div>
-                <button type="submit" class="btn btn-success">Generate Rebalancing Report</button>
+                <button type="submit" class="btn btn-success">Generate Risk Scenario</button>
             </div>
         </form>
+        <p class="text-muted small mt-3 mb-0">The scenario ranks available records by stored PCRS and applies the allocation and geography settings. Registry locations may be approximate; liquidity, transaction costs, taxes, and mandates are not modeled.</p>
     </div>
 
     {% if latest %}
@@ -88,15 +85,14 @@
             <div class="metric-label">Improvement</div>
         </div></div>
         <div class="col-md-3"><div class="portfolio-card text-center">
-            <div class="metric-big text-primary">{{ latest.current_return }}%</div>
-            <div class="metric-label">Current Return</div>
+            <div class="metric-big text-primary">{{ latest.max_single_bond_allocation }}%</div>
+            <div class="metric-label">Maximum Allocation</div>
         </div></div>
     </div>
 
     <!-- Constraints -->
     <div class="portfolio-card">
-        <h6 class="mb-3">Optimization Constraints</h6>
-        <span class="constraint-tag">Min Return: {{ latest.min_return_target }}%</span>
+        <h6 class="mb-3">Scenario Settings</h6>
         <span class="constraint-tag">Max Allocation: {{ latest.max_single_bond_allocation }}%</span>
         <span class="constraint-tag">{% if latest.geographic_diversification_required %}Geographic Diversification{% else %}No Geo Constraint{% endif %}</span>
         <span class="constraint-tag">Status: {{ latest.get_status_display }}</span>
@@ -128,7 +124,7 @@
 
         <div class="col-lg-6">
             <div class="portfolio-card">
-                <h5>Optimized Portfolio</h5>
+                <h5>PCRS-Ranked Scenario</h5>
                 <p class="text-muted small">{{ latest.optimized_bonds|length }} bonds | Weighted Avg PCRS: {{ latest.optimized_pcrs }}</p>
                 <div class="table-responsive">
                     <table class="table table-sm">
@@ -159,12 +155,12 @@
     <div class="row">
         <div class="col-lg-6">
             <div class="portfolio-card">
-                <h5 class="text-danger">SELL — Reduce Climate Risk</h5>
+                <h5>Current Holdings to Review</h5>
                 {% for rec in latest.sell_recommendations %}
                 <div class="recommendation-card rec-sell">
                     <div class="d-flex justify-content-between">
                         <div><strong>{{ rec.bond_id }}</strong><br><small class="text-muted">{{ rec.issuer|truncatechars:30 }}</small></div>
-                        <div class="text-end"><span class="badge bg-danger">{{ rec.current_pcrs }}</span><br><small class="text-muted">Sell {{ rec.sell_amount }}M</small></div>
+                        <div class="text-end"><span class="badge bg-danger">{{ rec.current_pcrs }}</span><br><small class="text-muted">Scenario amount {{ rec.sell_amount }}M</small></div>
                     </div>
                     <small class="text-muted">{{ rec.reason }}</small>
                 </div>
@@ -173,12 +169,12 @@
         </div>
         <div class="col-lg-6">
             <div class="portfolio-card">
-                <h5 class="text-success">BUY — Climate Resilient</h5>
+                <h5>Lower-PCRS Candidate Records</h5>
                 {% for rec in latest.buy_recommendations %}
                 <div class="recommendation-card rec-buy">
                     <div class="d-flex justify-content-between">
                         <div><strong>{{ rec.bond_id }}</strong><br><small class="text-muted">{{ rec.issuer|truncatechars:30 }}</small></div>
-                        <div class="text-end"><span class="badge bg-success">{{ rec.target_pcrs }}</span><br><small class="text-muted">Buy {{ rec.buy_amount }}M</small></div>
+                        <div class="text-end"><span class="badge bg-success">{{ rec.target_pcrs }}</span><br><small class="text-muted">Scenario amount {{ rec.buy_amount }}M</small></div>
                     </div>
                     <small class="text-muted">{{ rec.reason }}</small>
                 </div>
@@ -189,13 +185,12 @@
 
     <!-- Disclaimer -->
     <div class="alert alert-warning mt-3">
-        <strong>Disclaimer:</strong> These are research-grade AI recommendations based on PCRS climate risk scores. 
-        Consult your investment advisor before executing trades. Past predictions do not guarantee future performance.
+        <strong>Research scenario only:</strong> This PCRS-ranked comparison is not an investment recommendation, trade instruction, or forecast of financial performance.
     </div>
     {% else %}
     <div class="text-center py-5">
         <div class="display-1 text-muted">📊</div>
-        <p class="text-muted mt-3">No portfolio optimizations available yet. Run <code>python manage.py migrate</code> and refresh.</p>
+        <p class="text-muted mt-3">No portfolio scenario submitted. Enter registry IDs and assumed amounts above to compare available PCRS records.</p>
     </div>
     {% endif %}
 </div>

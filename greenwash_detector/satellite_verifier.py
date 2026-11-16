@@ -540,16 +540,17 @@ class SatelliteVerifier:
     def get_historical_data(self, lat: float, lon: float, year: int, radius_km: float = 2.0) -> dict:
         """
         Fetch satellite thumbnail, NDVI, and land cover for a specific year.
-        If GEE is unavailable, returns deterministic synthetic data.
+        If real Sentinel-2 observations are unavailable, return an explicit unavailable result.
         """
-        import base64
         # Date window for the selected year
         start_date = f"{year}-01-01"
         end_date = f"{year}-12-31"
         
         # Check cache first
-        cache = _read_cache(_cache_path("history", lat, lon, year, radius_km))
-        if cache is not None:
+        cache = _read_cache(_cache_path("history_real_v2", lat, lon, year, radius_km))
+        generated_at = cache.get("generated_at") if isinstance(cache, dict) else None
+        if (cache is not None and cache.get("source") == "gee"
+            and isinstance(generated_at, (int, float)) and 0 <= time.time() - generated_at < 1800):
             return cache
 
         # Determine if GEE is available
@@ -609,89 +610,29 @@ class SatelliteVerifier:
                         "year": year,
                         "lat": lat,
                         "lon": lon,
-                        "ndvi": round(float(ndvi), 4) if ndvi is not None else 0.0,
+                        "ndvi": round(float(ndvi), 4) if ndvi is not None else None,
                         "land_cover": land_cover,
                         "thumbnail_url": thumb_url,
                         "n_images": n_images,
-                        "source": "gee"
+                        "source": "gee",
+                        "generated_at": time.time(),
                     }
-                    _write_cache(_cache_path("history", lat, lon, year, radius_km), result)
+                    _write_cache(_cache_path("history_real_v2", lat, lon, year, radius_km), result)
                     return result
             except Exception as exc:
                 logger.error("GEE historical data failed for %d at (%.4f, %.4f): %s", year, lat, lon, exc)
         
-        # Deterministic synthetic fallback
-        seed = int(
-            hashlib.md5(f"history:{lat:.4f}{lon:.4f}{year}".encode()).hexdigest(), 16
-        ) % (2 ** 31)
-        rng = random.Random(seed)
-        
-        # Base vegetation signature from coordinates
-        if abs(lat) < 15:
-            base_ndvi = rng.uniform(0.50, 0.80)   # Tropical
-            cover_choices = ["forest", "wetland", "water", "cropland"]
-        elif abs(lat) < 35:
-            base_ndvi = rng.uniform(0.25, 0.55)   # Subtropical / desert border
-            cover_choices = ["grassland", "cropland", "bare", "shrubland"]
-        else:
-            base_ndvi = rng.uniform(0.15, 0.45)   # Temperate
-            cover_choices = ["forest", "shrubland", "grassland", "built-up"]
-            
-        land_cover = rng.choice(cover_choices)
-        
-        # Add year-based fluctuation to simulate land development / climate change
-        # e.g., gradual urbanisation or greening/deforestation
-        trend = (year - 2016) * rng.uniform(-0.02, 0.015)
-        ndvi = max(-0.1, min(0.9, base_ndvi + trend))
-        
-        # Update land cover if NDVI falls too low
-        if ndvi < 0.15 and land_cover == "forest":
-            land_cover = "bare"
-        elif ndvi > 0.45 and land_cover == "bare":
-            land_cover = "grassland"
-
-        # Deterministic color styling for SVG mock thumbnail so the card looks high-end!
-        colors = {
-            "forest": "#0B4C25",
-            "shrubland": "#7E823E",
-            "grassland": "#8BB754",
-            "cropland": "#CDAA66",
-            "built-up": "#E60000",
-            "bare": "#CCB3B3",
-            "water": "#1A5D8C",
-            "wetland": "#347878"
-        }
-        fill_color = colors.get(land_cover, "#8BB754")
-        
-        # Generate inline SVG data URI as thumbnail fallback
-        mock_svg = (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">'
-            f'<rect width="200" height="200" fill="{fill_color}"/>'
-            # Add some textures / grids to simulate satellite features
-            f'<circle cx="80" cy="90" r="45" fill="#4B6E5E" opacity="0.4"/>'
-            f'<rect x="120" y="30" width="60" height="60" fill="#2E4A3F" opacity="0.3"/>'
-            f'<path d="M 0,100 Q 50,50 100,100 T 200,100" fill="none" stroke="#223E36" stroke-width="8" opacity="0.5"/>'
-            f'<text x="10" y="25" fill="#ffffff" font-family="system-ui" font-size="12" font-weight="bold" opacity="0.9">{year} Satellite Preview</text>'
-            f'<text x="10" y="45" fill="#ffffff" font-family="system-ui" font-size="10" opacity="0.7">NDVI: {ndvi:.2f}</text>'
-            f'<text x="10" y="60" fill="#ffffff" font-family="system-ui" font-size="10" opacity="0.7">Cover: {land_cover}</text>'
-            f'</svg>'
-        )
-        svg_base64 = base64.b64encode(mock_svg.encode('utf-8')).decode('utf-8')
-        thumbnail_url = f"data:image/svg+xml;base64,{svg_base64}"
-        
-        result = {
+        return {
             "year": year,
             "lat": lat,
             "lon": lon,
-            "ndvi": round(ndvi, 4),
-            "land_cover": land_cover,
-            "thumbnail_url": thumbnail_url,
-            "n_images": rng.randint(5, 20),
-            "source": "synthetic"
+            "ndvi": None,
+            "land_cover": "unavailable",
+            "thumbnail_url": None,
+            "n_images": 0,
+            "source": "unavailable",
+            "message": "No real Sentinel-2 observations are available for this year and location.",
         }
-        # Cache synthetic results too
-        _write_cache(_cache_path("history", lat, lon, year, radius_km), result)
-        return result
 
     # ──────────────────────────────────────────────────────────────────────────
     # Step 5.1c — Project consistency check

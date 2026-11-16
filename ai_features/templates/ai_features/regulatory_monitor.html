@@ -26,21 +26,26 @@
                 <span class="badge bg-success me-2">{{ data_label }}</span>
             {% elif data_status == 'stale' %}
                 <span class="badge bg-warning me-2">{{ data_label }}</span>
+            {% elif data_status == 'empty' %}
+                <span class="badge bg-secondary me-2">{{ data_label }}</span>
             {% else %}
                 <span class="badge bg-secondary me-2">{{ data_label }}</span>
             {% endif %}
-            <span class="badge bg-purple" style="background:#534AB7;">Real Data</span>
         </div>
     </div>
     
     <div class="alert alert-info mb-4">
-        <strong>📡 Real Regulatory Data</strong><br>
-        This dashboard fetches live regulatory updates from:
+        <strong>Regulatory source coverage</strong><br>
+        Scheduled collection checks these upstream sources:
         <ul class="mb-0 mt-2">
             <li><strong>EU SFDR:</strong> ESMA press news (https://www.esma.europa.eu/press-news/esma-news)</li>
             <li><strong>SEBI:</strong> Green bond circulars (https://www.sebi.gov.in)</li>
         </ul>
-        Data is refreshed daily at 6 AM UTC and cached in Redis for 24 hours.
+        {% if stats.total %}
+        <p class="mt-2 mb-0">The list below contains stored records and may not cover every relevant update. Confirm obligations with the regulator or qualified counsel.</p>
+        {% else %}
+        <p class="mt-2 mb-0">No regulatory records are currently stored. This empty result does not indicate that no relevant updates or obligations exist.</p>
+        {% endif %}
     </div>
 
     <!-- Stats -->

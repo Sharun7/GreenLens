@@ -25,11 +25,10 @@
     </div>
     
     <div class="alert alert-info mb-4">
-        <strong>🧠 Real Machine Learning Model</strong><br>
-        This dashboard uses a <strong>Multi-Layer Perceptron (MLP) neural network</strong> trained on actual PCRS historical data from the database.<br>
-        <strong>Features:</strong> flood_risk, heat_stress, drought_spei, bond_maturity, bond_age<br>
-        <strong>Training:</strong> 80/20 train/test split with early stopping<br>
-        <strong>Confidence intervals:</strong> Calculated from prediction variance on test set
+        <strong>Experimental stored model outputs</strong><br>
+        Stored MLP trajectories depend on database PCRS inputs, which may use synthetic labels, proxies, or demo hazards.
+        They are not validated predictions of future losses or defaults. Displayed confidence is a model heuristic, not a calibrated probability.
+        Regional and portfolio summaries below describe the current snapshot only. Opening this page does not train models or generate new predictions.
     </div>
 
     <!-- Stats -->
@@ -54,7 +53,7 @@
 
     <!-- Level 1: Bond-Level -->
     <div class="level-card">
-        <span class="level-badge level-1">Level 1 — Bond-Level Prediction</span>
+        <span class="level-badge level-1">Level 1 — Experimental Bond Trajectories</span>
         <h5>3-Horizon PCRS Trajectory (6mo / 12mo / 24mo)</h5>
         <p class="text-muted small">Each bond has 3 predictions: short (6-month), medium (12-month), long (24-month) under SSP2-4.5 scenario.</p>
 
@@ -73,6 +72,8 @@
                     <td>{% if row.long %}<span class="badge {% if row.long.predicted_pcrs <= 33 %}bg-success{% elif row.long.predicted_pcrs <= 66 %}bg-warning{% else %}bg-danger{% endif %}">{{ row.long.predicted_pcrs }}</span>{% else %}<span class="badge bg-secondary">—</span>{% endif %}</td>
                     <td><small>{{ row.primary_driver }}</small><br><small class="text-muted">{{ row.driver_magnitude }}</small></td>
                 </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-muted">No stored trajectories are available. Model training and evaluation must be completed separately.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
@@ -87,16 +88,16 @@
 
     <!-- Level 2: Market -->
     <div class="level-card">
-        <span class="level-badge level-2">Level 2 — Market Prediction</span>
+        <span class="level-badge level-2">Level 2 — Regional Score Snapshot</span>
         <div class="row">
             <div class="col-md-8">
                 <h5>{{ market_prediction.region }}</h5>
                 <p>{{ market_prediction.prediction }}</p>
-                <p class="text-muted small"><strong>Recommended:</strong> {{ market_prediction.recommended_action }}</p>
+                <p class="text-muted small"><strong>Review:</strong> {{ market_prediction.recommended_action }}</p>
             </div>
             <div class="col-md-4 text-end">
-                <div class="display-5 fw-bold text-primary">{{ market_prediction.confidence }}%</div>
-                <div class="text-muted">Confidence</div>
+                <div class="display-5 fw-bold text-primary">{{ market_prediction.record_count }}</div>
+                <div class="text-muted">Records in Region</div>
                 <div class="mt-2 text-muted small">Timeframe: {{ market_prediction.timeframe }}</div>
             </div>
         </div>
@@ -104,15 +105,15 @@
 
     <!-- Level 3: Systemic -->
     <div class="level-card">
-        <span class="level-badge level-3">Level 3 — Systemic Risk Prediction</span>
+        <span class="level-badge level-3">Level 3 — Score Concentration Snapshot</span>
         <div class="row">
             <div class="col-md-3 text-center">
                 <div class="display-4 fw-bold text-danger">{{ systemic_prediction.unviable_pct }}%</div>
-                <div class="text-muted small">Bonds Unviable</div>
+                <div class="text-muted small">Scored Records Above PCRS 60</div>
             </div>
             <div class="col-md-3 text-center">
-                <div class="display-4 fw-bold text-warning">{{ systemic_prediction.stranded_assets_eur }}B</div>
-                <div class="text-muted small">Stranded Assets (EUR)</div>
+                <div class="display-4 fw-bold text-warning">{{ systemic_prediction.scored_count }}</div>
+                <div class="text-muted small">Scored Records</div>
             </div>
             <div class="col-md-6">
                 <p><strong>Scenario:</strong> {{ systemic_prediction.scenario }}</p>
@@ -126,7 +127,7 @@
 
 {% block extra_js %}
 <script>
-const scData = {{ scenario_chart_data|safe }};
+const scData = JSON.parse('{{ scenario_chart_data|escapejs }}');
 new Chart(document.getElementById('scenarioChart'), {
     type: 'bar',
     data: {

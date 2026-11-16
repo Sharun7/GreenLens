@@ -27,6 +27,7 @@ __pycache__/
 # Satellite data cache
 greenlens/data/*.json
 data/cache/
+data/gee_cache/
 
 # Data files (large CSV/JSON files)
 # data/*.csv  ← Commented out to allow green_bonds-21.csv
@@ -58,4 +59,5 @@ staticfiles/
 # Agent logs, documentation, and reports
 /*.md
 !/README.md
+!/PROJECT_PILOT.md
 

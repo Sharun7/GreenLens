@@ -19,7 +19,7 @@ import threading
 from django.db.models import Avg, Count, Q
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from data_ingestion.models import GreenBond
@@ -109,7 +109,7 @@ class GreenwashFlagViewSet(viewsets.ReadOnlyModelViewSet):
             "by_land_use": list(by_land_use),
         })
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @action(detail=False, methods=["post"], permission_classes=[IsAdminUser])
     def check(self, request):
         """
         POST /api/greenwash/flags/check/
@@ -189,6 +189,9 @@ class GreenwashFlagViewSet(viewsets.ReadOnlyModelViewSet):
         GET /api/greenwash/flags/history/?lat=12.3&lon=45.6&year=2021
         Returns satellite thumbnail, NDVI, and land cover for a specific coordinates and year.
         """
+        import math
+        from datetime import date
+
         lat_str = request.query_params.get("lat")
         lon_str = request.query_params.get("lon")
         year_str = request.query_params.get("year")
@@ -202,8 +205,12 @@ class GreenwashFlagViewSet(viewsets.ReadOnlyModelViewSet):
             lon = float(lon_str)
             year = int(year_str)
             radius_km = float(radius_str)
-        except ValueError:
-            return Response({"error": "Invalid format for lat, lon, year, or radius_km"}, status=400)
+            if (not all(math.isfinite(value) for value in (lat, lon, radius_km))
+                    or not -90 <= lat <= 90 or not -180 <= lon <= 180
+                    or not 2017 <= year <= date.today().year or not 0.1 <= radius_km <= 20):
+                raise ValueError
+        except (ValueError, OverflowError):
+            return Response({"error": "Use latitude -90 to 90, longitude -180 to 180, a year from 2017 to the current year, and radius_km 0.1 to 20."}, status=400)
             
         try:
             from .satellite_verifier import SatelliteVerifier
@@ -214,7 +221,7 @@ class GreenwashFlagViewSet(viewsets.ReadOnlyModelViewSet):
             logger.error("Error fetching historical satellite data: %s", exc)
             return Response({"error": str(exc)}, status=500)
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @action(detail=False, methods=["post"], permission_classes=[IsAdminUser])
     def batch_check(self, request):
         """
         POST /api/greenwash/flags/batch_check/

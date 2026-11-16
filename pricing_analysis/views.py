@@ -23,8 +23,8 @@ from datetime import date
 
 from django.db.models import Avg, Count, Max, Min, Q
 from rest_framework import filters, status, viewsets
-from rest_framework.decorators import action, api_view
-from rest_framework.permissions import AllowAny
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from data_ingestion.models import GreenBond
@@ -130,7 +130,7 @@ class PricingGapViewSet(viewsets.ReadOnlyModelViewSet):
             "by_category": list(by_category),
         })
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @action(detail=False, methods=["post"], permission_classes=[IsAdminUser])
     def compute(self, request):
         """
         POST /api/pricing/gaps/compute/
@@ -162,7 +162,7 @@ class PricingGapViewSet(viewsets.ReadOnlyModelViewSet):
             "calculation_date": gap.calculation_date.isoformat() if gap.calculation_date else None,
         })
 
-    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @action(detail=False, methods=["post"], permission_classes=[IsAdminUser])
     def batch_compute(self, request):
         """
         POST /api/pricing/gaps/batch_compute/
@@ -205,6 +205,7 @@ class PricingGapViewSet(viewsets.ReadOnlyModelViewSet):
 # ── Analyser endpoints (function-based views) ─────────────────────────────────
 
 @api_view(["POST"])
+@permission_classes([IsAdminUser])
 def fit_analyser(request):
     """
     POST /api/pricing/analyser/fit/
@@ -375,6 +376,7 @@ def get_market_summary(request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAdminUser])
 def analyse_bond(request):
     """
     POST /api/pricing/analyser/analyse/

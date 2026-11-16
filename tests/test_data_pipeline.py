@@ -25,6 +25,19 @@ class BondRouteTests(SimpleTestCase):
         self.assertEqual(match.url_name, "greenbond-detail")
         self.assertEqual(match.kwargs["pk"], "123")
 
+    @patch("greenwash_detector.satellite_verifier.SatelliteVerifier")
+    def test_invalid_history_queries_do_not_start_remote_processing(self, verifier):
+        client = Client(HTTP_HOST="localhost")
+        invalid_values = (
+            {"lat": "nan"}, {"lon": "inf"}, {"lat": "91"}, {"lon": "181"},
+            {"year": "2016"}, {"year": "9999"}, {"radius_km": "-1"}, {"radius_km": "1000"},
+        )
+        for invalid in invalid_values:
+            with self.subTest(invalid=invalid):
+                query = {"lat": "9.5", "lon": "76.4", "year": "2021", **invalid}
+                self.assertEqual(client.get("/api/greenwash/flags/history/", query).status_code, 400)
+        verifier.assert_not_called()
+
 
 class SatelliteEvidenceTests(SimpleTestCase):
     def setUp(self):
@@ -108,6 +121,47 @@ class SatelliteEvidenceTests(SimpleTestCase):
         inconsistent, confidence = self.detector._classify(self.bond, self.ndvi)
         self.assertFalse(inconsistent)
         self.assertEqual(confidence, 0.0)
+
+
+class HistoricalSatelliteEvidenceTests(SimpleTestCase):
+    @patch("greenwash_detector.satellite_verifier._read_cache")
+    def test_expired_thumbnail_cache_is_not_reused(self, read_cache):
+        from greenwash_detector.satellite_verifier import SatelliteVerifier
+
+        read_cache.return_value = {
+            "source": "gee", "thumbnail_url": "https://example.com/expired.png",
+            "generated_at": 1, "ndvi": 0.4, "n_images": 2,
+        }
+        result = SatelliteVerifier(skip_gee=True).get_historical_data(9.5, 76.4, 2021)
+        self.assertIsNone(result["thumbnail_url"])
+        self.assertEqual(result["source"], "unavailable")
+
+    @patch("greenwash_detector.satellite_verifier._read_cache")
+    def test_fresh_real_history_cache_is_preserved(self, read_cache):
+        import time
+        from greenwash_detector.satellite_verifier import SatelliteVerifier
+
+        read_cache.return_value = {"source": "gee", "generated_at": time.time(), "ndvi": 0.4}
+        self.assertEqual(SatelliteVerifier(skip_gee=True).get_historical_data(9.5, 76.4, 2021), read_cache.return_value)
+
+    @patch("greenwash_detector.satellite_verifier._write_cache")
+    @patch("greenwash_detector.satellite_verifier._read_cache")
+    def test_legacy_synthetic_history_is_not_returned_as_satellite_evidence(self, read_cache, write_cache):
+        from greenwash_detector.satellite_verifier import SatelliteVerifier
+
+        read_cache.return_value = {
+            "source": "synthetic",
+            "thumbnail_url": "data:image/svg+xml;base64,ZmFrZQ==",
+            "ndvi": 0.62,
+            "n_images": 12,
+        }
+        result = SatelliteVerifier(skip_gee=True).get_historical_data(9.5, 76.4, 2021)
+
+        self.assertEqual(result["source"], "unavailable")
+        self.assertIsNone(result["thumbnail_url"])
+        self.assertIsNone(result["ndvi"])
+        self.assertEqual(result["n_images"], 0)
+        write_cache.assert_not_called()
 
 
 class OpticalThumbnailTests(SimpleTestCase):
@@ -230,16 +284,193 @@ class DataPipelineRealityTests(TestCase):
         self.assertContains(response, "Quarterly PCRS retraining")
         self.assertContains(response, "Missing Data Handling")
 
+    @patch("ai_features.regulatory_fetcher.fetch_and_save_regulatory_updates")
+    def test_empty_regulatory_monitor_does_not_claim_coverage_or_fetch_on_request(self, fetch_updates):
+        response = self.client.get("/ai/regulatory/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No regulatory records collected")
+        self.assertContains(response, "does not indicate that no relevant updates")
+        self.assertNotContains(response, ">Real Data<")
+        fetch_updates.assert_not_called()
+
+    def test_portfolio_page_does_not_create_a_default_portfolio(self):
+        from ai_features.models import PortfolioOptimization
+
+        response = self.client.get("/ai/portfolio/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No portfolio scenario submitted")
+        self.assertNotContains(response, "AI-Powered Rebalancing")
+        self.assertNotContains(response, "Current Return")
+        self.assertEqual(PortfolioOptimization.objects.count(), 0)
+
+    def test_verify_idle_page_renders_coordinate_picker(self):
+        response = self.client.get("/verify/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="verify-picker-map"')
+        self.assertContains(response, "Pick a location on the map")
+
+    def test_cinematic_explorer_keeps_accessible_modes_and_local_3d_assets(self):
+        from django.contrib.staticfiles import finders
+
+        response = self.client.get("/")
+        for text in ('id="wb-globe-tab"', 'id="wb-map-tab"', 'id="wb-table-tab"',
+                     'aria-label="Pause globe rotation"', 'aria-controls="gl-chat-panel"',
+                     "css/cinematic.css", "Research, grounded in evidence."):
+            self.assertContains(response, text)
+        self.assertNotContains(response, "1,275+ green bonds")
+        self.assertNotContains(response, "Powered by Gemini · Live bond data")
+        for asset in ("js/orbital-globe.js", "js/cinematic.js", "vendor/three/three.module.min.js",
+                      "vendor/three/OrbitControls.js", "vendor/three/earth-day.jpg",
+                      "vendor/three/earth-normal.jpg", "vendor/three/earth-specular.jpg", "vendor/three/LICENSE"):
+            self.assertIsNotNone(finders.find(asset), asset)
+
+    def test_csv_export_respects_workbench_filters(self):
+        import csv
+        import io
+
+        response = self.client.get("/export/", {"country": "India"})
+        rows = list(csv.DictReader(io.StringIO(response.content.decode())))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([row["Bond ID"] for row in rows], [self.bond.bond_id])
+        response = self.client.get("/export/", {"country": "Norway"})
+        self.assertEqual(len(list(csv.DictReader(io.StringIO(response.content.decode())))), 0)
+        self.assertEqual(self.client.get("/export/", {"min_score": "nan"}).status_code, 400)
+
+    def test_pricing_uses_latest_record_and_basis_point_units(self):
+        PricingGap.objects.create(
+            bond=self.bond, actual_spread_bps=400, predicted_spread_bps=200,
+            data_source="test", is_live=False,
+        )
+        response = self.client.get("/pricing/")
+        self.assertEqual(response.context["stats"]["total_analyzed"], 1)
+        self.assertEqual(response.context["stats"]["mispriced_count"], 1)
+        self.assertContains(response, "Modelled spread (bps)")
+        self.assertContains(response, 'id="pricing-flagged"')
+        self.assertNotContains(response, "Fitted Yield (%)")
+
+    def test_exports_do_not_invent_isin_or_execute_spreadsheet_formulas(self):
+        import csv
+        import io
+
+        self.bond.issuer_name = '=HYPERLINK("https://example.com")'
+        self.bond.save()
+        for path in ("/export/", "/export/sfdr/"):
+            response = self.client.get(path)
+            row = next(csv.DictReader(io.StringIO(response.content.decode())))
+            self.assertTrue(row["Issuer Name"].startswith("'="))
+            if path.endswith("sfdr/"):
+                self.assertEqual(row["ISIN"], "")
+                self.assertIn("not a certified", row["Report Status"])
+                self.assertEqual(row["Hazard Input Status"], "Demo / fallback estimate")
+
+    def test_profile_labels_estimated_data_and_scales_observed_confidence(self):
+        flag = self.bond.greenwash_flags.first()
+        flag.verification_status = "verifiable"
+        flag.confidence = 0.84
+        flag.raw_ee_metadata = {"source": "gee"}
+        flag.before_image_url = "https://example.com/before.png"
+        flag.save()
+        response = self.client.get(f"/bond/{self.bond.bond_id}/")
+        self.assertContains(response, "Confidence: 84%")
+        self.assertContains(response, "Estimated spread")
+        self.assertContains(response, "Demo / fallback estimate")
+        self.assertNotContains(response, "Fairly Priced")
+        flag.raw_ee_metadata = {"source": "synthetic"}
+        flag.save()
+        response = self.client.get(f"/bond/{self.bond.bond_id}/")
+        self.assertContains(response, "Unverifiable")
+        self.assertNotContains(response, 'src="https://example.com/before.png"')
+
+    def test_about_commercial_model_shows_proposed_tiers_and_limitations(self):
+        response = self.client.get("/about/")
+        self.assertEqual(response.status_code, 200)
+        for text in (
+            'id="commercial-model"', "Commercial Model", "Asset Management Companies",
+            "Regulators", "Research Institutions", "Research Tier", "Professional Tier",
+            "Enterprise Tier", "€299", "€2,999", "Competitive Positioning",
+            "Proposed commercial model:", "unverified planning assumptions",
+            "not 1,345 independently verified projects",
+        ):
+            self.assertContains(response, text)
+
+    @patch("data_ingestion.nasa_fetcher.NASAClimateDataFetcher.get_all_hazards")
+    def test_verify_nearby_records_include_high_latitude_and_dateline_points(self, get_hazards):
+        get_hazards.return_value = {
+            "flood_risk_index": 0.4, "heat_stress_index": 0.5,
+            "drought_spei": -0.6, "source": "heuristic",
+        }
+        high_latitude_bond = GreenBond.objects.create(
+            bond_id="HIGH_LATITUDE_001", issuer_name="High Latitude Issuer",
+            country="Norway", project_category="wind", project_description="Test wind project",
+            bond_maturity_years=9, issuance_date=date(2024, 5, 1), currency="USD",
+            amount_millions=120, lat=80.0, lon=10.0, location_confidence="country", data_source="CBI",
+        )
+        dateline_bond = GreenBond.objects.create(
+            bond_id="DATELINE_001", issuer_name="Dateline Issuer",
+            country="Fiji", project_category="water", project_description="Test water project",
+            bond_maturity_years=9, issuance_date=date(2024, 5, 1), currency="USD",
+            amount_millions=120, lat=0.0, lon=-179.5, location_confidence="country", data_source="CBI",
+        )
+
+        high_latitude_response = self.client.get("/verify/", {"q": "80, 0"})
+        high_latitude_ids = {item["bond"].bond_id for item in high_latitude_response.context["nearby_bonds"]}
+        self.assertIn(high_latitude_bond.bond_id, high_latitude_ids)
+
+        dateline_response = self.client.get("/verify/", {"q": "0, 179.5"})
+        dateline_ids = {item["bond"].bond_id for item in dateline_response.context["nearby_bonds"]}
+        self.assertIn(dateline_bond.bond_id, dateline_ids)
+
     def test_home_map_uses_public_satellite_tiles_without_a_provider_key(self):
+        from pathlib import Path
+        from django.contrib.staticfiles import finders
+
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "server.arcgisonline.com/ArcGIS/rest/services/World_Imagery")
-        self.assertContains(response, "https://tile.openstreetmap.org/")
-        self.assertNotContains(response, "mt1.google.com/vt/")
+        self.assertContains(response, "js/workbench.js")
+        controller = Path(finders.find("js/workbench.js")).read_text()
+        self.assertIn("server.arcgisonline.com/ArcGIS/rest/services/World_Imagery", controller)
+        self.assertIn("https://tile.openstreetmap.org/", controller)
+        self.assertNotIn("mt1.google.com/vt/", controller)
         response = self.client.get(f"/bond/{self.bond.bond_id}/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "server.arcgisonline.com/ArcGIS/rest/services/World_Imagery")
         self.assertNotContains(response, "mt1.google.com/vt/")
+
+    @patch("geopy.geocoders.Nominatim.geocode")
+    @patch("data_ingestion.nasa_fetcher.NASAClimateDataFetcher.get_all_hazards")
+    def test_verify_accepts_coordinates_without_place_geocoding(self, get_hazards, geocode):
+        get_hazards.return_value = {
+            "flood_risk_index": 0.4, "heat_stress_index": 0.5,
+            "drought_spei": -0.6, "source": "heuristic",
+        }
+        response = self.client.get("/verify/", {"q": "9.5, 76.4"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Coordinate search")
+        self.assertContains(response, "Rule-based composite")
+        self.assertContains(response, "Not a PCRS model prediction")
+        geocode.assert_not_called()
+        get_hazards.assert_called_once_with(9.5, 76.4)
+
+    @patch("geopy.geocoders.Nominatim.geocode")
+    def test_verify_rejects_out_of_range_coordinates_without_network(self, geocode):
+        for query in ("91, 181", "100, 0", "-100, 0", "+100, -181"):
+            response = self.client.get("/verify/", {"q": query})
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Coordinates must be within")
+        geocode.assert_not_called()
+
+    @patch("data_ingestion.nasa_fetcher.NASAClimateDataFetcher.get_all_hazards")
+    @patch("geopy.geocoders.Nominatim.geocode")
+    def test_verify_place_search_still_uses_nominatim(self, geocode, get_hazards):
+        geocode.return_value = SimpleNamespace(latitude=9.5, longitude=76.4, address="Kochi, Kerala")
+        get_hazards.return_value = {
+            "flood_risk_index": 0.4, "heat_stress_index": 0.5,
+            "drought_spei": -0.6, "source": "heuristic",
+        }
+        response = self.client.get("/verify/", {"q": "Kochi, India"})
+        self.assertEqual(response.status_code, 200)
+        geocode.assert_called_once()
+        get_hazards.assert_called_once_with(9.5, 76.4)
 
     def test_esma_report_does_not_invent_compliance_evidence(self):
         report = RegulatoryComplianceGenerator.generate_esma_report(self.bond)
@@ -267,6 +498,59 @@ class DataPipelineRealityTests(TestCase):
                 self.assertEqual(response.json()["total_bonds"], 1)
                 self.assertEqual(response.json()["clusters"][0]["count"], 1)
                 self.assertEqual(response.json()["clusters"][0]["avg_pcr"], 80)
+
+    def test_workbench_search_and_detail_preserve_demo_provenance(self):
+        response = self.client.get("/api/workbench/data/", {"q": "Pipeline"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["total"], 1)
+        self.assertEqual(response.json()["results"][0]["satellite_status"], "Unverifiable")
+        detail = self.client.get(f"/api/workbench/bonds/{self.bond.bond_id}/").json()
+        self.assertEqual(detail["hazards"]["status"], "Demo / fallback estimate")
+        self.assertEqual(detail["pricing_status"], "Estimated spread")
+        self.assertEqual(detail["satellite"]["status"], "Unverifiable")
+
+    def test_workbench_map_clusters_latest_scores_without_duplicate_bonds(self):
+        PCRScore.objects.create(
+            bond=self.bond, score=80, flood_contribution=1, heat_contribution=1,
+            drought_contribution=1, model_version="new-test", shap_values={},
+        )
+        response = self.client.get("/api/workbench/map/", {"zoom": 2})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["total"], 1)
+        self.assertEqual(response.json()["results"][0]["count"], 1)
+        self.assertEqual(response.json()["results"][0]["score"], 80)
+
+    def test_workbench_rejects_invalid_numeric_filters_and_bounds(self):
+        self.assertEqual(self.client.get("/api/workbench/data/", {"min_score": "NaN"}).status_code, 400)
+        self.assertEqual(self.client.get("/api/workbench/map/", {"south": 91}).status_code, 400)
+
+    def test_workbench_review_filter_rejects_synthetic_flags(self):
+        GreenwashFlag.objects.filter(bond=self.bond).update(
+            verification_status="verifiable", is_inconsistent=True,
+            raw_ee_metadata={"method": "synthetic"},
+        )
+        response = self.client.get("/api/workbench/data/", {"flagged": 1})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["total"], 0)
+
+    def test_workbench_never_labels_conflicting_synthetic_provenance_as_observed(self):
+        GreenwashFlag.objects.filter(bond=self.bond).update(
+            verification_status="verifiable", is_inconsistent=True,
+            raw_ee_metadata={"source": "synthetic", "collection": "COPERNICUS/S2_SR_HARMONIZED"},
+        )
+        self.assertEqual(self.client.get("/api/workbench/data/", {"flagged": 1}).json()["total"], 0)
+        self.assertEqual(self.client.get("/api/workbench/bonds/PIPELINE_001/").json()["satellite_status"], "Unverifiable")
+
+    def test_workbench_exposes_only_manifest_backed_shap_factors(self):
+        score = PCRScore.objects.get(bond=self.bond)
+        score.feature_metadata = {"artifact_status": "manifest_checked"}
+        score.shap_values = {"flood_risk_index": 2.5, "heat_stress_index": -4}
+        score.save(update_fields=["feature_metadata", "shap_values"])
+        factors = self.client.get("/api/workbench/bonds/PIPELINE_001/").json()["shap_factors"]
+        self.assertEqual(factors[0]["feature"], "heat_stress_index")
+        score.feature_metadata = {}
+        score.save(update_fields=["feature_metadata"])
+        self.assertEqual(self.client.get("/api/workbench/bonds/PIPELINE_001/").json()["shap_factors"], [])
 
     def test_alerts_do_not_invent_weather_events_for_demo_data(self):
         response = self.client.get("/api/alerts/")

@@ -9,6 +9,109 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
+class PilotProject(models.Model):
+    class ReviewStatus(models.TextChoices):
+        PENDING = "pending", "Source mapped; analyst review pending"
+        APPROVED = "approved", "Boundary reviewed"
+        REJECTED = "rejected", "Rejected"
+
+    source_id = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=255)
+    country = models.CharField(max_length=100)
+    region = models.CharField(max_length=100)
+    category = models.CharField(max_length=30, default="solar")
+    boundary = models.JSONField()
+    boundary_sha256 = models.CharField(max_length=64)
+    source_url = models.URLField(max_length=1000)
+    source_version = models.CharField(max_length=100)
+    source_metadata = models.JSONField(default=dict)
+    review_status = models.CharField(max_length=12, choices=ReviewStatus.choices, default=ReviewStatus.PENDING)
+    reviewed_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.PROTECT)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True)
+    imported_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["source_id"]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        from .pilot import boundary_hash
+
+        if self.boundary_sha256 != boundary_hash(self.boundary):
+            raise ValidationError("The recorded boundary checksum does not match the polygon.")
+        if self.review_status == self.ReviewStatus.APPROVED and not (self.reviewed_by_id and self.reviewed_at and self.review_notes.strip()):
+            raise ValidationError("Boundary approval requires a reviewer, timestamp, and review notes.")
+
+    def __str__(self):
+        return f"{self.source_id}: {self.name}"
+
+
+class PilotOutcome(models.Model):
+    project = models.ForeignKey(PilotProject, on_delete=models.PROTECT, related_name="outcomes")
+    feature_date = models.DateField()
+    outcome_date = models.DateField()
+    label_available_on = models.DateField()
+    damage_fraction = models.FloatField(validators=[MinValueValidator(0), MaxValueValidator(1)])
+    label_source_url = models.URLField(max_length=1000)
+    label_method = models.CharField(max_length=255)
+    independently_observed = models.BooleanField(default=False)
+    features = models.JSONField(default=dict)
+    feature_provenance = models.JSONField(default=dict)
+    reviewed_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.PROTECT)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["outcome_date", "pk"]
+        constraints = [models.UniqueConstraint(fields=["project", "outcome_date"], name="unique_pilot_project_outcome")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        import math
+
+        if self.damage_fraction is not None and (not math.isfinite(self.damage_fraction) or not 0 <= self.damage_fraction <= 1):
+            raise ValidationError("Observed damage must be a finite fraction between zero and one.")
+        if all((self.feature_date, self.outcome_date, self.label_available_on)) and not self.feature_date < self.outcome_date <= self.label_available_on:
+            raise ValidationError("Features must precede the outcome, and labels cannot be available before the outcome.")
+        if self.independently_observed and not (self.reviewed_by_id and self.reviewed_at and self.notes.strip()):
+            raise ValidationError("Independent labels require a reviewer, review timestamp, and evidence notes.")
+        if self.independently_observed:
+            from risk_scoring.pilot_evaluation import outcome_row, validate_rows
+
+            try:
+                validate_rows([outcome_row(self)])
+            except (ValueError, TypeError, KeyError, AttributeError) as exc:
+                raise ValidationError(f"Independent-label gate: {exc}") from exc
+
+
+class PilotIngestionRun(models.Model):
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True)
+    status = models.CharField(max_length=20, default="running")
+    source_url = models.URLField(max_length=1000)
+    source_sha256 = models.CharField(max_length=64, blank=True)
+    result = models.JSONField(default=dict)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+
+
+class PilotEvidence(models.Model):
+    project = models.ForeignKey(PilotProject, on_delete=models.PROTECT, related_name="evidence_runs")
+    boundary_sha256 = models.CharField(max_length=64)
+    windows = models.JSONField()
+    status = models.CharField(max_length=20)
+    optical = models.JSONField(default=dict)
+    sar = models.JSONField(default=dict)
+    recipe_version = models.CharField(max_length=50, default="s1-s2-polygon-v1")
+    collected_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-collected_at", "-pk"]
+
+
 class GreenBond(models.Model):
     """Represents a single green bond and its financed project."""
 

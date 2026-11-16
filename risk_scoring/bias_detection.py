@@ -230,13 +230,13 @@ class BiasDetector:
             # Bias severity classification
             if mean_variance > 15.0:
                 severity = "HIGH"
-                status = "Model highly uncertain — potential bias"
+                status = "High contribution spread; validation required"
             elif mean_variance > 8.0:
                 severity = "MEDIUM"
-                status = "Model moderately uncertain"
+                status = "Moderate contribution spread; validation required"
             else:
                 severity = "LOW"
-                status = "Model confident — good coverage"
+                status = "Low contribution spread; not evidence of calibration"
             
             regional_stats[region] = {
                 "bond_count": len(data["bonds"]),
@@ -248,11 +248,11 @@ class BiasDetector:
             }
         
         return {
-            "summary": "Geographic bias detected via SHAP variance analysis",
+            "summary": "Regional SHAP contribution-spread diagnostics",
             "regional_stats": regional_stats,
             "interpretation": (
-                "High variance regions indicate model uncertainty and potential bias. "
-                "These regions need stratified resampling or region-specific fine-tuning."
+                "SHAP spread describes model contributions, not predictive uncertainty or measured bias. "
+                "Regional holdout labels and calibration checks are required to assess performance."
             ),
         }
     
@@ -295,16 +295,8 @@ class BiasDetector:
         avg_heat_dev = np.mean([c["heat_deviation"] for c in correlations])
         avg_drought_dev = np.mean([c["drought_deviation"] for c in correlations])
         
-        # Bias severity
-        if avg_flood_dev < 15 and avg_heat_dev < 15 and avg_drought_dev < 15:
-            severity = "HIGH"
-            status = "Model may be learning circular patterns from synthetic labels"
-        elif avg_flood_dev < 25 and avg_heat_dev < 25 and avg_drought_dev < 25:
-            severity = "MEDIUM"
-            status = "Moderate correlation with input features"
-        else:
-            severity = "LOW"
-            status = "Model learning beyond input features"
+        severity = "UNVALIDATED"
+        status = "Synthetic-label circularity cannot be ruled out without independent outcomes"
         
         return {
             "summary": "Synthetic label bias analysis",
@@ -327,6 +319,7 @@ class BiasDetector:
         European landscapes over-represented, tropical/arid zones under-represented.
         """
         logger.info("Analyzing CNN classifier geographic bias...")
+        from dashboard.workbench import observed_satellite
         
         regional_accuracy = defaultdict(lambda: {
             "total": 0,
@@ -344,7 +337,7 @@ class BiasDetector:
             
             regional_accuracy[region]["total"] += 1
             
-            if flag.verification_status == "unverifiable":
+            if not observed_satellite(flag.raw_ee_metadata, flag.verification_status, flag.model_version):
                 regional_accuracy[region]["unverifiable"] += 1
             elif flag.is_inconsistent:
                 regional_accuracy[region]["inconsistent"] += 1
@@ -355,39 +348,26 @@ class BiasDetector:
         regional_stats = {}
         for region, data in regional_accuracy.items():
             verifiable = data["total"] - data["unverifiable"]
-            if verifiable == 0:
-                continue
-            
-            accuracy = (data["consistent"] / verifiable) * 100
-            
-            # Bias detection
-            if accuracy < 60:
-                severity = "HIGH"
-                status = "Low accuracy — CNN bias likely"
-            elif accuracy < 75:
-                severity = "MEDIUM"
-                status = "Moderate accuracy"
-            else:
-                severity = "LOW"
-                status = "Good accuracy"
+            agreement = round(data["consistent"] / verifiable * 100, 1) if verifiable else None
             
             regional_stats[region] = {
                 "total_bonds": data["total"],
                 "verifiable": verifiable,
                 "consistent": data["consistent"],
                 "inconsistent": data["inconsistent"],
-                "accuracy_pct": round(accuracy, 1),
-                "bias_severity": severity,
-                "status": status,
+                "agreement_pct": agreement,
+                "accuracy_pct": None,
+                "bias_severity": "UNVALIDATED",
+                "status": "Prediction agreement only; independent labeled validation unavailable",
             }
         
         return {
             "summary": "CNN classifier geographic bias analysis",
             "regional_stats": regional_stats,
             "interpretation": (
-                "Low accuracy in tropical/arid regions indicates EuroSAT training bias. "
-                "Fix: Add BigEarthNet dataset, fine-tune on tropical forests, "
-                "South Asian agricultural land, and arid zone samples."
+                "Agreement with a project claim is not classification accuracy. "
+                "Synthetic records are not satellite evidence. Independent land-cover labels "
+                "across tropical, arid, and temperate regions are required for validation."
             ),
         }
     

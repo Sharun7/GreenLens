@@ -57,6 +57,7 @@
   · <strong>{{ bond.amount_millions }} M {{ bond.currency }}</strong>
   · Issued {{ bond.issuance_date }} · {{ bond.bond_maturity_years }}y maturity
 </p>
+<p class="text-muted small">Research record, not a verified project site. Location precision: {{ bond.get_location_confidence_display }}. Scores may use demo, proxy, or estimated inputs and are not validated forecasts of financial loss.</p>
 
 <div class="row g-3 mb-4">
   <!-- PCR Score -->
@@ -68,6 +69,7 @@
           {{ pcr.score|floatformat:1 }}
         </div>
         <div class="text-muted small mb-2">{{ pcr.risk_band }} · {{ pcr.model_version }}</div>
+        <div class="text-muted small">Input provenance: {{ pcr.feature_metadata.provenance.primary_status|default:"Not documented" }}</div>
         <hr class="border-secondary" />
         <small class="text-muted">
           Flood: <span class="{% if pcr.flood_contribution > 0 %}text-danger{% else %}text-success{% endif %}">{{ pcr.flood_contribution|floatformat:3 }}</span> &nbsp;
@@ -76,7 +78,7 @@
         </small>
       {% else %}
         <div class="text-muted">Not scored yet</div>
-        <a href="#" class="btn btn-sm btn-outline-success mt-2" onclick="scoreNow(); return false;">Score Now</a>
+        {% if request.user.is_staff %}<button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="scoreNow()">Score Now</button>{% else %}<small class="text-muted">Staff sign-in is required to run scoring.</small>{% endif %}
       {% endif %}
     </div>
   </div>
@@ -90,20 +92,20 @@
           {{ gap.gap_bps|floatformat:1 }} bps
         </div>
         <div class="text-muted small mb-2">
-          Actual: {{ gap.actual_spread_bps|floatformat:1 }} bps &nbsp;|&nbsp;
+          {% if gap.is_live %}Stored market spread{% else %}Estimated spread{% endif %}: {{ gap.actual_spread_bps|floatformat:1 }} bps &nbsp;|&nbsp;
           Predicted: {{ gap.predicted_spread_bps|floatformat:1 }} bps
         </div>
         {% if gap.is_mispriced %}
-          <span class="badge bg-warning text-dark">⚡ Mispriced</span>
+          <span class="badge bg-warning text-dark">Potential gap — review required</span>
         {% else %}
-          <span class="badge bg-success">✓ Fairly Priced</span>
+          <span class="badge bg-secondary">No gap above model threshold</span>
         {% endif %}
         <div class="text-muted small mt-1">
           Source: {{ gap.data_source }} · {% if gap.is_live %}Live{% else %}Synthetic{% endif %}
         </div>
       {% else %}
         <div class="text-muted">No pricing data</div>
-        <a href="#" class="btn btn-sm btn-outline-warning mt-2" onclick="computeGap(); return false;">Compute Gap</a>
+        {% if request.user.is_staff %}<button type="button" class="btn btn-sm btn-outline-warning mt-2" onclick="computeGap()">Compute Gap</button>{% else %}<small class="text-muted">Staff sign-in is required to compute pricing.</small>{% endif %}
       {% endif %}
     </div>
   </div>
@@ -112,7 +114,7 @@
   <div class="col-md-4">
     <div class="stat-card h-100">
       <div class="text-muted small mb-1">Greenwash Check</div>
-      {% if flag.verification_status == 'unverifiable' %}
+      {% if flag and not satellite_observed %}
         <div class="value text-muted">Unverifiable</div>
         <p class="text-muted small mb-0">No verified satellite evidence is available for this record.</p>
       {% elif flag %}
@@ -123,14 +125,14 @@
           Claimed: <strong>{{ flag.claimed_project_type }}</strong><br />
           Observed: <strong>{{ flag.satellite_land_use }}</strong><br />
           NDVI Δ: <span class="{% if flag.ndvi_change < 0 %}text-danger{% else %}text-success{% endif %}">{{ flag.ndvi_change|floatformat:4 }}</span>
-          &nbsp;·&nbsp; Confidence: {{ flag.confidence|floatformat:0 }}%
+          &nbsp;·&nbsp; Confidence: {% widthratio flag.confidence 1 100 %}%
         </div>
         {% if flag.pre_project_image_date %}
           <small class="text-muted">Pre: {{ flag.pre_project_image_date }} → Post: {{ flag.post_project_image_date }}</small>
         {% endif %}
       {% else %}
         <div class="text-muted">Not checked yet</div>
-        <a href="#" class="btn btn-sm btn-outline-danger mt-2" onclick="runGreenwashCheck(); return false;">Check Now</a>
+        {% if request.user.is_staff %}<button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="runGreenwashCheck()">Check Now</button>{% else %}<small class="text-muted">Staff sign-in is required to run satellite processing.</small>{% endif %}
       {% endif %}
     </div>
   </div>
@@ -141,13 +143,13 @@
   <div class="bond-imagery-grid">
     <div>
       <h3 class="small text-muted">Before</h3>
-      {% if flag.before_image_url %}
+      {% if satellite_observed and flag.before_image_url %}
       <img class="bond-optical-image" src="{{ flag.before_image_url }}" alt="Stored pre-project optical composite" loading="lazy">
       {% else %}<div class="bond-image-missing">No pre-project optical image has been stored.</div>{% endif %}
     </div>
     <div>
       <h3 class="small text-muted">After</h3>
-      {% if flag.after_image_url %}
+      {% if satellite_observed and flag.after_image_url %}
       <img class="bond-optical-image" src="{{ flag.after_image_url }}" alt="Stored post-project optical composite" loading="lazy">
       {% else %}<div class="bond-image-missing">No post-project optical image has been stored.</div>{% endif %}
     </div>
@@ -176,6 +178,7 @@
 <!-- Hazard data table -->
 {% if hazards %}
 <h6 style="color: #8b949e; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem;">Climate Hazard History</h6>
+<p class="text-muted small">Source names identify the stored provider label, not proof that the values were measured. {% for source in data_reliability.sources %}{% if source.key == 'climate' %}{{ source.status }}: {{ source.note }}{% endif %}{% endfor %} Check record metadata before using these inputs.</p>
 <div class="table-responsive">
   <table class="table table-dark table-sm table-hover">
     <thead><tr><th>Date</th><th>Flood Index</th><th>Heat Index</th><th>Drought SPEI</th><th>Source</th></tr></thead>
@@ -186,7 +189,7 @@
         <td>{{ h.flood_risk_index|floatformat:3 }}</td>
         <td>{{ h.heat_stress_index|floatformat:3 }}</td>
         <td>{{ h.drought_spei|floatformat:3 }}</td>
-        <td>{{ h.get_source_display }}</td>
+        <td>{{ h.get_source_display }}{% if h.raw_metadata.fallback or h.raw_metadata.method == 'synthetic' or h.raw_metadata.source == 'deployment_bootstrap' %} · Demo / fallback estimate{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -210,7 +213,7 @@ if (siteLatitude !== null && siteLongitude !== null) {
   document.getElementById('bond-location-map').textContent = 'No coordinates are available for this record.';
 }
 const BOND_PK = {{ bond.pk }};
-const BOND_ID = "{{ bond.bond_id }}";
+const BOND_ID = "{{ bond.bond_id|escapejs }}";
 
 {% if pcr and pcr.shap_values %}
 // ── SHAP Chart ──────────────────────────────────────────────────────────────

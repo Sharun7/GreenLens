@@ -7,6 +7,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 from . import resource_views
+from . import workbench
+from . import pilot_views
 
 app_name = "dashboard"
 
@@ -26,6 +28,9 @@ api_router.register(r"pricing", views.PricingGapViewSet, basename="pricing")
 urlpatterns = [
     # HTML Views
     path("", views.index, name="index"),
+    path("pilot/", pilot_views.pilot_workspace, name="project_pilot"),
+    path("pilot/review/", pilot_views.review_pilot_boundary, name="pilot_review"),
+    path("api/pilot/status/", pilot_views.pilot_status, name="pilot_status"),
     path("bond/<str:bond_id>/", views.bond_detail, name="bond_detail"),
     path("verify/", views.location_verify, name="verify"),
     path("resources/", resource_views.resources, name="resources"),
@@ -45,6 +50,9 @@ urlpatterns = [
     
     # API endpoints
     path("api/alerts/", views.live_alerts_api, name="api_alerts"),
+    path("api/workbench/data/", workbench.workbench_data, name="workbench_data"),
+    path("api/workbench/map/", workbench.workbench_map, name="workbench_map"),
+    path("api/workbench/bonds/<str:bond_id>/", workbench.workbench_detail, name="workbench_detail"),
     path("api/workflow/status/", views.workflow_status_api, name="api_workflow_status"),
     path("api/pcrs/features/", views.pcrs_features_api, name="api_pcrs_features"),
     path("api/data-reliability/", views.data_reliability_api, name="api_data_reliability"),
